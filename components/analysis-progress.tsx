@@ -1,0 +1,1 @@
+// Full updated content of analysis-progress.tsx shown above

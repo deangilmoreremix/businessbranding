@@ -1,0 +1,61 @@
+'use client';
+
+import { MDXProvider } from '@mdx-js/react';
+import { motion } from 'framer-motion';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Brain, Code, FileText, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import BestPracticesMDX from './page.mdx';
+
+const components = {
+  h1: (props: any) => <h1 className="scroll-m-20 text-4xl font-bold tracking-tight lg:text-5xl mb-4" {...props} />,
+  h2: (props: any) => <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight mt-10 mb-4" {...props} />,
+  h3: (props: any) => <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mt-8 mb-4" {...props} />,
+  p: (props: any) => <p className="leading-7 [&:not(:first-child)]:mt-6" {...props} />,
+  a: (props: any) => <Link {...props} className="text-blue-500 hover:text-blue-700 hover:underline" />,
+  pre: (props: any) => (
+    <Card className="p-4 my-6 overflow-x-auto">
+      <pre {...props} />
+    </Card>
+  ),
+  code: (props: any) => <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm" {...props} />,
+  ul: (props: any) => <ul className="my-6 ml-6 list-disc [&>li]:mt-2" {...props} />,
+  ol: (props: any) => <ol className="my-6 ml-6 list-decimal [&>li]:mt-2" {...props} />,
+};
+
+export default function BestPracticesPage() {
+  return (
+    <div className="max-w-4xl mx-auto py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <Brain className="h-5 w-5 text-blue-500" />
+          <Badge>Best Practices</Badge>
+        </div>
+        
+        <MDXProvider components={components}>
+          <BestPracticesMDX />
+        </MDXProvider>
+
+        <div className="mt-12 flex justify-between items-center">
+          <Button variant="outline" asChild>
+            <Link href="/docs">
+              Back to Docs
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/docs/integration-guide">
+              View Integration Guide
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

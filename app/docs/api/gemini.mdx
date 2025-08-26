@@ -1,0 +1,327 @@
+# Gemini API Reference
+
+## Overview
+
+The Gemini API provides advanced AI capabilities for brand analysis, content generation, and optimization. This reference covers all available endpoints and their usage.
+
+## Authentication
+
+```typescript
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+```
+
+## Endpoints
+
+### Brand Analysis
+
+```typescript
+POST /api/brand/analyze
+```
+
+Analyzes brand strategy and provides comprehensive insights.
+
+#### Request
+```typescript
+{
+  "businessDescription": string,
+  "industry"?: string,
+  "competitors"?: string[],
+  "targetAudience"?: string[]
+}
+```
+
+#### Response
+```typescript
+{
+  "healthScore": number,
+  "marketFit": number,
+  "brandFactors": Array<{
+    name: string,
+    score: number,
+    insights: string[]
+  }>,
+  "recommendations": string[]
+}
+```
+
+### Content Generation
+
+```typescript
+POST /api/content/generate
+```
+
+Generates brand-aligned content across different formats.
+
+#### Request
+```typescript
+{
+  "type": "mission" | "vision" | "values" | "description",
+  "industry": string,
+  "tone": string,
+  "length"?: number
+}
+```
+
+#### Response
+```typescript
+{
+  "content": string,
+  "variations": string[],
+  "metrics": {
+    "clarity": number,
+    "impact": number,
+    "brandAlignment": number
+  }
+}
+```
+
+### Social Media Analysis
+
+```typescript
+POST /api/social/analyze
+```
+
+Analyzes social media presence and engagement.
+
+#### Request
+```typescript
+{
+  "profiles": {
+    "facebook"?: string,
+    "twitter"?: string,
+    "instagram"?: string,
+    "linkedin"?: string
+  }
+}
+```
+
+#### Response
+```typescript
+{
+  "engagement": {
+    "score": number,
+    "metrics": Record<string, number>
+  },
+  "sentiment": {
+    "positive": number,
+    "negative": number,
+    "neutral": number
+  },
+  "recommendations": string[]
+}
+```
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- 200: Success
+- 400: Bad Request
+- 401: Unauthorized
+- 429: Too Many Requests
+- 500: Server Error
+
+Error responses:
+
+```typescript
+{
+  "error": {
+    "code": string,
+    "message": string,
+    "details"?: any
+  }
+}
+```
+
+## Rate Limits
+
+- Default: 60 requests per minute
+- Burst: 100 requests per minute
+- Daily: 10,000 requests per day
+
+## Best Practices
+
+1. **Performance**
+```typescript
+// Cache results
+const cachedAnalysis = await cache.get(cacheKey);
+if (cachedAnalysis) return cachedAnalysis;
+
+// Make API call
+const analysis = await analyzeContent();
+await cache.set(cacheKey, analysis, 3600);
+```
+
+2. **Error Handling**
+```typescript
+try {
+  const result = await makeRequest();
+} catch (error) {
+  if (error.status === 429) {
+    await sleep(1000);
+    return retry(makeRequest);
+  }
+  throw error;
+}
+```
+
+3. **Batch Processing**
+```typescript
+const batchAnalyze = async (items) => {
+  const batchSize = 10;
+  const results = [];
+  
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(item => analyzeItem(item))
+    );
+    results.push(...batchResults);
+  }
+  
+  return results;
+};
+```
+
+## Examples
+
+### Brand Analysis
+```typescript
+const analysis = await analyzeBrand({
+  description: "Tech startup focused on AI solutions",
+  industry: "Technology",
+  competitors: ["Company A", "Company B"],
+  targetAudience: ["Enterprise", "SMB"]
+});
+```
+
+### Content Generation
+```typescript
+const content = await generateContent({
+  type: "mission",
+  industry: "Healthcare",
+  tone: "professional",
+  length: 100
+});
+```
+
+### Social Analysis
+```typescript
+const socialInsights = await analyzeSocial({
+  profiles: {
+    twitter: "https://twitter.com/company",
+    linkedin: "https://linkedin.com/company/name"
+  }
+});
+```
+
+## Webhooks
+
+### Configuration
+```typescript
+POST /api/webhooks/configure
+{
+  "url": string,
+  "events": string[],
+  "secret": string
+}
+```
+
+### Event Types
+- `analysis.complete`
+- `content.generated`
+- `error.occurred`
+
+### Payload Format
+```typescript
+{
+  "event": string,
+  "timestamp": string,
+  "data": any,
+  "signature": string
+}
+```
+
+## SDK Reference
+
+### Installation
+```bash
+npm install @google/generative-ai
+```
+
+### Configuration
+```typescript
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({ 
+  model: 'gemini-1.5-pro'
+});
+```
+
+### Methods
+
+#### analyzeContent
+```typescript
+const result = await model.generateContent({
+  contents: [{ text: content }],
+  generationConfig: {
+    temperature: 0.9,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 1024
+  }
+});
+```
+
+#### streamContent
+```typescript
+const stream = await model.generateContentStream({
+  contents: [{ text: content }]
+});
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.text());
+}
+```
+
+## Migration Guide
+
+### From v1.x to v2.x
+
+1. Update imports:
+```typescript
+// Old
+import { TextGenerator } from '@google/generative-ai';
+
+// New
+import { GoogleGenerativeAI } from '@google/generative-ai';
+```
+
+2. Update model initialization:
+```typescript
+// Old
+const generator = new TextGenerator(API_KEY);
+
+// New
+const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({ 
+  model: 'gemini-1.5-pro'
+});
+```
+
+3. Update generation calls:
+```typescript
+// Old
+const result = await generator.generateText(prompt);
+
+// New
+const result = await model.generateContent([prompt]);
+```
+
+## Support
+
+For additional support:
+- GitHub: [github.com/googleapis/google-cloud-node](https://github.com/googleapis/google-cloud-node)
+- Documentation: [cloud.google.com/vertex-ai/docs/generative-ai](https://cloud.google.com/vertex-ai/docs/generative-ai)
+- Support: [support.google.com/cloud](https://support.google.com/cloud)

@@ -1,0 +1,229 @@
+# Voice API Reference
+
+## Overview
+
+The Voice API provides advanced voice generation and analysis capabilities powered by Gemini 2.0. This API enables you to create natural-sounding voice content with precise control over tone, emotion, and brand alignment.
+
+## Authentication
+
+All API endpoints require authentication using your API key:
+
+```typescript
+const API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY;
+```
+
+## Endpoints
+
+### Voice Analysis
+
+```typescript
+POST /api/voice/analyze
+```
+
+Analyzes voice content for tone, sentiment, and brand alignment.
+
+#### Request
+```typescript
+{
+  "text": string,
+  "language"?: string,
+  "checkSensitivity"?: boolean,
+  "emotionAnalysis"?: boolean,
+  "audienceTargeting"?: {
+    "age"?: string[],
+    "region"?: string[],
+    "industry"?: string
+  }
+}
+```
+
+#### Response
+```typescript
+{
+  "tone": {
+    "formal": number,
+    "casual": number,
+    "emotional": number,
+    "professional": number
+  },
+  "sentiment": {
+    "positive": number,
+    "negative": number,
+    "neutral": number
+  },
+  "culturalSensitivity": {
+    "issues": string[],
+    "score": number
+  },
+  "emotionalResonance": {
+    "primary": string,
+    "secondary": string[],
+    "intensity": number
+  },
+  "audienceAlignment": {
+    "score": number,
+    "recommendations": string[]
+  }
+}
+```
+
+### Enhanced Voice Generation
+
+```typescript
+POST /api/voice/generate
+```
+
+Generates enhanced voice content with precise control.
+
+#### Request
+```typescript
+{
+  "text": string,
+  "voiceId": string,
+  "emotionIntensity"?: number,
+  "style"?: "formal" | "casual" | "professional" | "friendly",
+  "emphasis"?: {
+    "words": string[],
+    "level": number
+  }[],
+  "pacing"?: number,
+  "crossLanguageStyle"?: boolean
+}
+```
+
+#### Response
+```typescript
+{
+  "audioUrl": string,
+  "duration": number,
+  "metadata": {
+    "words": number,
+    "characters": number,
+    "language": string
+  }
+}
+```
+
+### Voice Branding
+
+```typescript
+POST /api/voice/branding
+```
+
+Creates a consistent voice brand identity.
+
+#### Request
+```typescript
+{
+  "industry": string,
+  "targetAudience": string[],
+  "brandValues": string[],
+  "tone": string[],
+  "region"?: string[]
+}
+```
+
+#### Response
+```typescript
+{
+  "voiceId": string,
+  "guidelines": {
+    "tone": string[],
+    "pacing": number,
+    "emphasis": string[],
+    "vocabulary": string[],
+    "prohibited": string[]
+  },
+  "examples": {
+    "text": string,
+    "audio": string
+  }[],
+  "metrics": {
+    "consistency": number,
+    "recognition": number,
+    "memorability": number
+  }
+}
+```
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- 200: Success
+- 400: Bad Request
+- 401: Unauthorized
+- 429: Too Many Requests
+- 500: Server Error
+
+Error responses include:
+
+```typescript
+{
+  "error": {
+    "code": string,
+    "message": string,
+    "details"?: any
+  }
+}
+```
+
+## Rate Limits
+
+- Free tier: 100 requests/day
+- Pro tier: 1000 requests/day
+- Enterprise: Custom limits
+
+## Best Practices
+
+1. **Performance**
+   - Cache analysis results
+   - Batch similar requests
+   - Use appropriate quality settings
+
+2. **Quality**
+   - Validate input text
+   - Check audio quality
+   - Test with target audience
+
+3. **Security**
+   - Secure API keys
+   - Validate user input
+   - Monitor usage
+
+## Examples
+
+### Basic Voice Generation
+```typescript
+const voice = await generateEnhancedVoice({
+  text: "Welcome to our service",
+  voiceId: "professional-voice-id",
+  style: "professional"
+});
+```
+
+### Advanced Analysis
+```typescript
+const analysis = await analyzeVoiceContent({
+  text: "Your content here",
+  checkSensitivity: true,
+  emotionAnalysis: true,
+  audienceTargeting: {
+    industry: "technology",
+    age: ["25-34", "35-44"],
+    region: ["US", "EU"]
+  }
+});
+```
+
+### Brand Voice Creation
+```typescript
+const brand = await createVoiceBranding({
+  industry: "technology",
+  targetAudience: ["professionals"],
+  brandValues: ["innovation", "trust"],
+  tone: ["professional", "friendly"]
+});
+```
+
+For more examples and detailed documentation, visit our [Examples](/docs/examples) section.
