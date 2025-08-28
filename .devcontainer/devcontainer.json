@@ -1,0 +1,106 @@
+{
+  "name": "Business Branding Platform",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:1": {},
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Core Development
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-eslint",
+
+        // React/Next.js
+        "ms-vscode.vscode-json",
+        "formulahendry.auto-rename-tag",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-typescript-next",
+
+        // Database & Backend
+        "ms-vscode.vscode-postgresql",
+        "ms-vscode.vscode-sqlite",
+
+        // Git & Collaboration
+        "ms-vscode.vscode-git-graph",
+        "ms-vscode.vscode-github-issue-notebooks",
+        "github.copilot",
+        "github.copilot-chat",
+
+        // Testing & Quality
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+
+        // Documentation
+        "ms-vscode.vscode-markdown-notebook",
+        "ms-vscode.vscode-mardown",
+
+        // Docker
+        "ms-azuretools.vscode-docker",
+
+        // Environment
+        "ms-vscode.vscode-env",
+        "gruntfuggly.todo-tree",
+
+        // Performance & Debugging
+        "ms-vscode.vscode-js-debug",
+        "ms-vscode.vscode-js-profile-flame",
+
+        // Theme & UI
+        "ms-vscode.vscode-theme-seti",
+        "ms-vscode.vscode-icons",
+
+        // Additional Tools
+        "ms-vscode.vscode-yaml",
+        "redhat.vscode-yaml",
+        "ms-vscode.powershell",
+        "ms-vscode.vscode-terminal-here"
+      ],
+      "settings": {
+        "typescript.preferences.importModuleSpecifier": "relative",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "tailwindCSS.includeLanguages": {
+          "typescript": "javascript",
+          "typescriptreact": "javascript"
+        },
+        "emmet.includeLanguages": {
+          "typescriptreact": "html"
+        },
+        "files.associations": {
+          "*.mdx": "markdown"
+        },
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "git.autofetch": true,
+        "git.enableSmartCommit": true,
+        "terminal.integrated.shell.linux": "/bin/bash"
+      }
+    }
+  },
+  "forwardPorts": [3000, 54321],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js Development Server",
+      "onAutoForward": "notify"
+    },
+    "54321": {
+      "label": "Supabase Local Development",
+      "onAutoForward": "ignore"
+    }
+  },
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}
