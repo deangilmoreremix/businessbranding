@@ -1,7 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyBZ5NQ3dF5sdMBSjfkD6Oejw9VRhPTSUdc';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,9 +49,17 @@ Provide analysis in the following format:
 1. Brand Health Score (0-100)
 2. Market Fit (0-1)
 3. Uniqueness Score (0-1)
-4. Brand Factors (array of factors with name, score, and insights)
-5. Competitor Analysis (list of competitors with name, marketShare, strengths, weaknesses)
-6. Strategic Recommendations (array of actionable recommendations)
+4. Last Updated timestamp
+5. Monitoring Status (active/paused/error)
+6. Growth Trajectory (current, projected, trend, timeframe)
+7. Brand Factors (array with name, score, insights, priority, trend)
+8. Performance Metrics (engagement, conversion, ROI, customer satisfaction, brand loyalty)
+9. Market Analysis (industry trends, opportunities, barriers, segments, dynamics)
+10. Competitors (with market position, growth rate, SWOT)
+11. Implementation Status (completed, in progress, planned, progress percentage)
+12. Best Practices (data collection, analysis review, optimization scores and recommendations)
+13. Strategic Recommendations (with priority, category, impact, timeframe, resources)
+14. Risk Factors (with probability, impact, mitigation)
 
 Return the analysis as a structured JSON object.`;
 
@@ -59,8 +73,36 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const endpoint = url.pathname.split('/').pop();
+
+    // Handle GET requests for retrieving saved analyses
+    if (req.method === 'GET') {
+      if (endpoint === 'history') {
+        const { data: analyses, error } = await supabase
+          .from('brand_analyses')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          throw error;
+        }
+
+        return new Response(
+          JSON.stringify({ analyses }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+      }
+    }
+
     const { businessIdea } = await req.json();
-    
+
     if (!businessIdea) {
       throw new Error('Business idea is required');
     }
@@ -136,7 +178,35 @@ Deno.serve(async (req: Request) => {
     try {
       const analysisJson = JSON.parse(analysisText);
       console.log('Analysis completed successfully');
-      
+
+      // Save analysis to database
+      try {
+        const { data: savedAnalysis, error: dbError } = await supabase
+          .from('brand_analyses')
+          .insert({
+            business_idea: businessIdea,
+            health_score: analysisJson.healthScore || 0,
+            market_fit: analysisJson.marketFit || 0,
+            uniqueness_score: analysisJson.uniquenessScore || 0,
+            analysis_data: analysisJson,
+            competitors_data: analysisJson.competitors || {},
+            recommendations: analysisJson.recommendations || []
+          })
+          .select()
+          .single();
+
+        if (dbError) {
+          console.error('Failed to save analysis to database:', dbError);
+          // Continue without failing the request
+        } else {
+          console.log('Analysis saved to database:', savedAnalysis?.id);
+          analysisJson.id = savedAnalysis?.id;
+        }
+      } catch (dbSaveError) {
+        console.error('Database save error:', dbSaveError);
+        // Continue without failing the request
+      }
+
       return new Response(
         JSON.stringify(analysisJson),
         {

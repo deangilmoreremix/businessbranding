@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getEdgeSecret } from '../../lib/edge-secrets.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const ELEVEN_LABS_API_KEY = getEdgeSecret('ELEVEN_LABS_API_KEY');
 const ELEVEN_LABS_API_URL = 'https://api.elevenlabs.io/v1';
@@ -33,6 +38,59 @@ interface TranscriptionOptions {
   speaker_count?: number;
   word_timing?: boolean;
   model?: string;
+}
+
+interface VoiceAnalysisOptions {
+  analyzeTone?: boolean;
+  analyzePace?: boolean;
+  analyzeClarity?: boolean;
+  analyzeEngagement?: boolean;
+  targetAudience?: string;
+  brandVoice?: {
+    tone: string;
+    personality: string;
+    keyMessages: string[];
+  };
+}
+
+interface VoiceAnalysisResult {
+  overallScore: number;
+  toneAnalysis: {
+    primary: string;
+    secondary: string[];
+    alignment: number;
+    recommendations: string[];
+  };
+  paceAnalysis: {
+    wordsPerMinute: number;
+    variability: number;
+    engagement: number;
+    recommendations: string[];
+  };
+  clarityAnalysis: {
+    articulation: number;
+    pronunciation: number;
+    fillerWords: number;
+    recommendations: string[];
+  };
+  engagementAnalysis: {
+    emotionalImpact: number;
+    audienceConnection: number;
+    memorability: number;
+    recommendations: string[];
+  };
+  brandAlignment: {
+    voiceConsistency: number;
+    messageAlignment: number;
+    personalityMatch: number;
+    recommendations: string[];
+  };
+  optimizationSuggestions: Array<{
+    priority: 'high' | 'medium' | 'low';
+    category: string;
+    suggestion: string;
+    expectedImpact: string;
+  }>;
 }
 
 async function generateVoiceOver(text: string, voiceId: string, settings?: VoiceSettings) {
@@ -184,6 +242,29 @@ Deno.serve(async (req: Request) => {
       case 'generate':
         const { text, voiceId, settings } = await req.json();
         const audioData = await generateVoiceOver(text, voiceId, settings);
+
+        // Save content generation to database
+        try {
+          await supabase
+            .from('content_generation_history')
+            .insert({
+              content_type: 'voice',
+              prompt: text,
+              generated_content: {
+                voiceId,
+                settings,
+                audioLength: audioData.length
+              },
+              metadata: {
+                voiceId,
+                settings: settings || {},
+                timestamp: new Date().toISOString()
+              }
+            });
+        } catch (dbError) {
+          console.error('Failed to save voice generation to database:', dbError);
+        }
+
         return new Response(audioData, {
           headers: { ...corsHeaders, 'Content-Type': 'audio/mpeg' }
         });

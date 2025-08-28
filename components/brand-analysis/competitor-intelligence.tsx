@@ -203,9 +203,9 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
       digitalPresence: Math.round(Math.random() * 30 + 60),
       customerSatisfaction: Math.round(Math.random() * 30 + 60),
     };
-    
+
     return {
-      competitor: competitor.name,
+      competitor: competitor.name || 'Unknown',
       ...metrics
     };
   });
@@ -226,13 +226,35 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
   ];
   
   // Bar chart data for strategic comparison
-  const barData = Object.keys(allCompetitors[0]?.metrics || {}).map(metric => {
-    const data: any = { metric: metric.replace(/([A-Z])/g, ' $1').trim() };
-    allCompetitors.slice(0, 5).forEach(competitor => {
-      data[competitor.name] = competitor.metrics?.[metric] || Math.round(Math.random() * 30 + 60);
-    });
-    return data;
-  });
+  const barData = allCompetitors.length > 0 && allCompetitors[0].metrics
+    ? Object.keys(allCompetitors[0].metrics).map(metric => {
+        const data: any = { metric: metric.replace(/([A-Z])/g, ' $1').trim() };
+        allCompetitors.slice(0, 5).forEach(competitor => {
+          const metricValue = competitor.metrics?.[metric as keyof typeof competitor.metrics];
+          data[competitor.name || 'Unknown'] = typeof metricValue === 'number' ? metricValue : Math.round(Math.random() * 30 + 60);
+        });
+        return data;
+      })
+    : [];
+
+  // Error handling for empty data
+  if (allCompetitors.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold">Top Competitors Intelligence</CardTitle>
+          <Badge variant="outline">Industry: {industry}</Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No competitor data available</p>
+            <p className="text-sm text-muted-foreground">Competitor analysis will be available once brand analysis is complete.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -272,32 +294,38 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="h-[300px]">
-                    <ResponsivePie
-                      data={pieData}
-                      margin={{ top: 20, right: 20, bottom: 40, left: 20 }}
-                      innerRadius={0.5}
-                      padAngle={0.7}
-                      cornerRadius={3}
-                      activeOuterRadiusOffset={8}
-                      colors={{ scheme: 'category10' }}
-                      borderWidth={1}
-                      borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
-                      enableArcLinkLabels={false}
-                      arcLabelsSkipAngle={10}
-                      legends={[
-                        {
-                          anchor: 'bottom',
-                          direction: 'row',
-                          translateY: 40,
-                          itemWidth: 80,
-                          itemHeight: 18,
-                          itemTextColor: '#999',
-                          symbolSize: 12,
-                          symbolShape: 'circle',
-                          effects: [{ on: 'hover', style: { itemTextColor: '#000' } }]
-                        }
-                      ]}
-                    />
+                    {pieData.length > 0 ? (
+                      <ResponsivePie
+                        data={pieData}
+                        margin={{ top: 20, right: 20, bottom: 40, left: 20 }}
+                        innerRadius={0.5}
+                        padAngle={0.7}
+                        cornerRadius={3}
+                        activeOuterRadiusOffset={8}
+                        colors={{ scheme: 'category10' }}
+                        borderWidth={1}
+                        borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
+                        enableArcLinkLabels={false}
+                        arcLabelsSkipAngle={10}
+                        legends={[
+                          {
+                            anchor: 'bottom',
+                            direction: 'row',
+                            translateY: 40,
+                            itemWidth: 80,
+                            itemHeight: 18,
+                            itemTextColor: '#999',
+                            symbolSize: 12,
+                            symbolShape: 'circle',
+                            effects: [{ on: 'hover', style: { itemTextColor: '#000' } }]
+                          }
+                        ]}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-muted-foreground">No market share data available</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -308,20 +336,26 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="h-[300px]">
-                    <ResponsiveRadar
-                      data={radarData}
-                      keys={Object.keys(radarData[0]).filter(k => k !== 'competitor')}
-                      indexBy="competitor"
-                      maxValue={100}
-                      margin={{ top: 70, right: 80, bottom: 40, left: 80 }}
-                      borderWidth={2}
-                      gridLabelOffset={36}
-                      dotSize={10}
-                      dotColor={{ theme: 'background' }}
-                      dotBorderWidth={2}
-                      colors={{ scheme: 'category10' }}
-                      blendMode="multiply"
-                    />
+                    {radarData.length > 0 && radarData[0] && Object.keys(radarData[0]).length > 1 ? (
+                      <ResponsiveRadar
+                        data={radarData}
+                        keys={Object.keys(radarData[0]).filter(k => k !== 'competitor')}
+                        indexBy="competitor"
+                        maxValue={100}
+                        margin={{ top: 70, right: 80, bottom: 40, left: 80 }}
+                        borderWidth={2}
+                        gridLabelOffset={36}
+                        dotSize={10}
+                        dotColor={{ theme: 'background' }}
+                        dotBorderWidth={2}
+                        colors={{ scheme: 'category10' }}
+                        blendMode="multiply"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-muted-foreground">No competitive positioning data available</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -485,58 +519,64 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="h-[400px]">
-                    <ResponsiveBar
-                      data={barData}
-                      keys={allCompetitors.slice(0, 5).map(c => c.name)}
-                      indexBy="metric"
-                      margin={{ top: 50, right: 130, bottom: 60, left: 120 }}
-                      padding={0.3}
-                      valueScale={{ type: 'linear' }}
-                      indexScale={{ type: 'band', round: true }}
-                      colors={{ scheme: 'category10' }}
-                      axisBottom={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 45,
-                        legend: 'Metrics',
-                        legendPosition: 'middle',
-                        legendOffset: 50,
-                      }}
-                      axisLeft={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 0,
-                        legend: 'Score',
-                        legendPosition: 'middle',
-                        legendOffset: -80,
-                      }}
-                      labelSkipWidth={12}
-                      labelSkipHeight={12}
-                      legends={[
-                        {
-                          dataFrom: 'keys',
-                          anchor: 'bottom-right',
-                          direction: 'column',
-                          justify: false,
-                          translateX: 120,
-                          translateY: 0,
-                          itemsSpacing: 2,
-                          itemWidth: 100,
-                          itemHeight: 20,
-                          itemDirection: 'left-to-right',
-                          itemOpacity: 0.85,
-                          symbolSize: 20,
-                          effects: [
-                            {
-                              on: 'hover',
-                              style: {
-                                itemOpacity: 1
+                    {barData.length > 0 && allCompetitors.length > 0 ? (
+                      <ResponsiveBar
+                        data={barData}
+                        keys={allCompetitors.slice(0, 5).map(c => c.name || 'Unknown')}
+                        indexBy="metric"
+                        margin={{ top: 50, right: 130, bottom: 60, left: 120 }}
+                        padding={0.3}
+                        valueScale={{ type: 'linear' }}
+                        indexScale={{ type: 'band', round: true }}
+                        colors={{ scheme: 'category10' }}
+                        axisBottom={{
+                          tickSize: 5,
+                          tickPadding: 5,
+                          tickRotation: 45,
+                          legend: 'Metrics',
+                          legendPosition: 'middle',
+                          legendOffset: 50,
+                        }}
+                        axisLeft={{
+                          tickSize: 5,
+                          tickPadding: 5,
+                          tickRotation: 0,
+                          legend: 'Score',
+                          legendPosition: 'middle',
+                          legendOffset: -80,
+                        }}
+                        labelSkipWidth={12}
+                        labelSkipHeight={12}
+                        legends={[
+                          {
+                            dataFrom: 'keys',
+                            anchor: 'bottom-right',
+                            direction: 'column',
+                            justify: false,
+                            translateX: 120,
+                            translateY: 0,
+                            itemsSpacing: 2,
+                            itemWidth: 100,
+                            itemHeight: 20,
+                            itemDirection: 'left-to-right',
+                            itemOpacity: 0.85,
+                            symbolSize: 20,
+                            effects: [
+                              {
+                                on: 'hover',
+                                style: {
+                                  itemOpacity: 1
+                                }
                               }
-                            }
-                          ]
-                        }
-                      ]}
-                    />
+                            ]
+                          }
+                        ]}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-muted-foreground">No comparison data available</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -651,8 +691,8 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                       <p className="text-muted-foreground text-sm">{stat.title}</p>
                       <p className="text-2xl font-bold mt-1">{stat.value}</p>
                       <p className="text-sm mt-1">
-                        <Badge variant="outline" className={stat.growth.startsWith('+') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {stat.growth} YoY
+                        <Badge variant="outline" className={(stat.growth?.startsWith('+')) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          {stat.growth || 'N/A'} YoY
                         </Badge>
                       </p>
                     </div>
@@ -901,7 +941,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                       legendPosition: 'middle',
                       legendOffset: -72
                     }}
-                    heatmapColors={{
+                    colors={{
                       type: 'sequential',
                       scheme: 'blues'
                     }}

@@ -19,7 +19,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { VisualIdentityAnalyzer } from '@/components/visual-identity-analyzer';
-import { SupabaseSetup } from '@/components/supabase-setup';
 import { DocumentationLinks } from '@/components/documentation-links';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -98,7 +97,6 @@ export default function VisualIdentityPage() {
           </Card>
         </div>
         
-        <SupabaseSetup />
 
         <Alert variant="default" className="bg-blue-500/10 border-blue-500/20 mb-8">
           <AlertCircle className="h-4 w-4 text-blue-500" />
