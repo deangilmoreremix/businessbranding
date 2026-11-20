@@ -1,11 +1,11 @@
 // Visual identity: upload, AI generate, editor, PNG exports, GIF, IndexedDB library. Run through run-verify.sh with fresh mocks.
 const fs = require('fs');
 const path = require('path');
-const { launch, signUpAndAddKey, base, ok, section, warm, results } = require('./lib');
+const { launch, signUpAndAddKey, base, ok, section, warm, results, out } = require('./lib');
 
 const isPng = (b) => b.length > 33 && b.slice(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && b.slice(-12, -8).toString('hex') === '00000000' && b.slice(-8, -4).toString() === 'IEND';
 const dims = (b) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
-const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await dl.saveAs(p); return fs.readFileSync(p); };
+const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs(p); return fs.readFileSync(p); };
 
 (async () => {
   await warm(['/sign-up', '/settings', '/dashboard/visual-identity']);

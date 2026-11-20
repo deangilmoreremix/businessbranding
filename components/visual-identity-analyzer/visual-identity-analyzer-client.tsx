@@ -126,8 +126,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
           height: 1024,
           format: 'png',
           generated: true
-        },
-        user_id: 'user-id'
+        }
       };
       
       await createImageAsset(imageAsset);

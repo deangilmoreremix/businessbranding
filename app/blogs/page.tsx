@@ -273,7 +273,7 @@ export default function BlogsPage() {
           >
             <h3 className="text-lg font-medium mb-2">No articles found</h3>
             <p className="text-muted-foreground mb-4">
-              Try adjusting your search or filter to find what you're looking for.
+              Try adjusting your search or filter to find what you&apos;re looking for.
             </p>
             <Button
               variant="outline"

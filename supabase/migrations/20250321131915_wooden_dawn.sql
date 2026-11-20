@@ -127,10 +127,13 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS update_content_items_updated_at ON content_items;
 CREATE TRIGGER update_content_items_updated_at
   BEFORE UPDATE ON content_items
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_voice_profiles_updated_at ON voice_profiles;
 
 CREATE TRIGGER update_voice_profiles_updated_at
   BEFORE UPDATE ON voice_profiles

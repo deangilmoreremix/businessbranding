@@ -1,9 +1,9 @@
 // Voice: recorder (fake mic) + trim + enhance, podcast, audiobook, transcription, captions (.vtt/.srt), live voice token. Fresh mocks required.
 const fs = require('fs');
 const path = require('path');
-const { launch, signUpAndAddKey, base, ok, section, warm, results } = require('./lib');
+const { launch, signUpAndAddKey, base, ok, section, warm, results, out } = require('./lib');
 const isWav = (b) => b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WAVE' && b.length > 44;
-const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await dl.saveAs(p); return fs.readFileSync(p); };
+const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs(p); return fs.readFileSync(p); };
 
 (async () => {
   await warm(['/sign-up', '/settings', '/dashboard/voice-content']);

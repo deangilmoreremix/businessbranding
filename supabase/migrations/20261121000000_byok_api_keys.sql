@@ -37,9 +37,14 @@ create table if not exists public.user_settings (
 
 alter table public.user_settings enable row level security;
 
+drop policy if exists "Users read their own settings" on public.user_settings;
+
 create policy "Users read their own settings" on public.user_settings for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "Users insert their own settings" on public.user_settings;
 create policy "Users insert their own settings" on public.user_settings for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "Users update their own settings" on public.user_settings;
 create policy "Users update their own settings" on public.user_settings for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "Users delete their own settings" on public.user_settings;
 create policy "Users delete their own settings" on public.user_settings for delete to authenticated using (auth.uid() = user_id);
 
 create table if not exists public.ai_usage_log (
@@ -60,6 +65,7 @@ create table if not exists public.ai_usage_log (
 
 create index if not exists ai_usage_log_user_created_idx on public.ai_usage_log (user_id, created_at desc);
 alter table public.ai_usage_log enable row level security;
+drop policy if exists "Users read their own usage" on public.ai_usage_log;
 create policy "Users read their own usage" on public.ai_usage_log for select to authenticated using (auth.uid() = user_id);
 revoke insert, update, delete on public.ai_usage_log from anon, authenticated;
 
@@ -71,6 +77,7 @@ create table if not exists public.ai_jobs (
 );
 
 alter table public.ai_jobs enable row level security;
+drop policy if exists "Users read their own jobs" on public.ai_jobs;
 create policy "Users read their own jobs" on public.ai_jobs for select to authenticated using (auth.uid() = user_id);
 revoke insert, update, delete on public.ai_jobs from anon, authenticated;
 

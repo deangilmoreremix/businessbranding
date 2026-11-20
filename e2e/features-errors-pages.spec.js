@@ -1,5 +1,5 @@
 // Error states in the real UI (401, 412, 402 quota, 424 model unavailable, 429, 403 CSRF) + every page route + settings tabs + API smoke. Fresh mocks.
-const { launch, signUpAndAddKey, base, ok, section, warm, results, PW } = require('./lib');
+const { launch, signUpAndAddKey, base, ok, section, warm, results, PW, out, SB } = require('./lib');
 
 const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strategy', '/case-studies', '/contact', '/cookies', '/dashboard', '/dashboard/brand-analysis', '/dashboard/planning', '/dashboard/visual-identity', '/dashboard/voice-content', '/docs', '/docs/ai-features', '/docs/best-practices', '/docs/components/brand-analysis', '/docs/components/brand-pillar-breakdown', '/docs/components/business-analyzer', '/docs/components/competitive-analysis', '/docs/components/content-dashboard', '/docs/components/export-dialog', '/docs/components/feature-discovery', '/docs/components/implementation-plan', '/docs/components/visual-identity', '/docs/components/voice-interface', '/docs/integration-guide', '/docs/voice-features', '/features', '/integrations', '/login', '/pricing', '/privacy', '/reset-password', '/settings', '/sign-up', '/terms', '/visual-identity', '/voice-content', '/workflows'];
 
@@ -74,9 +74,19 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await useKey('sk-forbidden-0123456789abcdef').catch(() => {});
   });
   await section('rate-limit', async () => {
-    await useKey('sk-test-RATELIMIT000000007777');
-    const codes = await page.evaluate(async () => { const out = []; for (let i = 0; i < 14; i++) { const x = await fetch('/api/settings/openai-key', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: 'short' }) }); out.push(x.status); } return out; });
-    ok('429: per-user rate limit trips after the limit (Supabase-backed)', codes.includes(429), codes.join(','));
+    // a brand-new user so earlier sections cannot have consumed this bucket; the settings-write bucket allows 10 per minute.
+    // Invalid keys are rejected locally with 400 (no OpenAI call), so the only thing that changes is the limiter.
+    await signUpAndAddKey(page, 'ratelimit', null);
+    const codes = await page.evaluate(async () => {
+      const out = [];
+      for (let i = 0; i < 25 && !out.includes(429); i++) {
+        const x = await fetch('/api/settings/openai-key', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: 'short' }) });
+        out.push(x.status);
+      }
+      return out;
+    });
+    const first429 = codes.indexOf(429);
+    ok('429: per-user rate limit trips at the configured limit (Supabase-backed), earlier calls are plain 400s', first429 === 10 && codes.slice(0, 10).every((c) => c === 400), codes.join(','));
   });
 
   // ---- every page route renders (HTTP 200, a heading or main content, no uncaught error)
@@ -99,7 +109,9 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await page.fill('#c-name', 'Ann'); await page.fill('#c-email', 'ann@example.test'); await page.fill('#c-message', 'Hello, I would like to know more.');
     await page.click('button[type=submit]');
     await page.waitForSelector('[data-testid=contact-done]');
-    ok('contact: valid form completes (no mail backend configured -> message copied)', /copied|mail app/.test(await page.innerText('[data-testid=contact-done]')));
+    ok('contact: valid form is stored server-side (contact_submissions) and confirmed', /received/.test(await page.innerText('[data-testid=contact-done]')));
+    const stored = await (await fetch(SB + '/__state')).json();
+    ok('contact: the row is in contact_submissions with a hashed client, not a raw address', stored.contact_submissions.length === 1 && stored.contact_submissions[0].email === 'ann@example.test' && /^[0-9a-f]{64}$/.test(stored.contact_submissions[0].client_hash));
   });
 
   // ---- settings tabs

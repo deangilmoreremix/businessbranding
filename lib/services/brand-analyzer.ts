@@ -2,6 +2,8 @@
 import { callTask, isDemoMode } from './ai';
 import { authFetch } from '@/lib/client/auth-fetch';
 
+import { toPercent } from '@/lib/format';
+
 export interface BrandAnalysis {
   /** True when this is built-in sample data (no OpenAI key), not a real analysis: the UI labels it as such. */
   sample?: boolean;
@@ -11,8 +13,8 @@ export interface BrandAnalysis {
   uniquenessScore: number;
 
   // Real-time Monitoring
-  lastUpdated: string;
-  monitoringStatus: 'active' | 'paused' | 'error';
+  lastUpdated?: string;
+  monitoringStatus?: 'active' | 'paused' | 'error';
   growthTrajectory: {
     current: number;
     projected: number;
@@ -188,7 +190,7 @@ export class BrandAnalyzer {
       if (response.ok) {
         const data = await response.json();
         console.log("Enhanced brand analysis completed successfully");
-        return this.validateAndCleanAnalysis(data);
+        return normalizeAnalysis(this.validateAndCleanAnalysis(data));
       }
 
       console.warn("Enhanced edge function failed, falling back to client-side analysis");
@@ -204,7 +206,7 @@ export class BrandAnalyzer {
     try {
       // Structured Outputs (strict schema) guarantees the shape; no JSON repair or regex parsing needed.
       const { data } = await callTask<BrandAnalysis>('brand_analysis', this.getAnalysisPrompt(businessIdea));
-      return this.validateAndCleanAnalysis(data);
+      return normalizeAnalysis(this.validateAndCleanAnalysis(data));
     } catch (error) {
       console.error('Brand analysis failed:', error);
       return this.getDemoAnalysis();
@@ -440,4 +442,33 @@ export class BrandAnalyzer {
       ]
     };
   }
+}
+
+const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined);
+/** Fraction in [0, 1] from either scale (0.5 and 50 both give 0.5). */
+const fraction = (v: unknown): number => { const p = toPercent(v); return p === null ? 0 : p / 100; };
+
+/**
+ * Make an analysis safe to render whatever scale or shape the model returned: scores are 0-100 (health, progress) or 0-1 (fit,
+ * uniqueness) consistently, counts are whole numbers, an unparseable timestamp is dropped (never "Invalid Date"), and a monitoring
+ * status that is not clearly active/paused is dropped (a successful analysis must not say "Error").
+ */
+export function normalizeAnalysis<T extends Partial<BrandAnalysis>>(a: T): T {
+  const out: any = { ...a };
+  out.healthScore = Math.round(toPercent(a.healthScore) ?? 0);
+  out.marketFit = fraction(a.marketFit);
+  out.uniquenessScore = fraction(a.uniquenessScore);
+  const ts = typeof a.lastUpdated === 'string' ? new Date(a.lastUpdated) : null;
+  out.lastUpdated = ts && !Number.isNaN(ts.getTime()) ? ts.toISOString() : undefined;
+  out.monitoringStatus = a.monitoringStatus === 'active' || a.monitoringStatus === 'paused' ? a.monitoringStatus : undefined;
+  if (a.implementationStatus) {
+    const st: any = a.implementationStatus;
+    const whole = (v: unknown) => Math.max(0, Math.round(num(v) ?? 0));
+    out.implementationStatus = { ...st, completed: whole(st.completed), inProgress: whole(st.inProgress), planned: whole(st.planned), total: whole(st.total), progressPercentage: Math.round(toPercent(st.progressPercentage) ?? 0) };
+  }
+  if (a.growthTrajectory) {
+    const g: any = a.growthTrajectory;
+    out.growthTrajectory = { ...g, current: toPercent(g.current) ?? 0, projected: toPercent(g.projected) ?? 0 };
+  }
+  return out as T;
 }

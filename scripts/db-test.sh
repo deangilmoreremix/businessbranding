@@ -25,11 +25,16 @@ PSQL+=(-d app)
 
 echo "== scaffolding"
 "${PSQL[@]}" -f "$ROOT/scripts/db-supabase-stub.sql" || exit 1
-echo "== migrations"
+echo "== migrations (first run)"
 for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
   if ! "${PSQL[@]}" -f "$f" >"$TMP/mig.out" 2>&1; then echo "FAIL migration $(basename "$f")"; cat "$TMP/mig.out"; exit 1; fi
   echo "  applied $(basename "$f")"
 done
+echo "== migrations (second run: every migration must be re-runnable)"
+for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
+  if ! "${PSQL[@]}" -f "$f" >"$TMP/mig.out" 2>&1; then echo "FAIL re-running migration $(basename "$f")"; cat "$TMP/mig.out"; exit 1; fi
+done
+echo "  all $(ls "$ROOT"/supabase/migrations/*.sql | wc -l) migrations re-ran cleanly"
 echo "== tests"
 "${PSQL[@]}" -f "$ROOT/scripts/db-test.sql" 2>&1 | grep -v "^$" | tee "$TMP/test.out"
 if ! grep -q "ALL DB CHECKS PASSED" "$TMP/test.out"; then echo "DB TESTS FAILED"; exit 1; fi

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Card } from '@/components/ui/card';
@@ -48,6 +48,11 @@ export default function PlanningPage() {
       setLoading(false);
     }
   };
+
+  // The plan's milestones always appear on the calendar (also after a reload, when the plan is restored from local storage).
+  useEffect(() => {
+    if (plan && events.length === 0) setEvents(planToEvents(plan));
+  }, [plan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addToCalendar = () => {
     if (!plan) return;
@@ -98,10 +103,11 @@ export default function PlanningPage() {
                 </Button>
                 {plan && (
                   <Button variant="outline" onClick={addToCalendar}>
-                    <CalendarPlus className="h-4 w-4 mr-2" />Add to calendar
+                    <CalendarPlus className="h-4 w-4 mr-2" />Open on calendar{events.length ? ` (${events.length})` : ''}
                   </Button>
                 )}
               </div>
+              {plan && events.length > 0 && <p className="text-sm text-muted-foreground" data-testid="plan-on-calendar">{events.length} plan events were added to the Calendar tab, where you can export them as an .ics file.</p>}
               {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
             </Card>
             {plan && <ImplementationPlan plan={plan} />}

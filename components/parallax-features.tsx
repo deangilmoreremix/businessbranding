@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Tilt from 'react-parallax-tilt';
 import { Player } from '@lottiefiles/react-lottie-player';
@@ -280,82 +280,27 @@ const costSavings = [
   }
 ];
 
-export function ParallaxFeatures() {
-  const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
-  });
-  
+function FeatureRow({ feature, index, scrollYProgress }: { feature: (typeof features)[number]; index: number; scrollYProgress: MotionValue<number> }) {
+  const direction = index % 2 === 0 ? 1 : -1;
   const { ref, inView } = useInView({
-    threshold: 0.1,
+    threshold: 0.2,
     triggerOnce: false
   });
   
-  useEffect(() => {
-    if (inView) {
-      const tiles = document.querySelectorAll('.feature-tile');
-      
-      gsap.fromTo(tiles, 
-        { y: 50, opacity: 0 },
-        { 
-          y: 0, 
-          opacity: 1, 
-          duration: 0.8, 
-          stagger: 0.1,
-          ease: "power3.out"
-        }
-      );
-    }
-  }, [inView]);
+  const y = useTransform(
+    scrollYProgress,
+    [0, 1],
+    [100 * direction, -100 * direction]
+  );
+  
+  const opacity = useTransform(
+    scrollYProgress,
+    [0.1 * index, 0.2 + 0.1 * index, 0.8 + 0.1 * index, 0.9 + 0.1 * index],
+    [0, 1, 1, 0]
+  );
   
   return (
-    <section ref={containerRef} className="py-24 relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-16">
-          <Badge className="mb-4">ENHANCED CAPABILITIES</Badge>
-          <motion.h2 
-            className="text-3xl md:text-5xl font-bold mb-4 gradient-text"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            Next-Generation Brand Evolution
-          </motion.h2>
-          <motion.p 
-            className="text-xl text-muted-foreground max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            Transform your brand with our comprehensive suite of AI-powered tools and capabilities
-          </motion.p>
-        </div>
-        
-        <div className="space-y-24 relative">
-          {features.map((feature, index) => {
-            const direction = index % 2 === 0 ? 1 : -1;
-            const { ref, inView } = useInView({
-              threshold: 0.2,
-              triggerOnce: false
-            });
-            
-            const y = useTransform(
-              scrollYProgress,
-              [0, 1],
-              [100 * direction, -100 * direction]
-            );
-            
-            const opacity = useTransform(
-              scrollYProgress,
-              [0.1 * index, 0.2 + 0.1 * index, 0.8 + 0.1 * index, 0.9 + 0.1 * index],
-              [0, 1, 1, 0]
-            );
-            
-            return (
-              <div key={index} ref={ref} className="relative">
+              <div ref={ref} className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                   <motion.div
                     className={`${index % 2 === 0 ? 'md:order-1' : 'md:order-2'}`}
@@ -431,7 +376,7 @@ export function ParallaxFeatures() {
                             <Star className="h-5 w-5 text-yellow-400" />
                           </div>
                           <div>
-                            <p className="text-sm italic mb-2">"{feature.testimonial.quote}"</p>
+                            <p className="text-sm italic mb-2">&quot;{feature.testimonial.quote}&quot;</p>
                             <div className="text-sm text-muted-foreground">
                               <strong>{feature.testimonial.author}</strong>
                               <span className="mx-2">•</span>
@@ -509,8 +454,67 @@ export function ParallaxFeatures() {
                   </div>
                 </div>
               </div>
-            );
-          })}
+  );
+}
+
+export function ParallaxFeatures() {
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"]
+  });
+  
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+    triggerOnce: false
+  });
+  
+  useEffect(() => {
+    if (inView) {
+      const tiles = document.querySelectorAll('.feature-tile');
+      
+      gsap.fromTo(tiles, 
+        { y: 50, opacity: 0 },
+        { 
+          y: 0, 
+          opacity: 1, 
+          duration: 0.8, 
+          stagger: 0.1,
+          ease: "power3.out"
+        }
+      );
+    }
+  }, [inView]);
+  
+  return (
+    <section ref={containerRef} className="py-24 relative overflow-hidden">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-16">
+          <Badge className="mb-4">ENHANCED CAPABILITIES</Badge>
+          <motion.h2 
+            className="text-3xl md:text-5xl font-bold mb-4 gradient-text"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            Next-Generation Brand Evolution
+          </motion.h2>
+          <motion.p 
+            className="text-xl text-muted-foreground max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            Transform your brand with our comprehensive suite of AI-powered tools and capabilities
+          </motion.p>
+        </div>
+        
+        <div className="space-y-24 relative">
+          {features.map((feature, index) => (
+            <FeatureRow key={index} feature={feature} index={index} scrollYProgress={scrollYProgress} />
+          ))}
         </div>
 
         <div className="mt-24">

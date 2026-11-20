@@ -50,7 +50,7 @@ const userForBearer = (token) => {
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS', 'Access-Control-Expose-Headers': '*' };
 
 let failRpc = false; // test hook: make the rate-limit RPC fail (POST /__fail {rpc:true})
-const db = { user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], limits: new Map(), requests: [] };
+const db = { content_items: [], voice_profiles: [], image_assets: [], user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], contact_submissions: [], limits: new Map(), requests: [] };
 
 function send(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
@@ -59,10 +59,13 @@ function send(res, status, body) {
 
 const parseFilters = (url) => {
   const f = {};
-  for (const [k, v] of url.searchParams) if (v.startsWith('eq.')) f[k] = decodeURIComponent(v.slice(3));
+  for (const [k, v] of url.searchParams) {
+    if (v.startsWith('eq.')) f[k] = { op: 'eq', v: decodeURIComponent(v.slice(3)) };
+    else if (v.startsWith('gte.')) f[k] = { op: 'gte', v: decodeURIComponent(v.slice(4)) };
+  }
   return f;
 };
-const matches = (row, f) => Object.entries(f).every(([k, v]) => String(row[k]) === v);
+const matches = (row, f) => Object.entries(f).every(([k, c]) => (c.op === 'gte' ? String(row[k]) >= c.v : String(row[k]) === c.v));
 
 const server = http.createServer(async (req, res) => {
   const chunks = []; for await (const c of req) chunks.push(c);
@@ -115,7 +118,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/__fail' && req.method === 'POST') { failRpc = !!JSON.parse(raw || '{}').rpc; return send(res, 200, { failRpc }); }
   if (url.pathname === '/__state') {
-    if (req.method === 'DELETE') { for (const k of ['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
+    if (req.method === 'DELETE') { for (const k of ['content_items', 'voice_profiles', 'image_assets', 'user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
     return send(res, 200, { ...db, limits: [...db.limits.entries()] });
   }
 
@@ -127,6 +130,22 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname.startsWith('/rest/v1/')) {
     const table = url.pathname.slice('/rest/v1/'.length);
+    // owner-scoped user tables (RLS: authenticated users reach only rows whose user_id is theirs)
+    if (['content_items', 'voice_profiles', 'image_assets'].includes(table)) {
+      const me = userForBearer(bearer);
+      if (!me) return send(res, 401, { code: '42501', message: 'permission denied' });
+      const rows = db[table];
+      const f = parseFilters(url);
+      if (req.method === 'GET') return send(res, 200, rows.filter((r) => r.user_id === me.id && matches(r, f)));
+      if (req.method === 'DELETE') { db[table] = rows.filter((r) => !(r.user_id === me.id && matches(r, f))); return send(res, 204); }
+      if (req.method === 'POST') {
+        const list = [].concat(JSON.parse(raw));
+        if (list.some((r) => r.user_id !== me.id)) return send(res, 403, { code: '42501', message: 'new row violates row-level security policy' });
+        const made = list.map((r) => ({ id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...r }));
+        rows.push(...made);
+        return send(res, 201, made[0]);
+      }
+    }
     // RLS: user_api_keys has no policies, so only the service role may touch it
     if (bearer !== SERVICE_KEY) return send(res, 401, { code: '42501', message: 'permission denied' });
 
@@ -140,7 +159,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, n <= p_limit);
     }
 
-    if (!['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs'].includes(table)) return send(res, 404, { message: 'unknown table' });
+    if (!['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions'].includes(table)) return send(res, 404, { message: 'unknown table' });
     const rows = db[table];
     const f = parseFilters(url);
 

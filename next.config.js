@@ -28,13 +28,9 @@ const nextConfig = {
     ];
   },
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
-  typescript: {
-    // During build time, skip type checking to avoid build failures
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Type errors and lint errors fail the build (tsc and eslint are both clean).
+  typescript: { ignoreBuildErrors: false },
+  eslint: { ignoreDuringBuilds: false },
   webpack: (config, { isServer }) => {
     // konva's Node build optionally requires `canvas`; the editor is browser-only (dynamic, ssr:false)
     config.resolve.alias = { ...config.resolve.alias, canvas: false };

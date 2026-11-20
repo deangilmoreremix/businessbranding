@@ -47,3 +47,19 @@ BEGIN
 END $$;
 -- published case studies stay publicly readable
 GRANT SELECT ON case_studies TO anon;
+
+-- 4. FUTURE tables: Supabase grants new public tables to anon/authenticated by default. Revoke that so a table added later is not
+--    reachable until its migration grants access on purpose (and adds RLS policies). service_role keeps its default grants.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM authenticated;
+
+-- 5. Explicit privileges for the owner-scoped tables (RLS decides which rows). Stating them here, rather than relying on defaults,
+--    keeps the migration correct when an earlier migration recreates a table (DROP/CREATE) after the default privileges changed.
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  analytics_events, brand_analyses, brand_metrics, content_generation_history, user_preferences, user_sessions,
+  business_analyzer, image_assets, content_items, voice_profiles, user_settings
+TO authenticated;
+GRANT SELECT ON case_studies TO authenticated;

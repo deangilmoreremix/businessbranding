@@ -1,9 +1,7 @@
 // Playwright sign-in / sign-up / reset-password flows against the MOCK Supabase auth endpoints (5998) + mock OpenAI (5999) + next dev (5240).
-// Run with fresh mocks: scratchpad/run-verify.sh "NODE_PATH=$(npm root -g) node e2e/auth.spec.js"
+// Run with fresh mocks: npm run e2e:auth
 const { chromium } = require('playwright');
-const base = process.env.BASE || 'http://127.0.0.1:5240';
-const SB = process.env.SB || 'http://127.0.0.1:5998';
-const PW = 'correct-horse-battery';
+const { base, SB, PW } = require('./lib');
 let failed = 0;
 const ok = (n, c, x = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n} ${x}`); if (!c) failed++; };
 

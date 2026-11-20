@@ -60,29 +60,8 @@ export function ContentDashboard() {
           setContentItems(items);
         } catch (e) {
           console.error('Error loading content items:', e);
-          setError('Failed to load voice content. Using sample data instead.');
-          setContentItems([
-            {
-              id: 'sample-1',
-              title: 'Sample Podcast',
-              type: 'podcast',
-              url: 'https://example.com/sample.mp3',
-              metadata: { duration: 180 },
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              user_id: 'sample-user'
-            },
-            {
-              id: 'sample-2',
-              title: 'Sample Audiobook',
-              type: 'audiobook',
-              url: 'https://example.com/sample-book.mp3',
-              metadata: { duration: 360 },
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              user_id: 'sample-user'
-            }
-          ]);
+          setContentItems([]);
+          setError(e instanceof Error ? e.message : 'Could not load your saved voice content.');
         }
         
         try {
@@ -97,19 +76,8 @@ export function ContentDashboard() {
           setImageAssets(assets);
         } catch (e) {
           console.error('Error loading image assets:', e);
-          setError('Failed to load image assets. Using sample data instead.');
-          setImageAssets([
-            {
-              id: 'sample-1',
-              title: 'Sample Logo',
-              url: 'https://images.unsplash.com/photo-1557683316-973673baf926',
-              tags: ['logo', 'sample'],
-              metadata: {},
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              user_id: 'sample-user'
-            }
-          ]);
+          setImageAssets([]);
+          setError(e instanceof Error ? e.message : 'Could not load your saved images.');
         }
       }
     } catch (error) {

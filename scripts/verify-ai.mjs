@@ -410,5 +410,29 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
   } else ok('mock supports /__fail', false);
 }
 
+
+// 12. Contact form: public, validated, honeypot, size-capped, rate-limited, stored server-side only
+{
+  await fetch(supa + '/__state', { method: 'DELETE' });
+  const contact = (b, raw) => fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw ?? JSON.stringify(b) });
+  r = await contact({ name: '', email: 'x', message: 'short' });
+  j = await r.json();
+  ok('contact: invalid form -> 400 with field errors', r.status === 400 && j.code === 'VALIDATION' && !!j.fields?.email);
+  r = await contact({ name: 'Bot', email: 'bot@example.test', message: 'spam spam spam spam', website: 'http://spam' });
+  st = await supaState();
+  ok('contact: honeypot answers ok but stores nothing', r.status === 200 && st.contact_submissions.length === 0);
+  r = await contact(null, 'x'.repeat(30000));
+  ok('contact: oversized body -> 413', r.status === 413);
+  r = await contact(null, '{not json');
+  ok('contact: invalid JSON -> 400', r.status === 400);
+  for (let i = 0; i < 5; i++) r = await contact({ name: 'Ann', email: 'ann@example.test', message: `Hello number ${i}, long enough.` });
+  st = await supaState();
+  ok('contact: valid messages stored (service role), client hashed, no raw address', r.status === 200 && st.contact_submissions.length === 5 && st.contact_submissions.every((c) => /^[0-9a-f]{64}$/.test(c.client_hash) && !JSON.stringify(c).includes('127.0.0.1')));
+  r = await contact({ name: 'Ann', email: 'ann@example.test', message: 'The sixth message in an hour.' });
+  ok('contact: 6th message in an hour -> 429', r.status === 429);
+  r = await fetch(supa + '/rest/v1/contact_submissions', { headers: { apikey: 'anon-key', Authorization: 'Bearer tok-alice' } });
+  ok('contact: clients cannot read submissions (RLS)', r.status === 401);
+}
+
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll checks passed');
 process.exit(failed ? 1 : 0);

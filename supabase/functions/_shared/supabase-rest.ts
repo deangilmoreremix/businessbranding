@@ -107,3 +107,15 @@ export async function getJob(userId: string, id: string): Promise<{ id: string; 
   const rows = await rest(`ai_jobs?id=eq.${q(id)}&user_id=eq.${q(userId)}&select=id,kind`);
   return rows?.[0] ?? null;
 }
+
+// ---- contact form ------------------------------------------------------------------------------
+export async function countRecentContacts(clientHash: string, sinceIso: string): Promise<number> {
+  const rows = await rest(`contact_submissions?select=id&client_hash=eq.${q(clientHash)}&created_at=gte.${q(sinceIso)}`);
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
+export async function insertContact(row: { name: string; email: string; subject: string; message: string; client_hash: string; user_id?: string | null }): Promise<void> {
+  await rest('contact_submissions', { method: 'POST', prefer: 'return=minimal', body: row });
+}
+
+export const supabaseConfigured = (): boolean => !!(baseUrl() && serviceKey());

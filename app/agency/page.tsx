@@ -187,7 +187,7 @@ export default function AgencyPage() {
               Expand Your Service Portfolio
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Add powerful AI-driven branding services to your agency's offerings
+              Add powerful AI-driven branding services to your agency&apos;s offerings
             </p>
           </div>
 

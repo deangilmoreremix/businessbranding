@@ -2,7 +2,7 @@
 // If the browser cannot download the model, the check is reported NOT TESTABLE (never a silent pass).
 const fs = require('fs');
 const path = require('path');
-const { launch, signUpAndAddKey, base, ok, section, warm, results } = require('./lib');
+const { launch, signUpAndAddKey, base, ok, section, warm, results, out } = require('./lib');
 const nt = (name, reason) => { results.push({ name, ok: true, extra: 'NOT TESTABLE: ' + reason }); console.log(`NOT TESTABLE  ${name}  ${reason}`); };
 const isPng = (b) => b.slice(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && b.slice(-8, -4).toString() === 'IEND';
 
@@ -24,8 +24,8 @@ const isPng = (b) => b.slice(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 
     await page.locator('[role=dialog] button:has-text("Remove background")').first().click();
     await page.waitForTimeout(1000);
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[role=dialog] button:has-text("Download PNG")')]);
-    await dl.saveAs('/tmp/claude-0/e2e-nobg.png');
-    const png = fs.readFileSync('/tmp/claude-0/e2e-nobg.png');
+    await dl.saveAs(out('e2e-nobg.png'));
+    const png = fs.readFileSync(out('e2e-nobg.png'));
     // decode the PNG in the page and check that the corner pixel alpha is 0 while the centre is opaque
     const px = await page.evaluate(async (b64) => {
       const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();

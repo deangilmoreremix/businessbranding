@@ -265,36 +265,36 @@ export default function BrandAnalysisClient({
     <Card className="p-6">
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between mb-4">
-          <TabsList className="grid grid-cols-8 w-full">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+          <TabsList className="flex w-full justify-start gap-1 overflow-x-auto">
+            <TabsTrigger value="overview" className="flex items-center gap-2 whitespace-nowrap">
               <Gauge className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center gap-2">
+            <TabsTrigger value="analysis" className="flex items-center gap-2 whitespace-nowrap">
               <BarChart3 className="h-4 w-4" />
               Brand Pillars
             </TabsTrigger>
-            <TabsTrigger value="market" className="flex items-center gap-2">
+            <TabsTrigger value="market" className="flex items-center gap-2 whitespace-nowrap">
               <TrendingUp className="h-4 w-4" />
               Market Analysis
             </TabsTrigger>
-            <TabsTrigger value="competitors" className="flex items-center gap-2">
+            <TabsTrigger value="competitors" className="flex items-center gap-2 whitespace-nowrap">
               <Users className="h-4 w-4" />
               Competitors
             </TabsTrigger>
-            <TabsTrigger value="digital" className="flex items-center gap-2">
+            <TabsTrigger value="digital" className="flex items-center gap-2 whitespace-nowrap">
               <Globe className="h-4 w-4" />
               Digital Presence
             </TabsTrigger>
-            <TabsTrigger value="best-practices" className="flex items-center gap-2">
+            <TabsTrigger value="best-practices" className="flex items-center gap-2 whitespace-nowrap">
               <CheckCircle className="h-4 w-4" />
               Best Practices
             </TabsTrigger>
-            <TabsTrigger value="recommendations" className="flex items-center gap-2">
+            <TabsTrigger value="recommendations" className="flex items-center gap-2 whitespace-nowrap">
               <Target className="h-4 w-4" />
               Recommendations
             </TabsTrigger>
-            <TabsTrigger value="report" className="flex items-center gap-2">
+            <TabsTrigger value="report" className="flex items-center gap-2 whitespace-nowrap">
               <FileBarChart className="h-4 w-4" />
               Report
             </TabsTrigger>
@@ -324,24 +324,20 @@ export default function BrandAnalysisClient({
         </div>
 
         <TabsContent value="overview" className="mt-6">
-          {/* Real-time Monitoring Status */}
-          <div className="mb-6 p-4 bg-muted/20 rounded-lg">
+          {/* Monitoring status / timestamp: only shown when the analysis really carries valid values */}
+          {(results.monitoringStatus || results.lastUpdated) && <div className="mb-6 p-4 bg-muted/20 rounded-lg" data-testid="analysis-status">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`h-3 w-3 rounded-full ${
-                  results.monitoringStatus === 'active' ? 'bg-green-500' :
-                  results.monitoringStatus === 'paused' ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
-                <span className="text-sm font-medium">
-                  Monitoring: {results.monitoringStatus === 'active' ? 'Active' :
-                               results.monitoringStatus === 'paused' ? 'Paused' : 'Error'}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Last updated: {new Date(results.lastUpdated).toLocaleString()}
-              </div>
+              {results.monitoringStatus && (
+                <div className="flex items-center gap-3">
+                  <div className={`h-3 w-3 rounded-full ${results.monitoringStatus === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <span className="text-sm font-medium">Monitoring: {results.monitoringStatus === 'active' ? 'Active' : 'Paused'}</span>
+                </div>
+              )}
+              {results.lastUpdated && (
+                <div className="text-sm text-muted-foreground">Last updated: {new Date(results.lastUpdated).toLocaleString()}</div>
+              )}
             </div>
-          </div>
+          </div>}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             {/* Brand Health Score */}
@@ -352,7 +348,7 @@ export default function BrandAnalysisClient({
               <CardContent>
                 <div className="flex items-center justify-center mb-4">
                   <div className="relative w-24 h-24">
-                    <svg className="w-full h-full" viewBox="0 0 36 36">
+                    <svg className="w-full h-full" viewBox="-1 -1 38 38" aria-label={`Brand health ${results.healthScore}%`} role="img">
                       <path
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
@@ -364,12 +360,13 @@ export default function BrandAnalysisClient({
                         fill="none"
                         stroke="#3b82f6"
                         strokeWidth="3"
-                        strokeDasharray={`${results.healthScore}, 100`}
+                        strokeDasharray={`${Math.min(100, Math.max(0, results.healthScore))}, 100`} strokeLinecap="butt"
                       />
                       <text
                         x="18"
-                        y="20.35"
-                        className="text-lg font-bold"
+                        y="21"
+                        fontSize="9"
+                        fontWeight="700"
                         textAnchor="middle"
                         fill="currentColor"
                       >
@@ -1101,7 +1098,7 @@ export default function BrandAnalysisClient({
                   <div className="space-y-4">
                     <div className="flex items-center justify-center">
                       <div className="relative w-24 h-24">
-                        <svg className="w-full h-full" viewBox="0 0 36 36">
+                        <svg className="w-full h-full" viewBox="-1 -1 38 38" aria-label={`Brand health ${results.healthScore}%`} role="img">
                           <path
                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             fill="none"
@@ -1193,7 +1190,7 @@ export default function BrandAnalysisClient({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
-                      <h4 className="font-medium">✅ Do's</h4>
+                      <h4 className="font-medium">✅ Do&apos;s</h4>
                       <ul className="space-y-2 text-sm">
                         <li className="flex items-start gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
@@ -1214,7 +1211,7 @@ export default function BrandAnalysisClient({
                       </ul>
                     </div>
                     <div className="space-y-3">
-                      <h4 className="font-medium">❌ Don'ts</h4>
+                      <h4 className="font-medium">❌ Don&apos;ts</h4>
                       <ul className="space-y-2 text-sm">
                         <li className="flex items-start gap-2">
                           <XCircle className="h-4 w-4 text-red-500 mt-0.5" />
@@ -1613,7 +1610,7 @@ export default function BrandAnalysisClient({
                           <div>
                             <h4 className="font-medium mb-1">Growth Opportunity</h4>
                             <p className="text-sm text-muted-foreground">
-                              Based on your market analysis, there's a 23% growth opportunity in the digital transformation sector.
+                              Based on your market analysis, there&apos;s a 23% growth opportunity in the digital transformation sector.
                             </p>
                           </div>
                         </div>

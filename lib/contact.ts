@@ -11,11 +11,3 @@ export function validateContact(f: ContactForm): ContactErrors {
   if (f.message.length > 5000) e.message = 'Please keep the message under 5000 characters.';
   return e;
 }
-
-/** mailto: link for the form (CR/LF stripped from single-line fields so headers cannot be injected). */
-export function contactMailto(to: string, f: ContactForm): string {
-  const oneLine = (s: string) => s.replace(/[\r\n]+/g, ' ').trim();
-  const subject = `Message from ${oneLine(f.name)}`;
-  const body = `${f.message.trim()}\n\n— ${oneLine(f.name)} <${oneLine(f.email)}>`;
-  return `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}

@@ -1,6 +1,16 @@
 // Shared helpers for the feature e2e suite (mock Supabase 5998, mock OpenAI 5999, next dev 5240).
 const { chromium } = require('playwright');
-const base = process.env.BASE || 'http://127.0.0.1:5240';
+const os = require('node:os');
+const path = require('node:path');
+const fs = require('node:fs');
+// Ports and output are configurable: E2E_BASE_URL (app), E2E_SUPABASE_URL (mock Supabase), E2E_OPENAI_URL (mock OpenAI), E2E_OUT (downloads/screenshots).
+const base = process.env.E2E_BASE_URL || process.env.BASE || 'http://127.0.0.1:5240';
+const SB = process.env.E2E_SUPABASE_URL || process.env.SB || 'http://127.0.0.1:5998';
+const OUT = process.env.E2E_OUT || path.join(os.tmpdir(), 'businessbranding-e2e');
+fs.mkdirSync(OUT, { recursive: true });
+const out = (name) => path.join(OUT, name);
+// the browser Supabase client keeps its session in a cookie named after the first label of the Supabase host
+const AUTH_COOKIE = `sb-${new URL(SB).hostname.split('.')[0]}-auth-token`;
 const PW = 'correct-horse-battery';
 
 const results = [];
@@ -42,4 +52,4 @@ async function signUpAndAddKey(page, tag, key = 'sk-test-FEATURESUITE00001234') 
   return email;
 }
 
-module.exports = { base, PW, ok, section, results, warm, launch, signUpAndAddKey };
+module.exports = { SB, OUT, out, AUTH_COOKIE, base, PW, ok, section, results, warm, launch, signUpAndAddKey };

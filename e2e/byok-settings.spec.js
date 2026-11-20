@@ -1,8 +1,7 @@
 // Playwright BYOK flow against mock Supabase (5998) + mock OpenAI (5999) + next dev (5240).
-// Run via scratchpad run-verify.sh; requires `playwright` resolvable.
+// Run with fresh mocks: npm run e2e:byok-settings
 const { chromium } = require('playwright');
-const base = process.env.BASE || 'http://127.0.0.1:5240';
-const SB = process.env.SB || 'http://127.0.0.1:5998';
+const { base, SB, AUTH_COOKIE, out } = require('./lib');
 let failed = 0;
 const ok = (n, c, x = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n} ${x}`); if (!c) failed++; };
 
@@ -15,11 +14,11 @@ const ok = (n, c, x = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n} ${x}`);
   const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 160)));
   // signed-in session for the mock user "alice" (the mock Supabase accepts tok-alice)
   // the AuthProvider keeps the session in a cookie (auth-helpers); seed it for the mock user "alice"
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript((COOKIE) => {
     const S = { access_token: 'tok-alice', refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600,
       user: { id: '11111111-1111-4111-8111-111111111111', email: 'alice@example.test', aud: 'authenticated', role: 'authenticated' } };
-    document.cookie = 'sb-127-auth-token=' + encodeURIComponent(JSON.stringify(S)) + '; path=/';
-  });
+    document.cookie = COOKIE + '=' + encodeURIComponent(JSON.stringify(S)) + '; path=/';
+  }, AUTH_COOKIE);
 
   // 1. No key yet: an AI call surfaces 412 and the "Add your OpenAI key" notice linking to Settings
   // warm the dev server so the first compile finishes before the real run
@@ -97,7 +96,7 @@ const ok = (n, c, x = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n} ${x}`);
   await page.click('button:has-text("Analyze")');
   await page.waitForSelector('[data-testid=pillar-breakdown]', { timeout: 60000 }).then(() => ok('feature works with the saved key (pillar breakdown rendered)', true)).catch(() => ok('feature works with the saved key (pillar breakdown rendered)', false));
 
-  await page.screenshot({ path: 'e2e-byok-settings.png' });
+  await page.screenshot({ path: out('e2e-byok-settings.png') });
   ok('no uncaught page errors', errs.length === 0, errs.join(' | '));
   await b.close();
   console.log(failed ? `\n${failed} FAILED` : '\nAll BYOK browser checks passed');

@@ -8,19 +8,9 @@
 
 export const WHISPER_MODEL = process.env.NEXT_PUBLIC_WHISPER_MODEL || 'onnx-community/whisper-tiny.en';
 export const WHISPER_SAMPLE_RATE = 16000;
-export const TRANSFORMERS_URL = process.env.NEXT_PUBLIC_TRANSFORMERS_URL || 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
-
-/** True only when WebGPU has a usable adapter (a bare `navigator.gpu` is not enough). */
-export async function webgpuAdapterAvailable(): Promise<boolean> {
-  try {
-    const gpu = (navigator as any)?.gpu;
-    if (!gpu) return false;
-    const adapter = await Promise.race([gpu.requestAdapter(), new Promise((r) => setTimeout(() => r(null), 3000))]);
-    return !!adapter;
-  } catch {
-    return false;
-  }
-}
+// Self-hosted: `npm run build` (or `node scripts/vendor-local-ai.mjs`) copies the SHA-384-pinned runtime into public/vendor/transformers/.
+export const TRANSFORMERS_URL = process.env.NEXT_PUBLIC_TRANSFORMERS_URL || '/vendor/transformers/transformers.js';
+const ORT_BASE = (process.env.NEXT_PUBLIC_TRANSFORMERS_URL ? '' : '/vendor/transformers/');
 
 export const onDeviceWhisperSupported = () => typeof WebAssembly === 'object' && typeof AudioContext !== 'undefined';
 
@@ -70,19 +60,17 @@ export interface WhisperProgress {
 export async function transcribeOnDevice(blob: Blob, onProgress?: (p: WhisperProgress) => void): Promise<string> {
   if (!pipelinePromise) {
     pipelinePromise = (async () => {
-      const { pipeline } = await import(/* webpackIgnore: true */ TRANSFORMERS_URL);
-      // `navigator.gpu` can exist with no usable adapter (headless/VM browsers): only choose WebGPU when an adapter is really available,
-      // and fall back to WASM if the WebGPU pipeline cannot start.
-      const hasAdapter = await webgpuAdapterAvailable();
-      const make = (device: 'webgpu' | 'wasm') => pipeline('automatic-speech-recognition', WHISPER_MODEL, { device, progress_callback: onProgress } as any);
-      if (hasAdapter) {
-        try {
-          return await make('webgpu');
-        } catch {
-          /* fall through to WASM */
-        }
+      let mod: any;
+      try {
+        mod = await import(/* webpackIgnore: true */ TRANSFORMERS_URL);
+      } catch {
+        throw new Error('The on-device speech runtime is not installed on this site (run `npm run vendor:local-ai`).');
       }
-      return make('wasm');
+      // ONNX Runtime files come from the same self-hosted folder (never from a CDN); WASM only (no WebGPU bundle is vendored)
+      if (ORT_BASE && mod.env?.backends?.onnx?.wasm) {
+        mod.env.backends.onnx.wasm.wasmPaths = { mjs: `${ORT_BASE}ort-wasm-simd-threaded.asyncify.mjs`, wasm: `${ORT_BASE}ort-wasm-simd-threaded.asyncify.wasm` };
+      }
+      return mod.pipeline('automatic-speech-recognition', WHISPER_MODEL, { device: 'wasm', progress_callback: onProgress } as any);
     })().catch((e) => {
       pipelinePromise = null;
       throw e;

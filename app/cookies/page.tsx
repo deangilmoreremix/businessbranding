@@ -86,7 +86,7 @@ export default function CookiesPage() {
                   <h3 className="text-lg font-medium mb-2">Performance Cookies</h3>
                   <p className="text-muted-foreground">
                     These cookies collect information about how visitors use our website, such as which pages they 
-                    visit most often and if they receive error messages. They help us improve our website's performance.
+                    visit most often and if they receive error messages. They help us improve our website&apos;s performance.
                   </p>
                 </div>
                 
@@ -183,7 +183,7 @@ export default function CookiesPage() {
                 cookies or customize your preferences.
               </p>
               <p className="text-muted-foreground mb-4">
-                You can change your cookie preferences at any time by clicking on the "Cookie Settings" link in the footer 
+                You can change your cookie preferences at any time by clicking on the &quot;Cookie Settings&quot; link in the footer 
                 of our website.
               </p>
               <p className="text-muted-foreground">

@@ -1,7 +1,7 @@
 // Assistant (SSE streaming), read-aloud, dictation (OpenAI engine + mocked SpeechRecognition), workflows + email, error states. Fresh mocks.
 const fs = require('fs');
-const { launch, signUpAndAddKey, base, ok, section, warm, results } = require('./lib');
-const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await dl.saveAs(p); return fs.readFileSync(p); };
+const { launch, signUpAndAddKey, base, ok, section, warm, results, out } = require('./lib');
+const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs(p); return fs.readFileSync(p); };
 
 (async () => {
   await warm(['/sign-up', '/settings', '/workflows', '/dashboard']);

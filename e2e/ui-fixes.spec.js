@@ -1,6 +1,6 @@
-// Playwright checks for the UI defects fixed after review. Needs fresh mocks (scratchpad/run-verify.sh).
+// Playwright checks for the UI defects fixed after review. Needs fresh mocks: npm run e2e:ui-fixes
 const { chromium } = require('playwright');
-const base = process.env.BASE || 'http://127.0.0.1:5240';
+const { base, AUTH_COOKIE } = require('./lib');
 let failed = 0;
 const ok = (n, c, x = '') => { console.log(`${c ? 'PASS' : 'FAIL'}  ${n} ${x}`); if (!c) failed++; };
 const session = (token, id) => () => {};
@@ -11,10 +11,10 @@ const session = (token, id) => () => {};
   const b = await chromium.launch();
   const open = async (token, id) => {
     const ctx = await b.newContext({ viewport: { width: 1300, height: 1000 } });
-    await ctx.addInitScript(([t, i]) => {
+    await ctx.addInitScript(([t, i, COOKIE]) => {
       const S = { access_token: t, refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: i, email: 'x@example.test', aud: 'authenticated', role: 'authenticated' } };
-      document.cookie = 'sb-127-auth-token=' + encodeURIComponent(JSON.stringify(S)) + '; path=/';
-    }, [token, id]);
+      document.cookie = COOKIE + '=' + encodeURIComponent(JSON.stringify(S)) + '; path=/';
+    }, [token, id, AUTH_COOKIE]);
     return ctx.newPage();
   };
   const ALICE = '11111111-1111-4111-8111-111111111111', BOB = '22222222-2222-4222-8222-222222222222';

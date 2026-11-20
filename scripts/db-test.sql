@@ -140,6 +140,17 @@ reset role;
 -- auth.uid() stub sanity
 select _check('auth.uid() reads request.jwt.claim.sub', (select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111', true) is not null) and auth.uid() = '11111111-1111-4111-8111-111111111111'::uuid);
 
+-- a table created AFTER the migrations must not be reachable by anon/authenticated until access is granted on purpose
+create table public._future_table (id int);
+insert into public._future_table values (1);
+select _check('default privileges: a future table is not readable by anon', _try('anon', null, 'select 1 from _future_table') = -1);
+select _check('default privileges: a future table is not readable by authenticated', _try('authenticated', '11111111-1111-4111-8111-111111111111', 'select 1 from _future_table') = -1);
+select _check('default privileges: service_role still can use a future table', _try('service_role', null, 'select 1 from _future_table') = 1);
+-- contact_submissions: no client access at all
+select _check('contact_submissions: anon cannot read or insert', _try('anon', null, 'select 1 from contact_submissions') = -1 and _try('anon', null, 'insert into contact_submissions (name,email,message) values (''a'',''a@b.c'',''0123456789'')') = -1);
+select _check('contact_submissions: authenticated cannot read or insert', _try('authenticated', '11111111-1111-4111-8111-111111111111', 'select 1 from contact_submissions') = -1);
+select _check('contact_submissions: service_role can insert; constraints reject a short message', _try('service_role', null, 'insert into contact_submissions (name,email,message) values (''a'',''a@b.c'',''0123456789'')') = 1 and _try('service_role', null, 'insert into contact_submissions (name,email,message) values (''a'',''a@b.c'',''short'')') = -1);
+
 select case when count(*) filter (where not ok) = 0 then 'ALL DB CHECKS PASSED (' || count(*) || ' checks)' else count(*) filter (where not ok) || ' DB CHECKS FAILED: ' || string_agg(name || ' [' || detail || ']', '; ') filter (where not ok) end from _results;
 
 select name || ' [' || detail || ']' from _results where not ok;

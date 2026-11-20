@@ -23,7 +23,7 @@ import { createPodcastWithTimings } from '@/lib/services/voice';
 import { captionsFromSegments } from '@/lib/local/captions';
 
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
-import { createContentItem } from '@/lib/supabase';
+import { saveGeneratedAudio, wavDurationSeconds, type SavedAudio } from '@/lib/local/content-save';
 
 interface PodcastSegment {
   id: string;
@@ -32,6 +32,7 @@ interface PodcastSegment {
 }
 
 export function PodcastStudio() {
+  const [saved, setSaved] = useState<SavedAudio | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [segments, setSegments] = useState<PodcastSegment[]>([
@@ -122,19 +123,15 @@ export function PodcastStudio() {
       setAudioElement(null);
       setIsPlaying(false);
       
-      // Save to Supabase
-      await createContentItem({
+      // Keep the audio on this device and, when signed in, a metadata row in the account
+      setSaved(await saveGeneratedAudio({
         title,
         type: 'podcast',
-        url,
-        metadata: {
-          description,
-          segments: segments.map(s => ({ text: s.text, voiceId: s.voiceId })),
-          duration: 180 // Mock duration in seconds
-        },
-        user_id: 'user-id' // Replace with actual user ID in production
-      });
-      
+        blob: audioBlob,
+        durationSec: durationsMs.reduce((a, b) => a + b, 0) / 1000 || (await wavDurationSeconds(audioBlob)),
+        metadata: { description, segments: segments.map((x) => ({ text: x.text, voiceId: x.voiceId })) }
+      }));
+
       setProgress(100);
     } catch (error) {
       console.error('Failed to generate podcast:', error);
@@ -289,6 +286,7 @@ export function PodcastStudio() {
                   </Button>
                 </div>
               </div>
+              {saved && <p role="status" data-testid="save-status" className="text-xs text-muted-foreground">{saved.local ? 'Saved on this device.' : 'Not saved (browser storage unavailable).'} {saved.cloud ? 'Also saved to your account.' : saved.cloudReason}</p>}
               <audio controls className="w-full">
                 <source src={audioUrl} type="audio/wav" />
                 Your browser does not support the audio element.

@@ -41,29 +41,15 @@ interface CompetitiveAnalysisProps {
   analysis: any;
 }
 
+import { toPercent } from '@/lib/format';
+
 export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Default metrics if analysis data is missing
-  const defaultMetrics = {
-    websiteScore: 85,
-    socialEngagement: 78,
-    onlineVisibility: 82,
-    responseTime: 90,
-    serviceQuality: 88,
-    customerSatisfaction: 85,
-    marketShare: 25,
-    brandStrength: 80,
-    competitiveEdge: 75,
-    qualityScore: 90,
-    engagementRate: 85,
-    frequencyScore: 80,
-    consistencyScore: 88,
-    professionalismScore: 92,
-    impactScore: 85
-  };
+  // Only metrics that were actually measured are shown; nothing is filled in with stock numbers.
+  const metric = (name: string, key: string) => ({ name, value: toPercent(analysis?.[key]) });
 
   const analysisCategories = [
     {
@@ -71,9 +57,9 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
       icon: Globe,
       color: 'blue',
       metrics: [
-        { name: 'Website Score', value: analysis?.websiteScore || defaultMetrics.websiteScore },
-        { name: 'Social Engagement', value: analysis?.socialEngagement || defaultMetrics.socialEngagement },
-        { name: 'Online Visibility', value: analysis?.onlineVisibility || defaultMetrics.onlineVisibility }
+        metric('Website Score', 'websiteScore'),
+        metric('Social Engagement', 'socialEngagement'),
+        metric('Online Visibility', 'onlineVisibility')
       ]
     },
     {
@@ -81,9 +67,9 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
       icon: Users,
       color: 'purple',
       metrics: [
-        { name: 'Response Time', value: analysis?.responseTime || defaultMetrics.responseTime },
-        { name: 'Service Quality', value: analysis?.serviceQuality || defaultMetrics.serviceQuality },
-        { name: 'Customer Satisfaction', value: analysis?.customerSatisfaction || defaultMetrics.customerSatisfaction }
+        metric('Response Time', 'responseTime'),
+        metric('Service Quality', 'serviceQuality'),
+        metric('Customer Satisfaction', 'customerSatisfaction')
       ]
     },
     {
@@ -91,9 +77,9 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
       icon: Target,
       color: 'indigo',
       metrics: [
-        { name: 'Market Share', value: analysis?.marketShare || defaultMetrics.marketShare },
-        { name: 'Brand Strength', value: analysis?.brandStrength || defaultMetrics.brandStrength },
-        { name: 'Competitive Edge', value: analysis?.competitiveEdge || defaultMetrics.competitiveEdge }
+        metric('Market Share', 'marketShare'),
+        metric('Brand Strength', 'brandStrength'),
+        metric('Competitive Edge', 'competitiveEdge')
       ]
     },
     {
@@ -101,9 +87,9 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
       icon: FileText,
       color: 'green',
       metrics: [
-        { name: 'Content Quality', value: analysis?.qualityScore || defaultMetrics.qualityScore },
-        { name: 'Engagement Rate', value: analysis?.engagementRate || defaultMetrics.engagementRate },
-        { name: 'Content Frequency', value: analysis?.frequencyScore || defaultMetrics.frequencyScore }
+        metric('Content Quality', 'qualityScore'),
+        metric('Engagement Rate', 'engagementRate'),
+        metric('Content Frequency', 'frequencyScore')
       ]
     },
     {
@@ -111,9 +97,9 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
       icon: Layers,
       color: 'rose',
       metrics: [
-        { name: 'Consistency', value: analysis?.consistencyScore || defaultMetrics.consistencyScore },
-        { name: 'Professionalism', value: analysis?.professionalismScore || defaultMetrics.professionalismScore },
-        { name: 'Visual Impact', value: analysis?.impactScore || defaultMetrics.impactScore }
+        metric('Consistency', 'consistencyScore'),
+        metric('Professionalism', 'professionalismScore'),
+        metric('Visual Impact', 'impactScore')
       ]
     }
   ];
@@ -176,13 +162,13 @@ export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
                 <h3 className="font-medium">{category.title}</h3>
               </div>
               <div className="space-y-3">
-                {category.metrics.map((metric, i) => (
+                {category.metrics.map((m, i) => (
                   <div key={i}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">{metric.name}</span>
-                      <span>{metric.value}%</span>
+                      <span className="text-muted-foreground">{m.name}</span>
+                      <span data-testid={m.value === null ? 'metric-unmeasured' : 'metric-value'}>{m.value === null ? 'Not measured' : `${Math.round(m.value)}%`}</span>
                     </div>
-                    <Progress value={metric.value} className="h-1" />
+                    <Progress value={m.value ?? 0} className="h-1" />
                   </div>
                 ))}
               </div>

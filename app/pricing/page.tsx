@@ -255,7 +255,7 @@ export default function PricingPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Compare Features</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Detailed breakdown of what's included in each plan
+              Detailed breakdown of what&apos;s included in each plan
             </p>
           </div>
           

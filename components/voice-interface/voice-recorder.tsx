@@ -21,7 +21,7 @@ import {
   Save
 } from 'lucide-react';
 import { generateVoiceOver } from '@/lib/services/voice';
-import { createContentItem } from '@/lib/supabase';
+import { saveGeneratedAudio, type SavedAudio } from '@/lib/local/content-save';
 import dynamic from 'next/dynamic';
 import { authFetch } from '@/lib/client/auth-fetch';
 
@@ -29,6 +29,7 @@ import { authFetch } from '@/lib/client/auth-fetch';
 const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 
 export function VoiceRecorder() {
+  const [saved, setSaved] = useState<SavedAudio | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -179,19 +180,13 @@ export function VoiceRecorder() {
     
     setSaving(true);
     try {
-      await createContentItem({
+      setSaved(await saveGeneratedAudio({
         title: contentTitle,
         type: 'voice_over',
-        url: audioUrl || '',
-        metadata: {
-          format,
-          duration: audioRef.current?.duration || 0,
-          createdAt: new Date().toISOString()
-        },
-        user_id: 'user-id' // This would be the real user ID in a production app
-      });
-    } catch (error) {
-      console.error('Failed to save recording:', error);
+        blob: recordedBlob,
+        durationSec: audioRef.current?.duration && isFinite(audioRef.current.duration) ? audioRef.current.duration : 0,
+        metadata: { format }
+      }));
     } finally {
       setSaving(false);
     }
@@ -360,6 +355,7 @@ export function VoiceRecorder() {
                 )}
               </Button>
             </div>
+            {saved && <p role="status" data-testid="save-status" className="text-xs text-muted-foreground">{saved.local ? 'Saved on this device.' : 'Not saved (browser storage unavailable).'} {saved.cloud ? 'Also saved to your account.' : saved.cloudReason}</p>}
 
             {processing && (
               <div className="space-y-2">

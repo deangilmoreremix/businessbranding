@@ -214,7 +214,7 @@ export function IndustriesSection() {
               animate={{ opacity: inView ? 1 : 0, y: inView ? 0 : 20 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Whether you're just starting out or rebranding an established business,
+              Whether you&apos;re just starting out or rebranding an established business,
               our platform works for companies across all industries.
             </motion.p>
           </div>

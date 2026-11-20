@@ -60,6 +60,7 @@ CREATE POLICY "Allow full access to case studies"
   WITH CHECK (true);
 
 -- Create updated_at trigger
+DROP TRIGGER IF EXISTS update_case_studies_updated_at ON case_studies;
 CREATE TRIGGER update_case_studies_updated_at
   BEFORE UPDATE ON case_studies
   FOR EACH ROW

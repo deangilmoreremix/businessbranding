@@ -1,7 +1,7 @@
 // Brand analysis, deep research + notifications, planning/calendar/.ics, business analyzer, captions import, local-only models. Fresh mocks.
 const fs = require('fs');
-const { launch, signUpAndAddKey, base, ok, section, warm, results } = require('./lib');
-const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await dl.saveAs(p); return fs.readFileSync(p); };
+const { launch, signUpAndAddKey, base, ok, section, warm, results, out } = require('./lib');
+const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs(p); return fs.readFileSync(p); };
 
 (async () => {
   await warm(['/sign-up', '/settings', '/dashboard/brand-analysis', '/dashboard/planning', '/brand-strategy']);
@@ -62,9 +62,9 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
     await page.getByRole('button', { name: 'Generate plan' }).click();
     const r = await resp;
     ok('planning: implementation plan generated through /api/ai/task (strict schema)', r.status() === 200, `status ${r.status()}`);
-    await page.getByRole('button', { name: 'Add to calendar' }).waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: /Open on calendar/ }).waitFor({ timeout: 30000 });
     ok('planning: plan rendered', (await page.locator('text=/Phase|Milestone|Budget/i').count()) > 0);
-    await page.getByRole('button', { name: 'Add to calendar' }).click();
+    await page.getByRole('button', { name: /Open on calendar/ }).click();
     await page.waitForSelector('text=Implementation Calendar', { timeout: 20000 });
     ok('calendar: plan events appear on the calendar tab', true);
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.getByRole('button', { name: 'Export Calendar' }).click()]);

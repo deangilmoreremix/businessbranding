@@ -6,22 +6,30 @@
  * For logos and flat graphics prefer removeSolidBackground() in image-utils.ts, which needs no model at all.
  */
 
-// The library is loaded from the pinned CDN build at runtime (not bundled): the bundled copy threw "Super constructor null of oE is not a constructor"
-// once minified by webpack, while the official ESM bundle works (verified in headless Chromium).
-const MEDIAPIPE_URL = process.env.NEXT_PUBLIC_MEDIAPIPE_URL || 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/vision_bundle.mjs';
-const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm';
+// MediaPipe is loaded from a version-pinned CDN URL and EVERY file (module, WASM loader, WASM binary) is checked against a SHA-384
+// hash before it is used (lib/local/sri.ts), so a tampered CDN response is refused. (The npm bundle cannot be used: once minified by
+// webpack it threw "Super constructor null of oE is not a constructor"; the official ESM bundle works.)
+const BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3';
+const FILES = {
+  module: { url: `${BASE}/vision_bundle.mjs`, integrity: 'sha384-DZDJgsg9kM/syzovsJE2oHoJvmLQE3Tvz6yd9ONxVPm6DQk/u/lNWX0IY19I4VRe' },
+  loader: { url: `${BASE}/wasm/vision_wasm_internal.js`, integrity: 'sha384-VG4L2pc/JhM3VpFdPd6t2AoiapZdLjSqTKIuofix3rkzN9Yfj0tXOb1uT9+k4I3h' },
+  binary: { url: `${BASE}/wasm/vision_wasm_internal.wasm`, integrity: 'sha384-HQSquUNcS27439Q+k9aDBLpQXHgMM5HFO0K3mSjv1RierSrzbQq8Fbc2zL+CXlGK' }
+};
 const DEFAULT_MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
 
 export const aiSegmentationSupported = () => typeof WebAssembly === 'object' && typeof document !== 'undefined';
+
+import { fetchVerified, importVerifiedModule } from '@/lib/local/sri';
 
 let segmenterPromise: Promise<any> | null = null;
 
 async function getSegmenter() {
   if (!segmenterPromise) {
     segmenterPromise = (async () => {
-      const { FilesetResolver, ImageSegmenter } = await import(/* webpackIgnore: true */ MEDIAPIPE_URL);
-      const fileset = await FilesetResolver.forVisionTasks(WASM_BASE);
-      const modelAssetPath = process.env.NEXT_PUBLIC_SEGMENTER_MODEL_URL || DEFAULT_MODEL;
+      const { ImageSegmenter } = await importVerifiedModule(FILES.module.url, FILES.module.integrity);
+      const [loader, binary] = await Promise.all([fetchVerified(FILES.loader.url, FILES.loader.integrity), fetchVerified(FILES.binary.url, FILES.binary.integrity)]);
+      const fileset = { wasmLoaderPath: URL.createObjectURL(new Blob([loader], { type: 'text/javascript' })), wasmBinaryPath: URL.createObjectURL(binary) };
+      const modelAssetPath = process.env.NEXT_PUBLIC_SEGMENTER_MODEL_URL || DEFAULT_MODEL; // model weights are data, not code
       const make = (delegate: 'GPU' | 'CPU') =>
         ImageSegmenter.createFromOptions(fileset, { baseOptions: { modelAssetPath, delegate }, runningMode: 'IMAGE', outputCategoryMask: false, outputConfidenceMasks: true });
       try {
