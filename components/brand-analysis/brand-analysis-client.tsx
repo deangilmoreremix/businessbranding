@@ -31,6 +31,8 @@ import { BrandAnalyzer, BRAND_PILLARS, type BrandAnalysis } from '@/lib/services
 import { ResponsiveRadar } from '@nivo/radar';
 import { LoadingState } from './loading-state';
 import { AssistantChat } from './assistant-chat';
+import { formatFraction } from '@/lib/format';
+import { GrowthTrajectoryCard } from './growth-trajectory';
 import { callTask } from '@/lib/services/ai';
 import { ErrorState } from './error-state';
 import { AnalysisError, AnalysisErrorType } from '@/lib/types/errors';
@@ -384,33 +386,7 @@ export default function BrandAnalysisClient({
             </Card>
 
             {/* Growth Trajectory */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Growth Trajectory</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Current Growth</span>
-                    <span className="font-medium">{(results.growthTrajectory.current * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Projected Growth</span>
-                    <span className="font-medium">{(results.growthTrajectory.projected * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Trend</span>
-                    <Badge variant={
-                      results.growthTrajectory.trend === 'up' ? 'default' :
-                      results.growthTrajectory.trend === 'down' ? 'destructive' : 'secondary'
-                    }>
-                      {results.growthTrajectory.trend === 'up' ? '↗ Growing' :
-                       results.growthTrajectory.trend === 'down' ? '↘ Declining' : '→ Stable'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <GrowthTrajectoryCard growth={results.growthTrajectory} />
 
             {/* Implementation Status */}
             <Card>
@@ -447,7 +423,7 @@ export default function BrandAnalysisClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Engagement</p>
-                    <p className="text-2xl font-bold">{(results.performanceMetrics.engagement.rate * 100).toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">{formatFraction(results.performanceMetrics.engagement.rate, 1)}</p>
                   </div>
                   <div className={`p-2 rounded-full ${
                     results.performanceMetrics.engagement.trend === 'up' ? 'bg-green-100 text-green-600' :
@@ -466,7 +442,7 @@ export default function BrandAnalysisClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Conversion</p>
-                    <p className="text-2xl font-bold">{(results.performanceMetrics.conversion.rate * 100).toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">{formatFraction(results.performanceMetrics.conversion.rate, 1)}</p>
                   </div>
                   <div className={`p-2 rounded-full ${
                     results.performanceMetrics.conversion.trend === 'up' ? 'bg-green-100 text-green-600' :
@@ -485,7 +461,7 @@ export default function BrandAnalysisClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">ROI</p>
-                    <p className="text-2xl font-bold">{(results.performanceMetrics.roi.score * 100).toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">{formatFraction(results.performanceMetrics.roi.score, 1)}</p>
                   </div>
                   <div className={`p-2 rounded-full ${
                     results.performanceMetrics.roi.trend === 'up' ? 'bg-green-100 text-green-600' :
@@ -504,7 +480,7 @@ export default function BrandAnalysisClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Satisfaction</p>
-                    <p className="text-2xl font-bold">{(results.performanceMetrics.customerSatisfaction.score * 100).toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">{formatFraction(results.performanceMetrics.customerSatisfaction.score, 1)}</p>
                   </div>
                   <div className={`p-2 rounded-full ${
                     results.performanceMetrics.customerSatisfaction.trend === 'up' ? 'bg-green-100 text-green-600' :
@@ -523,7 +499,7 @@ export default function BrandAnalysisClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Loyalty</p>
-                    <p className="text-2xl font-bold">{(results.performanceMetrics.brandLoyalty.score * 100).toFixed(1)}%</p>
+                    <p className="text-2xl font-bold">{formatFraction(results.performanceMetrics.brandLoyalty.score, 1)}</p>
                   </div>
                   <div className={`p-2 rounded-full ${
                     results.performanceMetrics.brandLoyalty.trend === 'up' ? 'bg-green-100 text-green-600' :
@@ -575,7 +551,7 @@ export default function BrandAnalysisClient({
                   </div>
                   <div>
                     <p className="text-muted-foreground">Growth Rate</p>
-                    <p className="font-medium">{(results.marketAnalysis.marketDynamics.growthRate * 100).toFixed(1)}%</p>
+                    <p className="font-medium">{formatFraction(results.marketAnalysis.marketDynamics.growthRate, 1)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Competition</p>
@@ -817,7 +793,7 @@ export default function BrandAnalysisClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Growth Rate</p>
-                      <p className="text-2xl font-bold">{(results.marketAnalysis.marketDynamics.growthRate * 100).toFixed(1)}%</p>
+                      <p className="text-2xl font-bold">{formatFraction(results.marketAnalysis.marketDynamics.growthRate, 1)}</p>
                     </div>
                     <Activity className="h-8 w-8 text-green-500" />
                   </div>
@@ -1007,12 +983,12 @@ export default function BrandAnalysisClient({
                         <div>
                           <h4 className="font-medium">{segment.segment}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {(segment.size * 100).toFixed(0)}% of market
+                            {formatFraction(segment.size, 0)} of market
                           </p>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Growth Rate</span>
-                          <span className="font-medium">{(segment.growth * 100).toFixed(1)}%</span>
+                          <span className="font-medium">{formatFraction(segment.growth, 1)}</span>
                         </div>
                         <div>
                           <p className="text-sm font-medium mb-1">Key Characteristics</p>
@@ -1143,7 +1119,7 @@ export default function BrandAnalysisClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Data Collection</p>
-                      <p className="text-2xl font-bold">{(results.bestPractices.dataCollection.score * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">{formatFraction(results.bestPractices.dataCollection.score, 0)}</p>
                     </div>
                     <BarChart3 className="h-8 w-8 text-blue-500" />
                   </div>
@@ -1156,7 +1132,7 @@ export default function BrandAnalysisClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Analysis Review</p>
-                      <p className="text-2xl font-bold">{(results.bestPractices.analysisReview.score * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">{formatFraction(results.bestPractices.analysisReview.score, 0)}</p>
                     </div>
                     <Activity className="h-8 w-8 text-green-500" />
                   </div>
@@ -1169,7 +1145,7 @@ export default function BrandAnalysisClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Optimization</p>
-                      <p className="text-2xl font-bold">{(results.bestPractices.optimization.score * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">{formatFraction(results.bestPractices.optimization.score, 0)}</p>
                     </div>
                     <Target className="h-8 w-8 text-purple-500" />
                   </div>

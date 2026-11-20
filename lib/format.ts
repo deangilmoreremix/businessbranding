@@ -23,3 +23,8 @@ export function formatDate(value: unknown, placeholder = '—'): string {
   const d = value instanceof Date ? value : new Date(value as any);
   return Number.isNaN(d.getTime()) ? placeholder : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
+
+/** A FRACTION shown as a percentage: 0.5 -> "50.0%". Non-numbers give the placeholder. (Inputs are normalised to fractions upstream.) */
+export function formatFraction(value: unknown, digits = 1, placeholder = '—'): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(digits)}%` : placeholder;
+}

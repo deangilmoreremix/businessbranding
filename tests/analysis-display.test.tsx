@@ -37,7 +37,7 @@ describe('normalizeAnalysis handles odd model output', () => {
     expect(n.marketFit).toBeCloseTo(0.78);
     expect(n.uniquenessScore).toBeCloseTo(0.62);
     expect(n.implementationStatus).toMatchObject({ completed: 3, inProgress: 1, planned: 0, total: 0, progressPercentage: 50 });
-    expect(n.growthTrajectory).toMatchObject({ current: 40, projected: 55 });
+    expect(n.growthTrajectory).toMatchObject({ current: 0.4, projected: 0.55 });
   });
   it('drops an invalid timestamp and a bogus "error" monitoring status', () => {
     expect(n.lastUpdated).toBeUndefined();
@@ -67,5 +67,44 @@ describe('CompetitiveAnalysis shows only measured values', () => {
     const html = renderToStaticMarkup(<CompetitiveAnalysis analysis={undefined} />);
     expect(html).not.toMatch(/\d+%</);
     expect(html).toContain('Not measured');
+  });
+});
+
+import { GrowthTrajectoryCard } from '@/components/brand-analysis/growth-trajectory';
+import { formatFraction } from '@/lib/format';
+
+describe('growth trajectory is never double-scaled', () => {
+  const show = (current: unknown, projected: unknown) => {
+    const n: any = normalizeAnalysis({ growthTrajectory: { current, projected, trend: 'up', timeframe: '12 months' } } as any);
+    return renderToStaticMarkup(<GrowthTrajectoryCard growth={n.growthTrajectory} />);
+  };
+  it('current = 0.5 (fraction) shows 50.0%', () => {
+    const html = show(0.5, 0.6);
+    expect(html).toContain('>50.0%<');
+    expect(html).toContain('>60.0%<');
+  });
+  it('current = 50 (percentage) also shows 50.0%, never 5000.0%', () => {
+    const html = show(50, 60);
+    expect(html).toContain('>50.0%<');
+    expect(html).toContain('>60.0%<');
+    expect(html).not.toMatch(/\d{4,}\.\d%/);
+  });
+  it('keeps negative growth and renders placeholders for junk', () => {
+    expect(show(-0.05, -5)).toContain('>-5.0%<');
+    expect(show('abc', undefined)).toContain('>0.0%<'); // normalised junk -> 0, not NaN
+    expect(formatFraction(NaN)).toBe('—');
+  });
+  it('every normalised rate/score is a fraction in the analysis object', () => {
+    const n: any = normalizeAnalysis({
+      performanceMetrics: { engagement: { rate: 4.5 }, conversion: { rate: 0.03 }, roi: { score: 80 }, customerSatisfaction: { score: 0.9 }, brandLoyalty: { score: 70 } },
+      marketAnalysis: { marketDynamics: { growthRate: 12 }, customerSegments: [{ segment: 'a', size: 40, growth: 0.1 }] },
+      brandFactors: [{ name: 'x', score: 85 }], bestPractices: { dataCollection: { score: 60 } }
+    } as any);
+    expect(n.performanceMetrics.engagement.rate).toBeCloseTo(0.045);
+    expect(n.performanceMetrics.roi.score).toBeCloseTo(0.8);
+    expect(n.marketAnalysis.marketDynamics.growthRate).toBeCloseTo(0.12);
+    expect(n.marketAnalysis.customerSegments[0]).toMatchObject({ size: 0.4, growth: 0.1 });
+    expect(n.brandFactors[0].score).toBeCloseTo(0.85);
+    expect(n.bestPractices.dataCollection.score).toBeCloseTo(0.6);
   });
 });

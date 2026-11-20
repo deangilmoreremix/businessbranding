@@ -320,13 +320,13 @@ export class BrandAnalyzer {
         const trends = ['improving', 'stable', 'declining'] as const;
         return {
           name: pillar,
-          score: 0.7 + (Math.random() * 0.2),
+          score: 0.7 + ((index * 7) % 20) / 100, // deterministic sample value (this whole object is labelled sample data)
           insights: [
             'Strong foundation with room for growth',
             'Consider enhancing this aspect'
           ],
           priority: priorities[index < 5 ? 0 : index < 10 ? 1 : 2],
-          trend: trends[Math.floor(Math.random() * 3)]
+          trend: trends[index % 3]
         };
       }),
       performanceMetrics: {
@@ -446,6 +446,8 @@ export class BrandAnalyzer {
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined);
 /** Fraction in [0, 1] from either scale (0.5 and 50 both give 0.5). */
+/** Signed fraction (growth can be negative): |v| <= 1 is already a fraction, larger values are percentages (clamped to +-1000%). */
+const signedFraction = (v: unknown): number => { const n = num(v); if (n === undefined) return 0; const f = Math.abs(n) <= 1 ? n : n / 100; return Math.max(-10, Math.min(10, f)); };
 const fraction = (v: unknown): number => { const p = toPercent(v); return p === null ? 0 : p / 100; };
 
 /**
@@ -466,9 +468,30 @@ export function normalizeAnalysis<T extends Partial<BrandAnalysis>>(a: T): T {
     const whole = (v: unknown) => Math.max(0, Math.round(num(v) ?? 0));
     out.implementationStatus = { ...st, completed: whole(st.completed), inProgress: whole(st.inProgress), planned: whole(st.planned), total: whole(st.total), progressPercentage: Math.round(toPercent(st.progressPercentage) ?? 0) };
   }
+  // The brand-analysis UI shows every rate/score below as a FRACTION (0.5 -> "50%"). Normalise them all here, once, so the UI never
+  // has to guess the scale (it used to multiply a value that had already been converted to a percentage: "5000.0%").
   if (a.growthTrajectory) {
     const g: any = a.growthTrajectory;
-    out.growthTrajectory = { ...g, current: toPercent(g.current) ?? 0, projected: toPercent(g.projected) ?? 0 };
+    out.growthTrajectory = { ...g, current: signedFraction(g.current), projected: signedFraction(g.projected) };
+  }
+  const pm: any = a.performanceMetrics;
+  if (pm) {
+    out.performanceMetrics = { ...pm };
+    for (const [k, field] of [['engagement', 'rate'], ['conversion', 'rate'], ['roi', 'score'], ['customerSatisfaction', 'score'], ['brandLoyalty', 'score']] as const) {
+      if (pm[k]) out.performanceMetrics[k] = { ...pm[k], [field]: fraction(pm[k][field]) };
+    }
+  }
+  const ma: any = a.marketAnalysis;
+  if (ma) {
+    out.marketAnalysis = { ...ma };
+    if (ma.marketDynamics) out.marketAnalysis.marketDynamics = { ...ma.marketDynamics, growthRate: signedFraction(ma.marketDynamics.growthRate) };
+    if (Array.isArray(ma.customerSegments)) out.marketAnalysis.customerSegments = ma.customerSegments.map((c: any) => ({ ...c, size: fraction(c?.size), growth: signedFraction(c?.growth) }));
+  }
+  if (Array.isArray(a.brandFactors)) out.brandFactors = a.brandFactors.map((f: any) => ({ ...f, score: fraction(f?.score) }));
+  const bp: any = (a as any).bestPractices;
+  if (bp) {
+    out.bestPractices = { ...bp };
+    for (const k of Object.keys(bp)) if (bp[k] && typeof bp[k] === 'object' && 'score' in bp[k]) out.bestPractices[k] = { ...bp[k], score: fraction(bp[k].score) };
   }
   return out as T;
 }
