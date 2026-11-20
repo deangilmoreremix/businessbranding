@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { BrandAnalysis } from '@/components/brand-analysis';
 import { BrandPillarBreakdown } from '@/components/brand-pillar-breakdown';
 import { Brain, BarChart, Target, Activity, Sparkles } from 'lucide-react';
+import { headerTiles } from '@/lib/brand-metrics';
+import { SampleDataLabel } from '@/components/sample-data-badge';
 import type { BrandAnalysis as BrandAnalysisResult } from '@/lib/services/brand-analyzer';
 
 export default function BrandAnalysisPage() {
@@ -52,12 +54,7 @@ export default function BrandAnalysisPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
-            { title: 'Brand Health Score', value: brandAnalysisResults ? `${Math.round(brandAnalysisResults.healthScore)}%` : '85%', icon: Brain, color: 'blue' },
-            { title: 'Market Fit', value: brandAnalysisResults ? `${Math.round(brandAnalysisResults.marketFit * 100)}%` : '92%', icon: Target, color: 'purple' },
-            { title: 'Competitive Rank', value: '#2', icon: BarChart, color: 'indigo' },
-            { title: 'Growth Rate', value: '+45%', icon: Activity, color: 'green' }
-          ].map((stat, index) => (
+          {headerTiles(brandAnalysisResults).map((t, i) => ({ ...t, icon: [Brain, Target, BarChart, Activity][i], color: ['blue', 'purple', 'indigo', 'green'][i] })).map((stat, index) => (
             <motion.div
               key={stat.title}
               initial={{ opacity: 0, y: 20 }}
@@ -78,6 +75,8 @@ export default function BrandAnalysisPage() {
             </motion.div>
           ))}
         </div>
+
+        {brandAnalysisResults?.sample && <SampleDataLabel className="mb-4" />}
 
         <form onSubmit={startAnalysis} className="mb-8 flex gap-3" aria-label="Start a brand analysis">
           <Input

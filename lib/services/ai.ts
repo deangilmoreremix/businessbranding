@@ -1,5 +1,5 @@
 import type { TaskName } from '@/lib/ai-tasks';
-import { authFetch, KEY_REQUIRED_EVENT } from '@/lib/client/auth-fetch';
+import { authFetch, KEY_REQUIRED_EVENT, SAMPLE_CLEARED_EVENT, SAMPLE_DATA_EVENT } from '@/lib/client/auth-fetch';
 
 /**
  * AI features (Responses API + Structured Outputs), usable from server and client code.
@@ -18,7 +18,7 @@ export async function isDemoMode(): Promise<boolean> {
     const { isConfigured } = await import('@/lib/openai');
     return !isConfigured();
   }
-  if (Date.now() - configuredAt < 30_000) return false;
+  if (Date.now() - configuredAt < 30_000) return false; // recently confirmed configured
   let configured = false;
   let signedIn = false;
   try {
@@ -28,8 +28,13 @@ export async function isDemoMode(): Promise<boolean> {
   } catch {
     configured = false;
   }
-  if (configured) configuredAt = Date.now();
-  else if (signedIn) window.dispatchEvent(new CustomEvent(KEY_REQUIRED_EVENT));
+  if (configured) {
+    configuredAt = Date.now();
+    window.dispatchEvent(new CustomEvent(SAMPLE_CLEARED_EVENT));
+  } else {
+    if (signedIn) window.dispatchEvent(new CustomEvent(KEY_REQUIRED_EVENT));
+    window.dispatchEvent(new CustomEvent(SAMPLE_DATA_EVENT)); // callers fall back to sample data: say so in the UI
+  }
   return !configured;
 }
 

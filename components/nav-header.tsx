@@ -124,7 +124,7 @@ export function NavHeader() {
   }
 
   return (
-    <motion.div 
+    <motion.div data-testid="site-nav" 
       className={`sticky top-0 z-40 w-full backdrop-blur-lg border-b transition-all duration-300 ${
         scrolled 
           ? 'bg-background/80 border-accent/20 shadow-md' 

@@ -52,17 +52,22 @@ ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for content_items
+DROP POLICY IF EXISTS "Users can create their own content" ON content_items;
 CREATE POLICY "Users can create their own content"
   ON content_items
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own content" ON content_items;
+
 CREATE POLICY "Users can view their own content"
   ON content_items
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own content" ON content_items;
 
 CREATE POLICY "Users can update their own content"
   ON content_items
@@ -71,6 +76,8 @@ CREATE POLICY "Users can update their own content"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own content" ON content_items;
+
 CREATE POLICY "Users can delete their own content"
   ON content_items
   FOR DELETE
@@ -78,11 +85,14 @@ CREATE POLICY "Users can delete their own content"
   USING (auth.uid() = user_id);
 
 -- Create policies for voice_profiles
+DROP POLICY IF EXISTS "Users can create their own voice profiles" ON voice_profiles;
 CREATE POLICY "Users can create their own voice profiles"
   ON voice_profiles
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own voice profiles" ON voice_profiles;
 
 CREATE POLICY "Users can view their own voice profiles"
   ON voice_profiles
@@ -90,12 +100,16 @@ CREATE POLICY "Users can view their own voice profiles"
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own voice profiles" ON voice_profiles;
+
 CREATE POLICY "Users can update their own voice profiles"
   ON voice_profiles
   FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own voice profiles" ON voice_profiles;
 
 CREATE POLICY "Users can delete their own voice profiles"
   ON voice_profiles

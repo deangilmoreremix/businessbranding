@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 // React Flow styles are scoped to this route so other pages do not load them
 import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
-import { NavHeader } from '@/components/nav-header';
 
 // React Flow is browser-only and sizeable: load it on demand.
 const WorkflowBuilder = dynamic(() => import('@/components/local/workflow-builder'), {
@@ -15,7 +14,7 @@ const WorkflowBuilder = dynamic(() => import('@/components/local/workflow-builde
 export default function WorkflowsPage() {
   return (
     <>
-      <NavHeader />
+      {/* the site-wide NavHeader comes from app/layout.tsx */}
       <main className="max-w-6xl mx-auto px-4 pt-28 pb-16 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Content workflows</h1>

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { NavHeader } from '@/components/nav-header';
 import { SupportAgent } from '@/components/support-agent';
 import { OpenAIKeyNotice } from '@/components/openai-key-notice';
+import { SampleDataBadge } from '@/components/sample-data-badge';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Footer } from '@/components/footer';
 import { Providers } from './providers';
@@ -54,6 +55,7 @@ export default function RootLayout({
               </div>
               <SupportAgent />
               <OpenAIKeyNotice />
+              <SampleDataBadge />
             </TooltipProvider>
           </Providers>
         </div>

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BrandAnalysis } from '@/components/brand-analysis';
 import { BusinessAnalyzer } from '@/components/business-analyzer';
 import { CompetitiveAnalysis } from '@/components/competitive-analysis';
 import { DocumentationLinks } from '@/components/documentation-links';
@@ -20,11 +19,14 @@ interface BusinessInfo {
 
 export default function BrandStrategyPage() {
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
-  const [brandAnalysisResults, setBrandAnalysisResults] = useState<BrandAnalysisResult | null>(null);
-
-  const handleAnalysisComplete = (analysis: BrandAnalysisResult) => {
-    setBrandAnalysisResults(analysis);
-  };
+  // The analyzer renders the analysis itself (once) and hands the finished result up as JSON; do not render it a second time here.
+  const brandAnalysisResults = useMemo<BrandAnalysisResult | null>(() => {
+    try {
+      return businessInfo?.analysis ? (JSON.parse(businessInfo.analysis) as BrandAnalysisResult) : null;
+    } catch {
+      return null;
+    }
+  }, [businessInfo]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -44,16 +46,6 @@ export default function BrandStrategyPage() {
         <div className="mb-16">
           <BusinessAnalyzer onAnalysisComplete={setBusinessInfo} />
         </div>
-
-        {businessInfo && (
-          <div className="mb-16">
-            <BrandAnalysis 
-              businessIdea={businessInfo.websiteUrl}
-              websiteUrl={businessInfo.websiteUrl}
-              onAnalysisComplete={handleAnalysisComplete}
-            />
-          </div>
-        )}
 
         {brandAnalysisResults && (
           <div className="mb-16">

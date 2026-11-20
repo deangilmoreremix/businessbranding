@@ -30,6 +30,7 @@ CREATE TABLE business_analyzer (
 ALTER TABLE business_analyzer ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
+DROP POLICY IF EXISTS "Allow full access to business_analyzer" ON business_analyzer;
 CREATE POLICY "Allow full access to business_analyzer"
   ON business_analyzer
   FOR ALL

@@ -3,6 +3,8 @@ import { callTask, isDemoMode } from './ai';
 import { authFetch } from '@/lib/client/auth-fetch';
 
 export interface BrandAnalysis {
+  /** True when this is built-in sample data (no OpenAI key), not a real analysis: the UI labels it as such. */
+  sample?: boolean;
   // Core Brand Metrics
   healthScore: number;
   marketFit: number;
@@ -299,6 +301,7 @@ export class BrandAnalyzer {
 
   private getDemoAnalysis(): BrandAnalysis {
     return {
+      sample: true,
       healthScore: 85,
       marketFit: 0.78,
       uniquenessScore: 0.82,

@@ -21,6 +21,9 @@ const nextConfig = {
     mdxRs: true,
     serverComponentsExternalPackages: ['ws']
   },
+  async redirects() {
+    return [{ source: '/docs/gemini-features', destination: '/docs/ai-features', permanent: true }];
+  },
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   typescript: {
     // During build time, skip type checking to avoid build failures

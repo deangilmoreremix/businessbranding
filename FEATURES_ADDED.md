@@ -82,7 +82,7 @@ New code is only fetched on use (editor, exports, trimmer, captions, research pa
 - A live microphone level meter was not added; the trimmer waveform covers the Web Audio visualizer need.
 
 ## Tests
-`npm test` runs 60 vitest tests: image utilities, IndexedDB store (fake-indexeddb), File System Access fallbacks, PNG drawing (recording canvas), captions/VTT/SRT (including a round trip through `@remotion/captions`), speech/notifications/audio helpers, WAV/GIF encoders, workflow model and the React Email template.
+`npm test` runs the vitest suite (see the test count in the verification section below; it grew with the BYOK and security work). It covers: image utilities, IndexedDB store (fake-indexeddb), File System Access fallbacks, PNG drawing (recording canvas), captions/VTT/SRT (including a round trip through `@remotion/captions`), speech/notifications/audio helpers, WAV/GIF encoders, workflow model and the React Email template.
 
 ## Fixes: stub modules, planning page, type errors
 - **Stubs replaced:** `lib/services/calendar-service.ts` (AI + local scheduling, overlap resolution, RFC 5545 `.ics` export), `lib/services/implementation-plan.ts` (types, AI plan with strict schema, plan → calendar events, budget totals), `components/brand-pillar-breakdown/` (real UI; the empty `brand-pillar-breakdown.tsx` stub was shadowing it), `components/business-analyzer/business-analyzer-client.tsx` (the full analyzer moved into the directory the index already expected, plus a local saved-analyses history in IndexedDB).
