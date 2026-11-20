@@ -4,13 +4,8 @@ const withMDX = require('@next/mdx')();
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  images: { 
-    unoptimized: true,
-    domains: [
-      'images.unsplash.com',
-      'gadedbrnqzpfqtsdfzcg.supabase.co' // Supabase storage domain
-    ]
-  },
+  // next/image is not used and the optimizer is off, so no remote image host is configured.
+  images: { unoptimized: true },
   experimental: {
     optimizeCss: true,
     optimizePackageImports: [

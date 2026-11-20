@@ -1,6 +1,7 @@
 // No fabricated numbers: dashboards, asset library and stats are computed from the user's real saved items.
 const path = require('path');
-const { launch, signUpAndAddKey, base, SB, ok, section, warm, results } = require('./lib');
+const fs = require('fs');
+const { launch, signUpAndAddKey, base, SB, ok, section, warm, results, out } = require('./lib');
 
 const FAKE = [/\b156\b/, /\b2\.3\s?GB/i, /\b98%/, /\b124\b/, /\b42h\b/, /\b96%/, /Demo Podcast/i, /Demo Audiobook/i, /Disconnected/i, /Loading real-time/i, /unsplash/i];
 const noFake = async (page, where) => {
@@ -96,6 +97,21 @@ const tile = async (page, title) => (await page.locator('[data-testid=stat-tiles
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('[data-testid=plan-on-calendar]', { timeout: 30000 });
     ok('planning: after a reload the restored plan still fills the calendar', true);
+    // exports of the real plan: .ics with one VEVENT per task/milestone, and a docx with the plan text
+    await page.getByTestId('export-open-implementation-plan').click();
+    await page.getByRole('radio', { name: /Calendar/ }).click();
+    const [ics] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-run').click()]);
+    const icsFile = out('plan.ics'); await ics.saveAs(icsFile);
+    const icsText = fs.readFileSync(icsFile, 'utf8');
+    const vevents = (icsText.match(/BEGIN:VEVENT/g) || []).length;
+    ok('plan export: .ics is a real calendar with events (not an empty 172-byte file)', icsText.startsWith('BEGIN:VCALENDAR') && vevents >= 2 && icsText.length > 600 && /SUMMARY:/.test(icsText), `${vevents} events, ${icsText.length} bytes`);
+    await page.getByTestId('export-open-implementation-plan').click();
+    await page.getByRole('radio', { name: /Word/ }).click();
+    const [dx] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-run').click()]);
+    const dxFile = out('plan.docx'); await dx.saveAs(dxFile);
+    const JSZip = require('jszip');
+    const xml = await (await JSZip.loadAsync(fs.readFileSync(dxFile))).file('word/document.xml').async('string');
+    ok('plan export: .docx holds the plan title and phase tasks', /Implementation plan/.test(xml) && /Phases, goals and tasks/.test(xml) && !/undefined|NaN/.test(xml));
   });
 
   await section('competitive', async () => {
@@ -104,7 +120,17 @@ const tile = async (page, title) => (await page.locator('[data-testid=stat-tiles
     await page.click('button:has-text("Analyze Brand Strategy")');
     await page.waitForSelector('h2:has-text("Competitive Analysis")', { timeout: 60000 });
     const text = await page.locator('h2:has-text("Competitive Analysis")').locator('xpath=ancestor::*[contains(@class,"p-6")][1]').innerText();
-    ok('/brand-strategy competitive analysis: unmeasured metrics say "Not measured" and no stock numbers appear', /Not measured/.test(text) && !/\b(85|78|82|90|88|92)%/.test(text), text.replace(/\s+/g, ' ').slice(0, 160));
+    ok('/brand-strategy competitive analysis: TRUE labels (health / fit / uniqueness), values from the analysis, no stock numbers', /Brand health/.test(text) && /Market fit/.test(text) && /Uniqueness/.test(text) && !/Market Share|Brand Strength|Competitive Edge/.test(text) && !/\b(85|78|82|90|88|92)%/.test(text), text.replace(/\s+/g, ' ').slice(0, 160));
+    // the competitive export is a real, parseable file with the chosen sections
+    await page.getByTestId('export-open-competitive-analysis').click();
+    await page.getByRole('radio', { name: /Excel/ }).click();
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('export-run').click()]);
+    const file = out('competitive.xlsx');
+    await dl.saveAs(file);
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(fs.readFileSync(file), { type: 'buffer' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }).flat().join('|');
+    ok('competitive export: a real .xlsx with the measured values and no "undefined"/"NaN"', wb.SheetNames.length === 2 && /Brand health\|?/.test(rows) && /50%/.test(rows) && !/undefined|NaN/.test(rows), rows.slice(0, 120));
   });
 
   ok('dashboards: no uncaught page errors', errors.length === 0, errors.join(' | '));

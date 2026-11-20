@@ -38,7 +38,7 @@ const SCORE = /\b\d{1,3}(\.\d)?%/; // any percentage in a results area would be 
 
   await section('planning', async () => {
     await page.goto(base + '/dashboard/planning', { waitUntil: 'networkidle', timeout: 120000 });
-    await page.fill('#plan-description', 'Acme Coffee, small-batch roaster');
+    await page.fill('#plan-desc', 'Acme Coffee, small-batch roaster');
     await page.getByRole('button', { name: 'Generate plan' }).click();
     await page.waitForSelector('[data-testid=error-state]', { timeout: 40000 });
     ok('/dashboard/planning: 5xx -> error with Retry and no plan or budget', (await page.locator('[data-testid=error-state][data-error-kind=service]').count()) === 1 && (await page.getByRole('tab', { name: 'Budget' }).count()) === 0);
@@ -50,7 +50,7 @@ const SCORE = /\b\d{1,3}(\.\d)?%/; // any percentage in a results area would be 
     await page.getByRole('tab', { name: 'Podcast' }).click();
     await page.waitForSelector('input[placeholder="Enter podcast title"]', { timeout: 60000 });
     await page.fill('input[placeholder="Enter podcast title"]', 'Ep1');
-    await page.locator('textarea').first().fill('Welcome to the show.');
+    await page.locator('textarea[placeholder="Enter segment script"]').first().fill('Welcome to the show.');
     await page.getByRole('button', { name: /Generate Podcast/ }).click();
     await page.waitForSelector('[data-testid=voice-error]', { timeout: 30000 });
     ok('voice: a failed podcast shows an error, no audio player and no download', (await page.locator('audio').count()) === 0 && /try again/i.test(await page.innerText('[data-testid=voice-error]')));

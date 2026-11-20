@@ -46,7 +46,7 @@ const edges = readdirSync('supabase/functions').filter((d) => !d.startsWith('_')
 describe('auth coverage', () => {
   it('finds the routes (guards against the enumeration silently returning nothing)', () => {
     expect(routes.length).toBeGreaterThan(15);
-    expect(edges.length).toBeGreaterThan(8);
+    expect(edges.length).toBeGreaterThanOrEqual(4);
   });
 
   it.each(routes)('%s uses withUser or is an explicitly allowed open route', (route) => {

@@ -35,6 +35,27 @@ const measure = (page) => page.evaluate(() => {
       }
     }
   };
+  await section('hero-geometry', async () => {
+    for (const [w, h] of SIZES) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(base + '/', { waitUntil: 'networkidle', timeout: 90000 });
+      await page.waitForSelector('[data-testid=hero-headline]');
+      let clash = '';
+      for (let i = 0; i < 8; i++) { // sample every typewriter phrase (each is shown for ~2 s after typing)
+        const g = await page.evaluate(() => {
+          const r = (el) => el.getBoundingClientRect();
+          const head = r(document.querySelector('[data-testid=hero-headline]'));
+          const typed = document.querySelector('[data-testid=hero-typewriter] span');
+          const sub = r(document.querySelector('[data-testid=hero-subtitle]'));
+          const t = typed ? r(typed) : head;
+          return { headBottom: head.bottom, typedBottom: t.bottom, subTop: sub.top, text: typed ? typed.textContent : '' };
+        });
+        if (g.headBottom > g.subTop + 0.5 || g.typedBottom > g.subTop + 0.5) clash += `[${g.text}] head=${Math.round(g.headBottom)} typed=${Math.round(g.typedBottom)} sub=${Math.round(g.subTop)} `;
+        await page.waitForTimeout(2300);
+      }
+      ok(`/ hero @${w}px: headline (incl. typewriter text) never intersects the subtitle`, !clash, clash);
+    }
+  });
   await section('signed-out', () => check('out'));
   await signUpAndAddKey(page, 'vp');
   await section('signed-in', () => check('in'));

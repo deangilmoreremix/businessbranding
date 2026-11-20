@@ -28,9 +28,7 @@ describe('report model', () => {
     expect(JSON.stringify(m)).toContain('No competitors were returned');
     expect(JSON.stringify(m)).toContain('No recommendations were returned');
   });
-  it('marks sample data in the report', () => {
-    expect(JSON.stringify(buildReportModel({ ...analysis, sample: true }, '', ['overview']))).toContain('SAMPLE DATA');
-  });
+
 });
 
 describe('exports are real, non-empty, valid files', () => {

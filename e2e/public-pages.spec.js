@@ -34,7 +34,9 @@ const FAKE = [/Sarah Chen/, /John Smith/, /Alex Johnson/, /Michael Chen/, /David
     await seed('blog_posts', { slug: 'draft', title: 'Hidden Draft', excerpt: 'x', content: 'x', author_name: 'x', category: 'x', published: false });
     await seed('case_studies', { id: 'cs-1', title: 'Real Case Study', industry: 'Coffee', challenge: 'Needed a name.', solution: 'We named it.', published: true });
     await seed('case_studies', { id: 'cs-2', title: 'Unpublished Study', industry: 'x', challenge: 'x', solution: 'x', published: false });
-    const t = await text('/blogs');
+    await text('/blogs');
+    await page.waitForSelector('[data-testid=blog-list]', { timeout: 20000 });
+    const t = await page.innerText('body');
     ok('/blogs lists published posts only', /A Real Post/.test(t) && !/Hidden Draft/.test(t));
     const t2 = await text('/blogs/hello-world');
     ok('/blogs/[slug] shows the stored post', /A Real Post/.test(t2) && /Body text of the post/.test(t2));
@@ -42,7 +44,9 @@ const FAKE = [/Sarah Chen/, /John Smith/, /Alex Johnson/, /Michael Chen/, /David
     await page.waitForSelector('[data-testid=blog-missing]', { timeout: 15000 });
     ok('/blogs/[slug] of an unpublished post says it does not exist', true);
     ok('GET /api/blog/draft is a 404', (await fetch(base + '/api/blog/draft')).status === 404);
-    const t3 = await text('/case-studies');
+    await text('/case-studies');
+    await page.waitForSelector('[data-testid=case-study-list]', { timeout: 20000 });
+    const t3 = await page.innerText('body');
     ok('/case-studies lists published studies only', /Real Case Study/.test(t3) && !/Unpublished Study/.test(t3));
   });
 

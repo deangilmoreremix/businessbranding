@@ -23,7 +23,7 @@ function config(): { url: string; key: string } {
 /** Verify a user's access token with Supabase Auth. Returns null when the token is missing, invalid or expired. */
 export async function verifyAccessToken(token: string): Promise<{ id: string; email?: string } | null> {
   const { url, key } = config();
-  const res = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${url}/auth/v1/user`, { cache: 'no-store', headers: { apikey: key, Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   const user = await res.json().catch(() => null);
   return user?.id ? { id: user.id, email: user.email } : null;
@@ -33,6 +33,7 @@ async function rest(path: string, init: { method?: string; body?: unknown; prefe
   const { url, key } = config();
   const res = await fetch(`${url}/rest/v1/${path}`, {
     method: init.method ?? 'GET',
+    cache: 'no-store', // Next 14.2 caches GET fetches in route handlers by default; these are live database reads
     headers: {
       apikey: key,
       Authorization: `Bearer ${key}`,
