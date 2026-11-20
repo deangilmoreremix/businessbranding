@@ -8,6 +8,9 @@
  *   node scripts/mock-openai-server.mjs [port]   (then set OPENAI_BASE_URL=http://127.0.0.1:<port>/v1)
  * Every request is appended to the in-memory log, readable at GET /__log (and cleared with DELETE /__log).
  */
+// real, decodable 64x64 PNGs so the browser can draw/export/animate mock images
+const PNG_GENERATED = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeklEQVR4nO3PUQkAIBTAwBfPinY0hCH8OITBAtzmrP11wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWPHYBHXjRpQ1Ok5MAAAAASUVORK5CYII=';
+const PNG_EDITED = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeUlEQVR4nO3PwQkAIBDAsNvL7Rzat0P4CEKhA6Sz9vm64YIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALHrvwQDGWF3tzjQAAAABJRU5ErkJggg==';
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 
@@ -167,7 +170,7 @@ const server = http.createServer(async (req, res) => {
     if (!/^gpt-image-2\.6-(sunburst|flare)$/.test(b.model)) return fail(res, `unexpected image model ${b.model}`);
     if (b.response_format) return fail(res, 'response_format is not used with GPT Image models');
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ data: [{ b64_json: Buffer.from('PNGDATA').toString('base64') }], usage: { input_tokens: 5, output_tokens: 5 } }));
+    return res.end(JSON.stringify({ data: [{ b64_json: PNG_GENERATED }], usage: { input_tokens: 5, output_tokens: 5 } }));
   }
   if (url.pathname === '/v1/images/edits' && req.method === 'POST') {
     const ct = req.headers['content-type'] || '';
@@ -177,7 +180,7 @@ const server = http.createServer(async (req, res) => {
     if (!ct.startsWith('multipart/form-data')) return fail(res, 'edits must be multipart');
     if (!fields.some((f) => f.startsWith('image[](file:'))) return fail(res, 'missing image[] file');
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ data: [{ b64_json: Buffer.from('EDITED').toString('base64') }] }));
+    return res.end(JSON.stringify({ data: [{ b64_json: PNG_EDITED }] }));
   }
   if (url.pathname === '/v1/audio/transcriptions' && req.method === 'POST') {
     const text = raw.toString('latin1');

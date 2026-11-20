@@ -302,3 +302,16 @@ function checkAccess(userId, resource) {
 - API Reference: `/docs/api`
 - Community Support: Discord server
 - Email Support: support@aibrandcreator.com
+## Security: rotate keys that were committed earlier
+
+Git history still contains the original `.env` (commits `2ff6c7f` and `ba0d981`) with **live** credentials: Gemini, ElevenLabs and Recraft API
+keys and the Supabase anon JWT. Removing a file from the working tree does not remove it from history, so treat every one of those
+values as compromised:
+
+1. Revoke and regenerate the Gemini, ElevenLabs and Recraft keys in their dashboards (the app no longer uses these providers at all).
+2. Rotate the Supabase anon and service-role keys (Project Settings → API → JWT secret rotation) and update `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY` and your hosting environment.
+3. Optionally purge the history (`git filter-repo --path .env --invert-paths`, then force-push and have every collaborator re-clone).
+   Rotation is the part that actually protects you; a purge alone does not, because the old values may already have been copied.
+
+The app now needs no third-party AI key on the server: each signed-in user supplies their own OpenAI key in **Settings → OpenAI**.

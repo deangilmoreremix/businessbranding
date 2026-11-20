@@ -96,3 +96,7 @@ New code is only fetched on use (editor, exports, trimmer, captions, research pa
 - **Dev fallback:** `ALLOW_SERVER_OPENAI_KEY=true` (default off) lets `OPENAI_API_KEY` serve users without a key, for local development only.
 - **Tests:** `tests/byok.test.ts` (crypto, isolation, rate limit, error mapping), the BYOK section of `scripts/verify-ai.mjs` (mock Supabase `scripts/mock-supabase-server.mjs` + mock OpenAI), `scripts/verify-edge.ts` (Deno) and `e2e/byok-settings.spec.js` (Playwright Settings flow).
 - **Note:** demo fixtures inside the Edge Functions are now reached only when a request somehow runs with no key; they stay because the schema generator reads them.
+
+## Security note: rotate credentials committed in git history
+Commits `2ff6c7f` and `ba0d981` still contain the original `.env` with live Gemini, ElevenLabs and Recraft API keys and the Supabase anon JWT.
+They must be revoked/rotated (see `app/docs/integration-guide`). Deleting the file in a later commit does not remove it from history.

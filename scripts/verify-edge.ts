@@ -8,7 +8,7 @@
 import { aadFor, encryptSecret, last4Of } from '../supabase/functions/_shared/key-crypto.ts';
 import { upsertKeyRow } from '../supabase/functions/_shared/supabase-rest.ts';
 
-const mock = 'http://127.0.0.1:4999';
+const mock = Deno.env.get('MOCK_OPENAI') || 'http://127.0.0.1:4999';
 const ALICE = '11111111-1111-4111-8111-111111111111';
 const AUTH = { Authorization: 'Bearer tok-alice' };
 const USER_KEY = 'sk-test';
