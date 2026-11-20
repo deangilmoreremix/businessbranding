@@ -11,7 +11,6 @@ Voice features run on OpenAI audio models. All calls are made server-side; the b
 | Transcription | `POST /api/voice/transcribe` | `POST /v1/audio/transcriptions`, `gpt-transcribe` (`OPENAI_TRANSCRIBE_MODEL`) |
 | Live voice | `POST /api/voice/realtime` | Realtime API over WebRTC, `gpt-realtime-2.1` (`OPENAI_REALTIME_MODEL`) |
 | Voice analysis | `POST /api/voice/analyze` | Responses API, Structured Outputs |
-| Script optimization | `POST /api/voice/optimize` | Responses API, Structured Outputs |
 | Enhancement | `POST /api/voice/enhance` | Transcribe (if audio) → polish script → re-narrate |
 
 Voice endpoints use the signed-in user's own OpenAI key (Settings → OpenAI); without one they return `412 OPENAI_KEY_REQUIRED`. Voices (`voiceId`): `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar` (marin and cedar recommended).
@@ -58,8 +57,6 @@ data channel named `oai-events`, then `POST` the SDP offer to `callsUrl` with `A
 POST /api/voice/analyze   { "text": string, "voiceUrl"?: string }
 // -> { voice: { tone, sentiment, culturalSensitivity, emotionalResonance, audienceAlignment }, multiModal, recommendations }
 
-POST /api/voice/optimize  { "text": string, "type": "podcast" | "audiobook" | "advertisement" | "training" }
-// -> { optimizedContent: string, brandingConcepts }
 
 POST /api/voice/enhance   { "text": string, "settings"?: { emotion, pacing } }   // JSON -> { enhancedContent, audioUrl }
 POST /api/voice/enhance   multipart { audio }                                    // -> audio/wav

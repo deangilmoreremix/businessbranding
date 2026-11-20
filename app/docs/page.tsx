@@ -68,12 +68,6 @@ const components = [
     href: '/docs/components/brand-pillar-breakdown'
   },
   {
-    name: 'Export Dialog',
-    description: 'Export and download functionality',
-    icon: FileText,
-    href: '/docs/components/export-dialog'
-  },
-  {
     name: 'Implementation Plan',
     description: 'Brand implementation planning',
     icon: Settings,

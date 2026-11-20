@@ -274,7 +274,7 @@ Note for GPT-6.2 requests: `temperature`, `top_p` and `top_logprobs` are omitted
 
 All endpoints run server-side. Responses use the OpenAI **Responses API**; every place the UI parses JSON uses
 **Structured Outputs** (`text.format: json_schema`, `strict: true`), so no JSON repair is needed. Schemas live in
-`supabase/functions/_shared/schemas.ts` (generated from the demo fixtures by `node scripts/gen-ai-schemas.mjs`).
+`supabase/functions/_shared/schemas.ts` (maintained by hand; the former generator read demo fixtures that no longer exist).
 
 ### Named tasks (Structured Outputs, reasoning effort per task)
 ```typescript
@@ -282,7 +282,7 @@ POST /api/ai/task
 { "task": "brand_analysis" | "brand_evolution" | "branding_concepts" | "top_brands" | ..., "input": string, "imageUrls"?: string[] }
 // -> { "data": <schema-validated object>, "citations": [{ "url", "title" }] }
 ```
-`GET /api/ai/task` returns `{ "configured": boolean }`. Without a key the app falls back to demo data.
+`GET /api/ai/task` returns `{ "configured": boolean }`. Without a key the app shows an "add your key" state; there is no fallback data.
 Tasks that need current facts (`top_brands`, `social_profiles`, `social_profile_insights`) first research with the hosted
 `web_search` tool and then convert the findings to the strict schema; display the returned `citations` as links.
 
@@ -308,12 +308,6 @@ POST /api/ai/image
 // -> { "images": string[] }   // data: URLs
 ```
 Without `referenceImages` it generates; with them it edits (logo/asset variations). `fast: true` uses `gpt-image-2.6-flare`.
-
-### Content analysis
-```typescript
-POST /api/ai/analyze
-{ "content": string, "type": "brand" | "visual" | "voice" }
-```
 
 ### Voice (audio)
 See the [Voice API](/docs/api/voice): text-to-speech (Realtime API), transcription (`gpt-transcribe`) and live voice (Realtime over WebRTC).
