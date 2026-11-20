@@ -15,6 +15,8 @@ _This file is updated per feature group; see the sections below._
 | html-to-image | 1.11.13 | MIT | DOM mockup → PNG |
 | idb | 8.0.4 | ISC | IndexedDB drafts + asset cache |
 | @mediapipe/tasks-vision | 1.2.3 | Apache-2.0 | optional on-device person cut-out |
+| @remotion/captions | 4.0.545 (exact) | MIT (Remotion core packages: company license; used under the owner's free 1-person license) | `Caption` model, `parseVtt` |
+| gifenc | 1.0.3 | MIT | animated GIF previews |
 | vitest / vite / fake-indexeddb | 5.1.1 / – / 6.2.8 | MIT / MIT / Apache-2.0 | tests (dev only) |
 
 Notes: **`bg0` does not exist on npm.** `@imgly/background-removal` exists but is **AGPL-3.0** (copyleft), so it was *not*
@@ -53,3 +55,8 @@ used. Background removal is a dependency-free solid-colour flood fill plus optio
 - **Where:** Brand analysis → Competitors view → *Run deep research*. The OpenAI background job is polled; its id is saved locally so polling resumes after a reload, and a browser notification fires when it finishes (only if you pressed *Notify me when done* and the tab is not focused). Results show recommendations, opportunities, threats and cited sources.
 - **Support:** Notifications API on desktop browsers and Android Chrome; iOS Safari requires an installed web app. Unsupported/blocked → the button explains, and the result still appears in the page.
 - **Code:** `lib/local/notify.ts`, `components/local/deep-research-panel.tsx`, `lib/services/deep-research.ts`.
+
+## 7. Waveform, clip trimming and GIF previews
+- **Where:** Voice tools → *Voice-over* recorder (after recording) and *Transcription* (selected audio file): waveform drawn from the Web Audio API, start/end sliders, *Preview selection*, *Apply trim* (replaces the recording) and *Save clip (.wav)*. Visual Identity edit panel: *GIF preview* cycles through the uploaded/generated/edited images (needs two or more).
+- **Code:** `lib/local/audio.ts`, `components/local/audio-trimmer.tsx`, `lib/local/gif.ts`.
+- **Support:** Web Audio decode + canvas: all current browsers (the trimmer hides itself if decoding fails). Existing WaveSurfer visualizer in the audiobook player is unchanged. There is no video feature in the app, so GIFs are used for image/animation previews only.

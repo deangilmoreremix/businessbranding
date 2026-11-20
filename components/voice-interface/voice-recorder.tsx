@@ -22,6 +22,10 @@ import {
 } from 'lucide-react';
 import { generateVoiceOver } from '@/lib/services/voice';
 import { createContentItem } from '@/lib/supabase';
+import dynamic from 'next/dynamic';
+
+// Waveform + trimming use the Web Audio API and canvas, so they are browser-only and loaded on demand.
+const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 
 export function VoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
@@ -363,6 +367,18 @@ export function VoiceRecorder() {
                   {progress < 100 ? 'Enhancing audio...' : 'Done!'}
                 </p>
               </div>
+            )}
+
+            {recordedBlob && (
+              <AudioTrimmer
+                blob={recordedBlob}
+                onTrim={(trimmed) => {
+                  if (audioUrl) URL.revokeObjectURL(audioUrl);
+                  audioRef.current = null;
+                  setRecordedBlob(trimmed);
+                  setAudioUrl(URL.createObjectURL(trimmed));
+                }}
+              />
             )}
           </div>
         )}

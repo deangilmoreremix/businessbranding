@@ -10,6 +10,7 @@ import { extractPalette } from '@/lib/local/image-utils';
 import { putAsset, listAssets, deleteAsset, type AssetRecord } from '@/lib/local/store';
 import { saveFile } from '@/lib/local/fs-access';
 import { useLocalDraft } from '@/lib/local/use-draft';
+import { downloadBlob } from '@/lib/local/fs-access';
 
 // Browser-only, heavy: loaded only when the editor is opened.
 const ImageEditor = dynamic(() => import('./image-editor'), { ssr: false, loading: () => null });
@@ -42,6 +43,7 @@ export default function AssetTools({ images, onAddImage }: AssetToolsProps) {
   const [palette, setPalette] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  const [gifUrl, setGifUrl] = useState('');
   const [library, setLibrary] = useState<AssetRecord[]>([]);
   const cached = useRef(new Set<string>());
   const mockupRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,21 @@ export default function AssetTools({ images, onAddImage }: AssetToolsProps) {
       setStatus(result === 'cancelled' ? '' : result === 'saved' ? `Saved ${file}` : `Downloaded ${file}`);
     } catch (e: any) {
       setStatus(e.message || 'Export failed');
+    }
+  };
+
+  // Animated GIF preview cycling through the images (gifenc, loaded on demand)
+  const makeGif = async () => {
+    setStatus('Building GIF…');
+    try {
+      const { framesToGif, imagesToFrames } = await import('@/lib/local/gif');
+      const bytes = await framesToGif(await imagesToFrames(images.slice(0, 8)), 900);
+      const blob = new Blob([bytes as BlobPart], { type: 'image/gif' });
+      setGifUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+      downloadBlob(blob, 'brand-preview.gif');
+      setStatus('GIF preview created');
+    } catch (e: any) {
+      setStatus(e.message || 'GIF export failed');
     }
   };
 
@@ -145,8 +162,10 @@ export default function AssetTools({ images, onAddImage }: AssetToolsProps) {
             <Button size="sm" variant="outline" onClick={() => exportKit('palette')}><Download className="h-4 w-4 mr-1" />Palette PNG</Button>
             <Button size="sm" variant="outline" onClick={() => exportKit('social')}><Download className="h-4 w-4 mr-1" />Social post PNG</Button>
             <Button size="sm" variant="outline" onClick={exportMockup}><ImageIcon className="h-4 w-4 mr-1" />Snapshot mockup</Button>
+            <Button size="sm" variant="outline" disabled={images.length < 2} onClick={makeGif} title={images.length < 2 ? 'Needs at least two images' : undefined}><ImageIcon className="h-4 w-4 mr-1" />GIF preview</Button>
           </div>
           {status && <p className="text-xs text-muted-foreground" role="status">{status}</p>}
+          {gifUrl && /* eslint-disable-next-line @next/next/no-img-element */ <img src={gifUrl} alt="Animated preview" className="w-32 h-32 rounded border" />}
         </div>
 
         {/* DOM mockup captured by html-to-image */}

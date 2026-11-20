@@ -13,6 +13,7 @@ import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromText } from '@/lib/local/captions';
 
+const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
 export function VoiceTranscription() {
@@ -128,6 +129,9 @@ export function VoiceTranscription() {
                 <FileAudio className="h-4 w-4" />
                 <span>{file.name}</span>
               </div>
+            )}
+            {file && file.type.startsWith('audio/') && (
+              <AudioTrimmer blob={file} onTrim={(trimmed) => setFile(new File([trimmed], file.name.replace(/\.[^.]+$/, '') + '-trimmed.wav', { type: 'audio/wav' }))} />
             )}
 
             <div className="space-y-4">
