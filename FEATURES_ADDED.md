@@ -17,6 +17,9 @@ _This file is updated per feature group; see the sections below._
 | @mediapipe/tasks-vision | 1.2.3 | Apache-2.0 | optional on-device person cut-out |
 | @remotion/captions | 4.0.545 (exact) | MIT (Remotion core packages: company license; used under the owner's free 1-person license) | `Caption` model, `parseVtt` |
 | gifenc | 1.0.3 | MIT | animated GIF previews |
+| @react-email/components / render | 1.0.12 / 2.3.1 | MIT | email template |
+| @xyflow/react (React Flow) | 13.0.2 | MIT | workflow builder |
+| @huggingface/transformers | 4.3.2 (CDN, not installed) | Apache-2.0 | optional on-device Whisper |
 | vitest / vite / fake-indexeddb | 5.1.1 / – / 6.2.8 | MIT / MIT / Apache-2.0 | tests (dev only) |
 
 Notes: **`bg0` does not exist on npm.** `@imgly/background-removal` exists but is **AGPL-3.0** (copyleft), so it was *not*
@@ -60,3 +63,23 @@ used. Background removal is a dependency-free solid-colour flood fill plus optio
 - **Where:** Voice tools → *Voice-over* recorder (after recording) and *Transcription* (selected audio file): waveform drawn from the Web Audio API, start/end sliders, *Preview selection*, *Apply trim* (replaces the recording) and *Save clip (.wav)*. Visual Identity edit panel: *GIF preview* cycles through the uploaded/generated/edited images (needs two or more).
 - **Code:** `lib/local/audio.ts`, `components/local/audio-trimmer.tsx`, `lib/local/gif.ts`.
 - **Support:** Web Audio decode + canvas: all current browsers (the trimmer hides itself if decoding fails). Existing WaveSurfer visualizer in the audiobook player is unchanged. There is no video feature in the app, so GIFs are used for image/animation previews only.
+
+## 8. Content workflows (React Flow) and email templates (React Email)
+- **Where:** new page **/workflows** (footer → *Content Workflows*). Drag steps on a canvas: **Brief → Generate copy (OpenAI Responses, strict-schema `brand_content`) → Email template / Voice-over (OpenAI TTS)**. *Run workflow* executes in dependency order and shows the copy, a sandboxed email preview and an audio player. Graphs autosave in IndexedDB; *Export/Import* JSON uses the File System Access API with fallbacks; loops, missing inputs and bad imports are reported.
+- **Email:** `emails/brand-email.tsx` (React Email), rendered server-side by `POST /api/email/render` (HTML + plain text; only http(s) CTA links; palette validated). Preview is an `iframe sandbox=""`.
+- **Code:** `lib/local/workflow.ts` (pure model, tested), `components/local/workflow-builder.tsx`, `app/workflows/page.tsx`, `app/api/email/render/route.ts`.
+- **Support:** any modern desktop browser; React Flow works with touch but is best on desktop. React Flow CSS is imported only by the /workflows route.
+
+## Bundle impact (production build)
+Every existing route's First Load JS is **equal to or smaller than before** (23 of 37 routes smaller, 14 equal, none larger; shared JS 134 → 133 kB). Two changes keep it that way:
+- `next.config.js`: the custom per-package vendor splitting now applies to *initial* chunks only (`chunks: 'initial'`). Before, icons/libraries used by lazy features were merged into shared vendor chunks (e.g. `vendor.lucide-react` grew by 3 kB on every page).
+- The floating support assistant's chat/voice UI is `React.lazy`-loaded when the widget is opened.
+New code is only fetched on use (editor, exports, trimmer, captions, research panel, workflow page).
+
+## Not included / deviations
+- **Video** (Mediabunny / WebCodecs / FFmpeg.wasm / `@remotion/web-renderer`): the app has no video feature, so nothing was added. `@remotion/web-renderer` (stable since 4.0.491, WebCodecs via Mediabunny, MPL-2.0 for Mediabunny) is the natural way to build a captioned audiogram later.
+- Remotion's `createTikTokStyleCaptions` was not used (see section 5). Beacon analytics, Unlayer, PromptMe and standalone WebGPU were skipped as requested.
+- A live microphone level meter was not added; the trimmer waveform covers the Web Audio visualizer need.
+
+## Tests
+`npm test` runs 60 vitest tests: image utilities, IndexedDB store (fake-indexeddb), File System Access fallbacks, PNG drawing (recording canvas), captions/VTT/SRT (including a round trip through `@remotion/captions`), speech/notifications/audio helpers, WAV/GIF encoders, workflow model and the React Email template.

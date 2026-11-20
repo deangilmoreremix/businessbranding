@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, X } from 'lucide-react';
-import { AssistantChat } from '@/components/brand-analysis/assistant-chat';
-import { LiveVoice } from '@/components/voice-interface/live-voice';
+
+// The chat/voice UI (and its speech/recording code) is only downloaded when the assistant is opened.
+// React.lazy is used instead of next/dynamic so the root layout does not pull in next/dynamic's runtime.
+const SupportAgentPanel = lazy(() => import('@/components/support-agent-panel'));
 
 /**
  * Floating support assistant powered by OpenAI: streaming text chat (Responses API) and live voice (Realtime API).
@@ -18,27 +19,14 @@ export function SupportAgent() {
     <div className="fixed bottom-4 right-4 z-50">
       {isOpen ? (
         <Card className="w-96 p-4 glass-card shadow-xl">
-          <Tabs defaultValue="chat">
-            <div className="flex justify-between items-center mb-4">
-              <TabsList>
-                <TabsTrigger value="chat">Chat</TabsTrigger>
-                <TabsTrigger value="voice">Voice</TabsTrigger>
-              </TabsList>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} aria-label="Close assistant">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <TabsContent value="chat">
-              <AssistantChat mode="support" analysis={null} />
-            </TabsContent>
-
-            <TabsContent value="voice">
-              <LiveVoice
-                instructions="You are the support voice assistant for an AI brand-building platform. Answer questions about brand analysis, visual identity and voice content. Keep replies short and friendly."
-              />
-            </TabsContent>
-          </Tabs>
+          <div className="flex justify-end mb-2">
+            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} aria-label="Close assistant">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+            <SupportAgentPanel />
+          </Suspense>
         </Card>
       ) : (
         <Button onClick={() => setIsOpen(true)} className="rounded-full h-12 w-12 p-0 shadow-lg" aria-label="Open support assistant">

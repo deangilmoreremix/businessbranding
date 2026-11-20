@@ -59,6 +59,10 @@ const nextConfig = {
           cacheGroups: {
             defaultVendors: {
               test: /[\\/]node_modules[\\/]/,
+              // Only group vendor modules used by the initial load. Libraries that are only needed by lazily loaded
+              // features (editor, workflows, ...) stay in their own async chunks instead of inflating shared vendor
+              // chunks (e.g. vendor.lucide-react) that every page downloads.
+              chunks: 'initial',
               priority: -10,
               reuseExistingChunk: true,
               name(module) {

@@ -45,7 +45,8 @@ export function Footer() {
       { name: 'Brand Analysis', href: '/brand-strategy', icon: BarChart },
       { name: 'Visual Identity', href: '/visual-identity', icon: Palette },
       { name: 'Voice Content', href: '/voice-content', icon: Headphones },
-      { name: 'Content Dashboard', href: '/dashboard', icon: LayoutDashboard }
+      { name: 'Content Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Content Workflows', href: '/workflows', icon: LayoutDashboard }
     ],
     resources: [
       { name: 'Documentation', href: '/docs', icon: FileText },
