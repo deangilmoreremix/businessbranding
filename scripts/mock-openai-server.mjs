@@ -37,6 +37,7 @@ function checkStrict(schema, path = '$') {
 
 /** Produce a value that satisfies the schema. */
 function sample(schema) {
+  if (schema.enum) return schema.enum[0];
   const t = Array.isArray(schema.type) ? schema.type[0] : schema.type;
   if (t === 'object') return Object.fromEntries(Object.entries(schema.properties).map(([k, v]) => [k, sample(v)]));
   if (t === 'array') return [sample(schema.items)];

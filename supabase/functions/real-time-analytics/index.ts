@@ -157,19 +157,19 @@ function generateRealtimeData(): RealTimeMetrics {
     alerts: [
       {
         id: 'alert-1',
-        type: 'opportunity',
+        type: 'opportunity' as const,
         title: 'Traffic Spike Opportunity',
         description: 'Organic traffic increased 23% this week',
-        impact: 'high',
+        impact: 'high' as const,
         actionRequired: 'Optimize for trending keywords',
         timestamp: new Date(Date.now() - 3600000).toISOString()
       },
       {
         id: 'alert-2',
-        type: 'warning',
+        type: 'warning' as const,
         title: 'High Bounce Rate',
         description: 'Landing page bounce rate above 60%',
-        impact: 'medium',
+        impact: 'medium' as const,
         actionRequired: 'Review and optimize landing page content',
         timestamp: new Date(Date.now() - 7200000).toISOString()
       }

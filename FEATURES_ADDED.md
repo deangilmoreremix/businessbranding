@@ -83,3 +83,8 @@ New code is only fetched on use (editor, exports, trimmer, captions, research pa
 
 ## Tests
 `npm test` runs 60 vitest tests: image utilities, IndexedDB store (fake-indexeddb), File System Access fallbacks, PNG drawing (recording canvas), captions/VTT/SRT (including a round trip through `@remotion/captions`), speech/notifications/audio helpers, WAV/GIF encoders, workflow model and the React Email template.
+
+## Fixes: stub modules, planning page, type errors
+- **Stubs replaced:** `lib/services/calendar-service.ts` (AI + local scheduling, overlap resolution, RFC 5545 `.ics` export), `lib/services/implementation-plan.ts` (types, AI plan with strict schema, plan → calendar events, budget totals), `components/brand-pillar-breakdown/` (real UI; the empty `brand-pillar-breakdown.tsx` stub was shadowing it), `components/business-analyzer/business-analyzer-client.tsx` (the full analyzer moved into the directory the index already expected, plus a local saved-analyses history in IndexedDB).
+- **New page:** `/dashboard/planning` (plan → smart schedule → calendar; footer link). `/dashboard/brand-analysis` gained the missing input that starts an analysis.
+- **Type errors:** `npm run typecheck` runs `tsc` for the app **and** `tsconfig.edge.json` for the Supabase Edge Functions (Deno shim in `supabase/functions/deno-shim.d.ts`). Both report 0 errors. Notable root causes: untyped `useState([])`, a component and its type sharing a name, objects rendered as React children (brand recommendations), invalid chart/WaveSurfer options, missing `format` import, loosely typed colour maps.

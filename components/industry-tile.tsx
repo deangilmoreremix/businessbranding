@@ -19,7 +19,7 @@ export function IndustryTile({ name, icon, benefits, description, color = 'blue'
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
   
-  const colorVariants = {
+  const colorVariants: Record<string, any> = {
     blue: {
       light: 'bg-blue-500/5',
       medium: 'bg-blue-500/10',

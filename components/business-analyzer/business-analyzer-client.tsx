@@ -19,6 +19,8 @@ import {
 import { scrapeWebsite } from '@/lib/services/web-scraper';
 import { BrandAnalysis } from '@/components/brand-analysis';
 import { saveAnalysis, getStoredAnalysis } from '@/lib/services/storage';
+import { saveBusinessAnalysis, getBusinessAnalyses, deleteBusinessAnalysis, hostnameOf, type BusinessAnalysis } from '@/lib/services/business-analyzer';
+import { Trash2 } from 'lucide-react';
 
 interface BusinessAnalyzerProps {
   onAnalysisComplete?: (info: {
@@ -48,6 +50,10 @@ export function BusinessAnalyzer({ onAnalysisComplete }: BusinessAnalyzerProps) 
   const [showBrandAnalysis, setShowBrandAnalysis] = useState(false);
   const [businessIdeaForAnalysis, setBusinessIdeaForAnalysis] = useState('');
   const [detecting, setDetecting] = useState(false);
+  const [history, setHistory] = useState<BusinessAnalysis[]>([]);
+
+  const refreshHistory = () => { getBusinessAnalyses().then(setHistory); };
+  useEffect(() => { refreshHistory(); }, []);
 
   // Load stored data on mount
   useEffect(() => {
@@ -255,6 +261,14 @@ export function BusinessAnalyzer({ onAnalysisComplete }: BusinessAnalyzerProps) 
             businessIdea={businessIdeaForAnalysis || websiteUrl}
             websiteUrl={websiteUrl}
             onAnalysisComplete={(analysis) => {
+              // Keep a local history of finished analyses (IndexedDB) so they can be reopened later
+              saveBusinessAnalysis({
+                businessName: hostnameOf(websiteUrl),
+                industry: '',
+                websiteUrl,
+                socialLinks,
+                analysisResults: analysis
+              }).then(refreshHistory);
               if (onAnalysisComplete) {
                 onAnalysisComplete({
                   websiteUrl,
@@ -266,6 +280,32 @@ export function BusinessAnalyzer({ onAnalysisComplete }: BusinessAnalyzerProps) 
           />
         </div>
       )}
+
+      {history.length > 0 && (
+        <div className="mt-8 space-y-2" data-testid="analysis-history">
+          <h4 className="font-medium">Saved analyses <span className="text-xs text-muted-foreground">(stored in this browser)</span></h4>
+          <ul className="divide-y rounded border">
+            {history.map((h) => (
+              <li key={h.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{h.businessName || h.websiteUrl}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setWebsiteUrl(h.websiteUrl); setSocialLinks(h.socialLinks); }}>
+                    Load
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" aria-label="Delete saved analysis" onClick={async () => { await deleteBusinessAnalysis(h.id); refreshHistory(); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }
+
+export default BusinessAnalyzer;

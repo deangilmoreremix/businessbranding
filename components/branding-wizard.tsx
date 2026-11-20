@@ -39,7 +39,7 @@ import { ResponsiveLine } from '@nivo/line';
 import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveRadar } from '@nivo/radar';
-import { ImplementationPlan, ImplementationPhase } from '@/lib/services/implementation-plan';
+import type { ImplementationPlan as ImplementationPlanData, ImplementationPhase } from '@/lib/services/implementation-plan';
 import { BrandAnalyzer, BRAND_PILLARS } from '@/lib/services/brand-analyzer';
 import { generateVoiceOver } from '@/lib/services/voice';
 import { scrapeWebsite } from '@/lib/services/web-scraper';

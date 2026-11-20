@@ -27,7 +27,7 @@ export function ServiceCard({
 }: ServiceCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   
-  const colorVariants = {
+  const colorVariants: Record<string, any> = {
     blue: {
       bg: 'bg-blue-500/10',
       border: 'border-blue-500/30',

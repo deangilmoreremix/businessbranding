@@ -10,6 +10,8 @@ const corsHeaders = {
 };
 
 interface MarketAnalysis {
+  /** true when the response is built-in demo data (no OpenAI key) */
+  demo?: boolean;
   industry: string;
   analysisDate: string;
   marketOverview: {

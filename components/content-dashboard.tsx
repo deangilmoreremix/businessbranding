@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { ExportDialog } from '@/components/export-dialog';
-import { getContentItems, getVoiceProfiles, getImageAssets } from '@/lib/supabase';
+import { getContentItems, getVoiceProfiles, getImageAssets, type ContentItem, type VoiceProfile, type ImageAsset } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import { 
   FileAudio, 
@@ -36,9 +36,9 @@ import { Input } from './ui/input';
 
 export function ContentDashboard() {
   const [activeTab, setActiveTab] = useState('voice');
-  const [contentItems, setContentItems] = useState([]);
-  const [voiceProfiles, setVoiceProfiles] = useState([]);
-  const [imageAssets, setImageAssets] = useState([]);
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([]);
+  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewType, setViewType] = useState<'list' | 'grid'>('list');
   const [searchTerm, setSearchTerm] = useState('');

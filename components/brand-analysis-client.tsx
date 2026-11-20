@@ -292,7 +292,12 @@ export default function BrandAnalysisClient({ businessIdea, websiteUrl, onAnalys
                         <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                           <span className="text-sm font-semibold text-blue-500">{index + 1}</span>
                         </div>
-                        <p>{recommendation}</p>
+                        <div className="space-y-1">
+                          <p>{recommendation.recommendation}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {recommendation.category} · {recommendation.priority} priority · {recommendation.timeframe}
+                          </p>
+                        </div>
                       </div>
                     </Card>
                   ))}
@@ -353,7 +358,12 @@ export default function BrandAnalysisClient({ businessIdea, websiteUrl, onAnalys
                             <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                               <span className="text-sm font-semibold text-blue-500">{index + 1}</span>
                             </div>
-                            <p>{recommendation}</p>
+                            <div className="space-y-1">
+                          <p>{recommendation.recommendation}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {recommendation.category} · {recommendation.priority} priority · {recommendation.timeframe}
+                          </p>
+                        </div>
                           </div>
                         </Card>
                       ))}

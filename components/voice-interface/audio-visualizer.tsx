@@ -35,7 +35,6 @@ export function AudioVisualizer({
       cursorWidth: 2,
       cursorColor: '#9CA3AF',
       normalize: true,
-      responsive: true,
       fillParent: true,
       minPxPerSec: 50
     });

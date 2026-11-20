@@ -10,12 +10,19 @@ import { BusinessAnalyzer } from '@/components/business-analyzer';
 import { CompetitiveAnalysis } from '@/components/competitive-analysis';
 import { DocumentationLinks } from '@/components/documentation-links';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { BrandAnalysis as BrandAnalysisResult } from '@/lib/services/brand-analyzer';
+
+interface BusinessInfo {
+  websiteUrl: string;
+  socialLinks: { facebook: string; instagram: string; twitter: string; linkedin: string };
+  analysis: string;
+}
 
 export default function BrandStrategyPage() {
-  const [businessInfo, setBusinessInfo] = useState(null);
-  const [brandAnalysisResults, setBrandAnalysisResults] = useState(null);
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  const [brandAnalysisResults, setBrandAnalysisResults] = useState<BrandAnalysisResult | null>(null);
 
-  const handleAnalysisComplete = (analysis) => {
+  const handleAnalysisComplete = (analysis: BrandAnalysisResult) => {
     setBrandAnalysisResults(analysis);
   };
 
@@ -51,7 +58,11 @@ export default function BrandStrategyPage() {
         {brandAnalysisResults && (
           <div className="mb-16">
             <CompetitiveAnalysis 
-              analysis={brandAnalysisResults.competitiveAnalysis}
+              analysis={{
+                marketShare: Math.round(brandAnalysisResults.marketFit * 100),
+                brandStrength: Math.round(brandAnalysisResults.healthScore),
+                competitiveEdge: Math.round(brandAnalysisResults.uniquenessScore * 100)
+              }}
             />
           </div>
         )}

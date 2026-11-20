@@ -37,6 +37,9 @@ export const TASKS = {
   enhanced_text_analysis: { schema: 'enhanced_text_analysis', effort: 'medium', developer: BASE },
   voice_analysis: { schema: 'voice_analysis', effort: 'medium', developer: `${BASE} Scores are 0-1.` },
   content_optimization: { schema: 'content_optimization', effort: 'medium', developer: `${BASE} Rewrite scripts for spoken delivery.` },
+  smart_schedule: { schema: 'smart_schedule', effort: 'medium', developer: `${BASE} Return realistic, conflict-free schedules.` },
+  schedule_optimization: { schema: 'smart_schedule', effort: 'medium', developer: `${BASE} Return the same events with improved timing.` },
+  implementation_plan: { schema: 'implementation_plan', effort: 'high', heavy: true, developer: `${BASE} Produce a concrete, phased implementation plan with budgets in USD.` },
   brand_content: { schema: 'brand_content', effort: 'low', developer: `${BASE} Write on-brand copy for the requested deliverable.` }
 } as const satisfies Record<string, TaskDef>;
 

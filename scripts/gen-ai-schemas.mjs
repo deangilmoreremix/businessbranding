@@ -124,6 +124,17 @@ for (const [name, file, anchor] of [
   add('social_profiles', evalLiteral(extractLiteral(s, s.indexOf('return {', s.indexOf('isDemoMode()', at)) + 'return '.length)));
 }
 {
+  // Implementation plan: fixture is the function's returned object
+  const s = read('lib/services/implementation-plan.ts');
+  const at = s.indexOf('export function getDemoImplementationPlan');
+  add('implementation_plan', evalLiteral(extractLiteral(s, s.indexOf('return {', at) + 'return '.length), { businessDescription: 'your business' }));
+}
+{
+  const s = read('lib/services/calendar-service.ts');
+  const at = s.indexOf('export function getDemoSchedule');
+  add('smart_schedule', evalLiteral(extractLiteral(s, s.indexOf('return {', at) + 'return '.length)));
+}
+{
   const s = read('lib/services/voice.ts');
   const at = s.indexOf('async function analyzeVoiceContent');
   add('voice_analysis', evalLiteral(extractLiteral(s, s.indexOf('return {', s.indexOf('isDemoMode()', at)) + 'return '.length)));
@@ -140,6 +151,12 @@ const concepts = schemas.branding_concepts;
 concepts.properties.content = { type: 'string' };
 concepts.properties.keyMessages = { type: 'array', items: { type: 'string' } };
 concepts.required.push('content', 'keyMessages');
+
+// Enumerations the UI switches on (strict mode supports `enum`)
+const plan = schemas.implementation_plan.properties;
+plan.phases.items.properties.phase.enum = ['short-term', 'mid-term', 'long-term'];
+plan.risks.items.properties.impact.enum = ['high', 'medium', 'low'];
+schemas.smart_schedule.properties.events.items.properties.priority.enum = ['high', 'medium', 'low'];
 
 schemas.content_optimization = {
   type: 'object',

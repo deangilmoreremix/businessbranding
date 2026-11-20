@@ -176,6 +176,19 @@ r = await fetch(app + '/api/voice/enhance', { method: 'POST', body: form });
 wav = await riff(r); log = await getLog();
 ok('voice enhance (recording) -> transcribe -> polish -> re-narrate (audio/wav)', r.status === 200 && wav.ok && log.some((e) => e.path === '/audio/transcriptions') && log.some((e) => e.path === '/responses'), `status ${r.status}`);
 
+
+// 15. Planning tasks (implementation plan, smart schedule, schedule optimization)
+await clear();
+r = await post('/api/ai/task', { task: 'implementation_plan', input: 'Plan for Acme Coffee' });
+j = await r.json(); log = await getLog();
+ok('implementation_plan -> schema data, astra/high', r.status === 200 && Array.isArray(j.data?.phases) && Array.isArray(j.data?.budgetEstimate) && log[0]?.body.model === 'gpt-6.2-astra' && log[0].body.reasoning.effort === 'high' && log[0].body.text.format.name === 'implementation_plan');
+await clear();
+r = await post('/api/ai/task', { task: 'smart_schedule', input: 'Schedule it' });
+j = await r.json(); log = await getLog();
+ok('smart_schedule -> { events[] } strict schema, no temperature', r.status === 200 && Array.isArray(j.data?.events) && log[0]?.body.text.format.strict === true && !('temperature' in log[0].body));
+r = await post('/api/ai/task', { task: 'schedule_optimization', input: '[]' });
+ok('schedule_optimization -> 200', r.status === 200);
+
 // 10. Config probe
 r = await fetch(app + '/api/ai/task');
 ok('GET /api/ai/task -> configured', (await r.json()).configured === true);

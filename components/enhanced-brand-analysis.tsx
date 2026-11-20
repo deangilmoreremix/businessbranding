@@ -70,9 +70,9 @@ export function EnhancedBrandAnalysis({ analysis }: EnhancedBrandAnalysisProps) 
             <div key={i}>
               <div className="flex justify-between text-sm mb-1">
                 <span>{competitor.name}</span>
-                <span>{Math.round(competitor.score * 100)}%</span>
+                <span>{Math.round((competitor.score ?? 0) * 100)}%</span>
               </div>
-              <Progress value={competitor.score * 100} className="h-2" />
+              <Progress value={(competitor.score ?? 0) * 100} className="h-2" />
             </div>
           ))}
         </div>
@@ -84,7 +84,7 @@ export function EnhancedBrandAnalysis({ analysis }: EnhancedBrandAnalysisProps) 
           Brand Protection
         </h3>
         <div className="space-y-4">
-          {Object.entries(analysis.toxicity).map(([key, value]) => (
+          {Object.entries(analysis.toxicity ?? {}).map(([key, value]) => (
             <div key={key} className="flex items-center gap-2">
               {value ? (
                 <AlertTriangle className="h-4 w-4 text-amber-500" />

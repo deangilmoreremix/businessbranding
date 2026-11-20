@@ -10,6 +10,8 @@ const corsHeaders = {
 };
 
 interface WebsiteScanResult {
+  /** true when the response is built-in demo data (no OpenAI key) */
+  demo?: boolean;
   url: string;
   scanDate: string;
   loadTime: number;

@@ -9,7 +9,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     h2: (props) => <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight mt-10 mb-4" {...props} />,
     h3: (props) => <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mt-8 mb-4" {...props} />,
     p: (props) => <p className="leading-7 [&:not(:first-child)]:mt-6" {...props} />,
-    a: (props) => <Link {...props} className="text-blue-500 hover:text-blue-700 hover:underline" />,
+    a: ({ ref: _ref, href = '#', ...rest }) => <Link href={href} {...rest} className="text-blue-500 hover:text-blue-700 hover:underline" />,
     pre: (props) => (
       <Card className="p-4 my-6 overflow-x-auto">
         <pre {...props} />

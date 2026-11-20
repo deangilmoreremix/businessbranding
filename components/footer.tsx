@@ -46,7 +46,8 @@ export function Footer() {
       { name: 'Visual Identity', href: '/visual-identity', icon: Palette },
       { name: 'Voice Content', href: '/voice-content', icon: Headphones },
       { name: 'Content Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Content Workflows', href: '/workflows', icon: LayoutDashboard }
+      { name: 'Content Workflows', href: '/workflows', icon: LayoutDashboard },
+      { name: 'Planning & Calendar', href: '/dashboard/planning', icon: LayoutDashboard }
     ],
     resources: [
       { name: 'Documentation', href: '/docs', icon: FileText },

@@ -38,9 +38,9 @@
   "exclude": [
     "node_modules",
     "supabase/functions/*/index.ts",
-    "scripts",
-    "lib/edge-secrets.ts",
+    "supabase/functions/deno-shim.d.ts",
     "supabase/functions/_shared/openai.ts",
+    "scripts",
     "vitest.config.mts"
   ]
 }

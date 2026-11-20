@@ -26,13 +26,13 @@ import {
   Building,
   Brain
 } from 'lucide-react';
-import { ImplementationPlan, ImplementationPhase } from '@/lib/services/implementation-plan';
+import type { ImplementationPlan as ImplementationPlanData, ImplementationPhase } from '@/lib/services/implementation-plan';
 import { ResponsiveLine } from '@nivo/line';
 import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveBar } from '@nivo/bar';
 
 interface ImplementationPlanProps {
-  plan: ImplementationPlan;
+  plan: ImplementationPlanData;
 }
 
 export function ImplementationPlan({ plan }: ImplementationPlanProps) {

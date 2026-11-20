@@ -2409,6 +2409,309 @@ export const AI_SCHEMAS = {
     ],
     "additionalProperties": false
   },
+  "implementation_plan": {
+    "type": "object",
+    "properties": {
+      "overview": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "estimatedTimeline": {
+            "type": "string"
+          },
+          "objectives": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "estimatedTimeline",
+          "objectives",
+          "requiredResources"
+        ],
+        "additionalProperties": false
+      },
+      "phases": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "phase": {
+              "type": "string",
+              "enum": [
+                "short-term",
+                "mid-term",
+                "long-term"
+              ]
+            },
+            "timeframe": {
+              "type": "string"
+            },
+            "goals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "task": {
+                          "type": "string"
+                        },
+                        "timeline": {
+                          "type": "string"
+                        },
+                        "resources": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "task",
+                        "timeline",
+                        "resources"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "metrics": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "metric": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "type": "string"
+                        },
+                        "timeline": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "metric",
+                        "target",
+                        "timeline"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "title",
+                  "description",
+                  "tasks",
+                  "metrics"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "phase",
+            "timeframe",
+            "goals"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "budgetEstimate": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "shortTerm": {
+              "type": "number"
+            },
+            "midTerm": {
+              "type": "number"
+            },
+            "longTerm": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "category",
+            "shortTerm",
+            "midTerm",
+            "longTerm"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "risks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "risk": {
+              "type": "string"
+            },
+            "impact": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "mitigation": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "risk",
+            "impact",
+            "mitigation"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "milestones": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "timeline": {
+              "type": "string"
+            },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "title",
+            "description",
+            "timeline",
+            "criteria"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "overview",
+      "phases",
+      "budgetEstimate",
+      "risks",
+      "milestones"
+    ],
+    "additionalProperties": false
+  },
+  "smart_schedule": {
+    "type": "object",
+    "properties": {
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "category": {
+              "type": "string"
+            },
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "resources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "objectives": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "resources",
+                "objectives"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "description",
+            "start",
+            "end",
+            "priority",
+            "category",
+            "metadata"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "events"
+    ],
+    "additionalProperties": false
+  },
   "voice_analysis": {
     "type": "object",
     "properties": {

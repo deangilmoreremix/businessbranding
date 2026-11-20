@@ -23,9 +23,15 @@ import {
   Settings,
   ArrowRight
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { generateSmartSchedule, optimizeSchedule, type SmartScheduleOptions, type CalendarEvent } from '@/lib/services/calendar-service';
 
-export function ScheduleModels() {
+interface ScheduleModelsProps {
+  /** Called whenever the generated or optimized schedule changes (e.g. to show it in the calendar). */
+  onScheduleChange?: (events: CalendarEvent[]) => void;
+}
+
+export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [schedule, setSchedule] = useState<CalendarEvent[]>([]);
@@ -64,6 +70,7 @@ export function ScheduleModels() {
 
       const generatedSchedule = await generateSmartSchedule(options);
       setSchedule(generatedSchedule);
+      onScheduleChange?.(generatedSchedule);
     } catch (error) {
       console.error('Failed to generate schedule:', error);
     } finally {
@@ -74,8 +81,9 @@ export function ScheduleModels() {
   const handleOptimizeSchedule = async () => {
     setOptimizing(true);
     try {
-      const optimizedSchedule = await optimizeSchedule(schedule);
+      const optimizedSchedule = await optimizeSchedule(schedule, options.preferences?.excludedDays);
       setSchedule(optimizedSchedule);
+      onScheduleChange?.(optimizedSchedule);
     } catch (error) {
       console.error('Failed to optimize schedule:', error);
     } finally {
