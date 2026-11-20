@@ -7,7 +7,7 @@
  * Needs the Chromium browsers installed for the pinned Playwright (npx playwright install chromium).
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, openSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, openSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -17,7 +17,8 @@ const APP = Number(process.env.E2E_PORT || 5240);
 const SB = Number(process.env.E2E_SUPABASE_PORT || 5998);
 const OAI = Number(process.env.E2E_OPENAI_PORT || 5999);
 const specs = process.argv.slice(2);
-const OUT = process.env.E2E_OUT || join(tmpdir(), 'businessbranding-e2e');
+// unique per run: never a shared, predictable /tmp name
+const OUT = process.env.E2E_OUT || mkdtempSync(join(tmpdir(), 'businessbranding-e2e-'));
 mkdirSync(OUT, { recursive: true });
 // Neutral process names: other tooling on shared machines kills processes whose command line contains "mock-" or "next ", which made
 // long runs fail randomly. The mocks are started through symlinks with plain names.
@@ -45,7 +46,7 @@ for (const spec of specs) {
   // warm the server (first requests of a cold production server are slow and made time-sensitive specs flaky)
   for (const route of ['/', '/login', '/sign-up', '/settings', '/dashboard', '/workflows']) await fetch(`http://127.0.0.1:${APP}${route}`).then((r) => r.text()).catch(() => {});
   const code = await new Promise((resolve) => {
-    const p = spawn('node', [spec], { stdio: 'inherit', env: { ...process.env, E2E_BASE_URL: `http://127.0.0.1:${APP}`, E2E_SUPABASE_URL: `http://127.0.0.1:${SB}`, E2E_OPENAI_URL: `http://127.0.0.1:${OAI}` } });
+    const p = spawn('node', [spec], { stdio: 'inherit', env: { ...process.env, E2E_OUT: OUT, E2E_BASE_URL: `http://127.0.0.1:${APP}`, E2E_SUPABASE_URL: `http://127.0.0.1:${SB}`, E2E_OPENAI_URL: `http://127.0.0.1:${OAI}` } });
     p.on('exit', (c) => resolve(c ?? 1));
   });
   procs.forEach((p) => p.kill());

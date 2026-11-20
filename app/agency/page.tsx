@@ -73,39 +73,39 @@ const agencyBenefits = [
     title: 'Increased Revenue',
     description: 'Add a new high-margin service offering',
     icon: DollarSign,
-    time: '10x faster delivery'
+    time: 'Faster first drafts'
   },
   {
     title: 'Scalable Process',
     description: 'Handle more clients with AI automation',
     icon: Settings,
-    time: '5x client capacity'
+    time: 'More clients per team'
   },
   {
     title: 'Client Success',
     description: 'Deliver measurable brand improvements',
     icon: Target,
-    time: '98% satisfaction'
+    time: 'Track outcomes per client'
   }
 ];
 
 const results = [
   {
     title: 'Service Delivery Time',
-    value: '90%',
-    description: 'Reduction in project timeline',
+    value: 'Faster',
+    description: 'AI drafts of strategy and assets to start from',
     icon: Clock
   },
   {
     title: 'Client Portfolio',
-    value: '3x',
-    description: 'Growth in client capacity',
+    value: 'Scale',
+    description: 'Analyses for several clients from one workspace',
     icon: Briefcase
   },
   {
     title: 'Revenue Growth',
-    value: '185%',
-    description: 'Average agency growth',
+    value: 'Measure',
+    description: 'Compare each client\'s analyses over time',
     icon: TrendingUp
   }
 ];

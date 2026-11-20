@@ -151,7 +151,11 @@ export default function ImageEditor({ src, onClose, onApply }: ImageEditorProps)
       setWorking((await removeBackgroundAI(img)).toDataURL('image/png'));
     } catch (e) {
       console.warn('AI background removal failed:', (e as Error)?.message);
-      setError('On-device background removal could not start (model download blocked or unsupported browser). Try the solid-colour option.');
+      setError(
+        (e as Error)?.name === 'IntegrityError'
+          ? 'Security check failed: a downloaded file did not match its expected hash, so it was refused. Try the solid-colour option.'
+          : 'On-device background removal could not start (model download blocked or unsupported browser). Try the solid-colour option.'
+      );
     } finally {
       setBusy('');
     }

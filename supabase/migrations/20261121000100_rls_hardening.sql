@@ -63,3 +63,27 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   business_analyzer, image_assets, content_items, voice_profiles, user_settings
 TO authenticated;
 GRANT SELECT ON case_studies TO authenticated;
+
+-- 6. No client role needs TRUNCATE (bypasses RLS), REFERENCES or TRIGGER on any table.
+DO $$
+DECLARE t text;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('REVOKE TRUNCATE, REFERENCES, TRIGGER ON %I FROM anon, authenticated', t);
+  END LOOP;
+END $$;
+
+-- 7. case_studies: anonymous visitors may only READ published rows (RLS); no insert/update/delete/truncate privileges at all.
+REVOKE ALL ON case_studies FROM anon;
+GRANT SELECT ON case_studies TO anon;
+
+-- 8. Functions: nothing in `public` is callable by clients unless a migration grants it on purpose (rate limiting etc. are service-role only).
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+-- ... and the same for functions created LATER (PostgreSQL grants EXECUTE to PUBLIC by default)
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_rate_limit(uuid, text, integer, integer) TO service_role;
+
+-- 9. voice_profiles had an updated_at trigger but no updated_at column, so EVERY update failed ("record new has no field updated_at").
+ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();

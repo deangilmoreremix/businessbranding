@@ -27,3 +27,19 @@ describe('no random numbers as data', () => {
     expect(text('app/api/scrape/route.ts')).not.toMatch(/Math\.random/);
   });
 });
+
+describe('no unsubstantiated marketing statistics', () => {
+  const t = (f: string) => readFileSync(f, 'utf8');
+  it('about / agency / hero carry no invented satisfaction, reach or growth numbers', () => {
+    for (const f of ['app/about/page.tsx', 'app/agency/page.tsx', 'components/hero-section.tsx']) {
+      expect(t(f), f).not.toMatch(/2,500\+|98%|30\+|185%|10x faster|5x client|Revenue Growth \+\d+%|Recognition \+\d+%|Engagement \+\d+%|Efficiency \+\d+%/);
+    }
+  });
+});
+
+describe('no third-party animation downloads', () => {
+  it('nothing references lottiefiles.com', () => {
+    const offenders = ['app', 'components', 'lib'].flatMap(walk).filter((f) => /lottiefiles\.com|react-lottie-player/.test(readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+});

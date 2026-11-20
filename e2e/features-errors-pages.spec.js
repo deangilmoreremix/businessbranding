@@ -114,6 +114,21 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     ok('contact: the row is in contact_submissions with a hashed client, not a raw address', stored.contact_submissions.length === 1 && stored.contact_submissions[0].email === 'ann@example.test' && /^[0-9a-f]{64}$/.test(stored.contact_submissions[0].client_hash));
   });
 
+  // ---- the landing page loads no third-party animation files and logs no console errors
+  await section('landing', async () => {
+    const external = [];
+    const consoleErrors = [];
+    const onReq = (r) => { const u = new URL(r.url()); if (!['127.0.0.1', 'localhost'].includes(u.hostname)) external.push(u.hostname); };
+    const onMsg = (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 140)); };
+    page.on('request', onReq); page.on('console', onMsg);
+    await page.goto(base + '/', { waitUntil: 'networkidle', timeout: 120000 });
+    await page.mouse.wheel(0, 6000);
+    await page.waitForTimeout(2500);
+    page.off('request', onReq); page.off('console', onMsg);
+    ok('landing page: no requests to lottiefiles (or any third-party animation host)', !external.some((h) => /lottie/i.test(h)), [...new Set(external)].join(','));
+    ok('landing page: no console errors while scrolling through the animated sections', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+  });
+
   // ---- settings tabs
   await section('settings', async () => {
     await page.goto(base + '/settings', { waitUntil: 'networkidle' });

@@ -140,6 +140,36 @@ reset role;
 -- auth.uid() stub sanity
 select _check('auth.uid() reads request.jwt.claim.sub', (select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111', true) is not null) and auth.uid() = '11111111-1111-4111-8111-111111111111'::uuid);
 
+-- privileges (not just rows): clients must have NO table privileges on the secret/server-only tables, whatever RLS says
+select _check('privileges: user_api_keys has no privileges for anon/authenticated (select/insert/update/delete/truncate/references/trigger)',
+  not exists (select 1 from unnest(array['anon','authenticated']) r, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p where has_table_privilege(r, 'public.user_api_keys', p)));
+select _check('privileges: rate_limits and contact_submissions have no client privileges',
+  not exists (select 1 from unnest(array['anon','authenticated']) r, unnest(array['rate_limits','contact_submissions']) t, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE']) p where has_table_privilege(r, 'public.'||t, p)));
+select _check('privileges: ai_usage_log and ai_jobs are read-only for authenticated (no write/truncate)',
+  not exists (select 1 from unnest(array['ai_usage_log','ai_jobs']) t, unnest(array['INSERT','UPDATE','DELETE','TRUNCATE']) p where has_table_privilege('authenticated', 'public.'||t, p))
+  and not exists (select 1 from unnest(array['ai_usage_log','ai_jobs']) t, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE']) p where has_table_privilege('anon', 'public.'||t, p)));
+select _check('privileges: no client role has TRUNCATE, REFERENCES or TRIGGER on any public table',
+  not exists (select 1 from pg_tables x, unnest(array['anon','authenticated']) r, unnest(array['TRUNCATE','REFERENCES','TRIGGER']) p where x.schemaname='public' and x.tablename not like '\_%' and has_table_privilege(r, 'public.'||x.tablename, p)));
+select _check('privileges: case_studies is SELECT-only for anon (no insert/update/delete/truncate)',
+  has_table_privilege('anon','public.case_studies','SELECT') and not exists (select 1 from unnest(array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p where has_table_privilege('anon','public.case_studies',p)));
+select _check('privileges: anon has no privilege at all on any other public table',
+  not exists (select 1 from pg_tables x, unnest(array['SELECT','INSERT','UPDATE','DELETE']) p where x.schemaname='public' and x.tablename not in ('case_studies','_results','_future_table') and has_table_privilege('anon','public.'||x.tablename,p)));
+select _check('privileges: no public function is executable by anon or authenticated (consume_rate_limit is service_role only)',
+  not exists (select 1 from pg_proc f join pg_namespace n on n.oid=f.pronamespace, unnest(array['anon','authenticated']) r where n.nspname='public' and f.proname not like '\_%' and has_function_privilege(r, f.oid, 'EXECUTE'))
+  and has_function_privilege('service_role', 'public.consume_rate_limit(uuid,text,integer,integer)', 'EXECUTE'));
+create function public._future_fn() returns int language sql as $$ select 1 $$;
+select _check('default privileges: a function created later is not executable by anon/authenticated/PUBLIC',
+  not has_function_privilege('anon', 'public._future_fn()', 'EXECUTE') and not has_function_privilege('authenticated', 'public._future_fn()', 'EXECUTE'));
+
+-- voice_profiles: the updated_at trigger must work (it used to fail because the column did not exist)
+insert into voice_profiles (name, voice_id, user_id) values ('upd','marin','11111111-1111-4111-8111-111111111111');
+select _check('voice_profiles: an UPDATE works and the trigger maintains updated_at (service_role)',
+  _try('service_role', null, 'update voice_profiles set name = ''renamed'' where name = ''upd''') = 1);
+select _check('voice_profiles: the owner can UPDATE their own row, not another user''s (authenticated)',
+  _try('authenticated','11111111-1111-4111-8111-111111111111','update voice_profiles set name = ''mine'' where name = ''renamed''') = 1
+  and _try('authenticated','22222222-2222-4222-8222-222222222222','update voice_profiles set name = ''stolen'' where name = ''mine''') = 0);
+select _check('voice_profiles: updated_at really changes', (select updated_at >= created_at from voice_profiles where name = 'mine' limit 1));
+
 -- a table created AFTER the migrations must not be reachable by anon/authenticated until access is granted on purpose
 create table public._future_table (id int);
 insert into public._future_table values (1);

@@ -30,7 +30,10 @@ function useAccountSettings() {
   }, []);
   const save = async (body: object) => {
     const r = await authFetch('/api/settings/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!r.ok) throw Object.assign(await toApiError(r, 'Could not save'), { fields: (await r.clone().json().catch(() => ({}))).fields });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw Object.assign(new Error(body.error || `Could not save (${r.status})`), { fields: body.fields });
+    }
     return r.json();
   };
   return { profile, setProfile, notifications, setNotifications, loaded, loadError, save };

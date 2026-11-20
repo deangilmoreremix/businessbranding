@@ -101,7 +101,7 @@ const sidebarNavItems = [
       },
       {
         title: 'Case Studies',
-        href: '/docs/case-studies',
+        href: '/case-studies',
         icon: Users
       }
     ]

@@ -414,7 +414,7 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
 // 12. Contact form: public, validated, honeypot, size-capped, rate-limited, stored server-side only
 {
   await fetch(supa + '/__state', { method: 'DELETE' });
-  const contact = (b, raw) => fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw ?? JSON.stringify(b) });
+  const contact = (b, raw) => fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.9' }, body: raw ?? JSON.stringify(b) });
   r = await contact({ name: '', email: 'x', message: 'short' });
   j = await r.json();
   ok('contact: invalid form -> 400 with field errors', r.status === 400 && j.code === 'VALIDATION' && !!j.fields?.email);
@@ -430,6 +430,9 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
   ok('contact: valid messages stored (service role), client hashed, no raw address', r.status === 200 && st.contact_submissions.length === 5 && st.contact_submissions.every((c) => /^[0-9a-f]{64}$/.test(c.client_hash) && !JSON.stringify(c).includes('127.0.0.1')));
   r = await contact({ name: 'Ann', email: 'ann@example.test', message: 'The sixth message in an hour.' });
   ok('contact: 6th message in an hour -> 429', r.status === 429);
+  // spoofing X-Forwarded-For must not buy extra messages: the platform/rightmost address decides
+  r = await fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '9.9.9.9, 203.0.113.9' }, body: JSON.stringify({ name: 'Ann', email: 'ann@example.test', message: 'Trying a spoofed forwarded address.' }) });
+  ok('contact: a spoofed X-Forwarded-For does not reset the limit (still 429)', r.status === 429);
   r = await fetch(supa + '/rest/v1/contact_submissions', { headers: { apikey: 'anon-key', Authorization: 'Bearer tok-alice' } });
   ok('contact: clients cannot read submissions (RLS)', r.status === 401);
 }

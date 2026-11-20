@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateContact } from '@/lib/contact';
+import { clientAddress, validateContact } from '@/lib/contact';
 import '@/lib/openai'; // binds the runtime env reader used by the shared server modules
 import { countRecentContacts, insertContact, supabaseConfigured } from '@/lib/server/user';
 
@@ -10,7 +10,7 @@ const MAX_BODY = 20_000;
 const json = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
 async function clientHash(request: Request): Promise<string> {
-  const ip = (request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown').split(',')[0].trim();
+  const ip = clientAddress(request.headers);
   const salt = process.env.KEY_ENCRYPTION_SECRET || 'contact';
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}|${ip}`));
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');

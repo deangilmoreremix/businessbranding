@@ -180,7 +180,7 @@ export default function HeroSection() {
               <div className="mt-4 text-sm">
                 <div className="flex items-center gap-2 text-green-400">
                   <Sparkles className="h-4 w-4" />
-                  <span>Avg. Revenue Growth +45%</span>
+                  <span>20-pillar strategic analysis</span>
                 </div>
               </div>
             </motion.div>
@@ -197,7 +197,7 @@ export default function HeroSection() {
               <div className="mt-4 text-sm">
                 <div className="flex items-center gap-2 text-green-400">
                   <Sparkles className="h-4 w-4" />
-                  <span>Brand Recognition +85%</span>
+                  <span>Edit and export on your device</span>
                 </div>
               </div>
             </motion.div>
@@ -214,7 +214,7 @@ export default function HeroSection() {
               <div className="mt-4 text-sm">
                 <div className="flex items-center gap-2 text-green-400">
                   <Sparkles className="h-4 w-4" />
-                  <span>Engagement +95%</span>
+                  <span>Natural OpenAI voices and captions</span>
                 </div>
               </div>
             </motion.div>
@@ -231,7 +231,7 @@ export default function HeroSection() {
               <div className="mt-4 text-sm">
                 <div className="flex items-center gap-2 text-green-400">
                   <Sparkles className="h-4 w-4" />
-                  <span>Team Efficiency +85%</span>
+                  <span>One place for your saved assets</span>
                 </div>
               </div>
             </motion.div>

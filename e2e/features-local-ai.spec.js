@@ -11,6 +11,30 @@ const isPng = (b) => b.slice(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 
   const { browser, page, errors } = await launch();
   await signUpAndAddKey(page, 'local');
 
+  // Tamper test: the CDN "serves" a WASM file with ONE flipped byte; the cut-out must refuse it with an integrity-specific message
+  await section('sri-tamper', async () => {
+    const ctx2 = await browser.newContext({ viewport: { width: 1300, height: 1100 }, acceptDownloads: true });
+    const p2 = await ctx2.newPage();
+    await signUpAndAddKey(p2, 'tamper', 'sk-test-TAMPER00000000009999');
+    await p2.route('**/vision_wasm_internal.wasm', async (route) => {
+      const res = await route.fetch();
+      const body = Buffer.from(await res.body());
+      body[4096] ^= 0x01;
+      await route.fulfill({ response: res, body });
+    });
+    await p2.goto(base + '/dashboard/visual-identity', { waitUntil: 'networkidle' });
+    await p2.setInputFiles('input[type=file]', path.join(__dirname, 'fixtures/logo.png'));
+    await p2.waitForSelector('img[alt="Asset 1"]');
+    await p2.click('button[aria-label="Edit image 1"]');
+    await p2.waitForSelector('[role=dialog][aria-label="Image editor"] canvas');
+    await p2.locator('[role=dialog] [role=tab]', { hasText: /Background/i }).click();
+    await p2.locator('[role=dialog] button:has-text("Remove background (AI)")').click();
+    await p2.waitForSelector('[role=dialog] [role=alert], [role=dialog] .text-red-500', { timeout: 120000 });
+    const msg = await p2.locator('[role=dialog] [role=alert], [role=dialog] .text-red-500').first().innerText();
+    ok('SRI: a tampered WASM file (1 byte flipped) is refused with a security-specific message, not "download blocked"', /Security check failed/.test(msg) && !/download blocked/.test(msg), msg.slice(0, 120));
+    await ctx2.close();
+  });
+
   await section('editor-tools', async () => {
     await page.goto(base + '/dashboard/visual-identity', { waitUntil: 'networkidle', timeout: 120000 });
     await page.setInputFiles('input[type=file]', path.join(__dirname, 'fixtures/logo.png'));

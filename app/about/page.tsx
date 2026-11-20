@@ -147,22 +147,17 @@ export default function AboutPage() {
             </p>
             <div className="pt-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col items-center text-center">
-                  <div className="text-3xl font-bold gradient-text mb-2">2,500+</div>
-                  <div className="text-sm text-muted-foreground">Brands Created</div>
-                </div>
-                <div className="flex flex-col items-center text-center">
-                  <div className="text-3xl font-bold gradient-text mb-2">98%</div>
-                  <div className="text-sm text-muted-foreground">Client Satisfaction</div>
-                </div>
-                <div className="flex flex-col items-center text-center">
-                  <div className="text-3xl font-bold gradient-text mb-2">15+</div>
-                  <div className="text-sm text-muted-foreground">Industries Served</div>
-                </div>
-                <div className="flex flex-col items-center text-center">
-                  <div className="text-3xl font-bold gradient-text mb-2">30+</div>
-                  <div className="text-sm text-muted-foreground">Countries Worldwide</div>
-                </div>
+                {[
+                  ['20', 'Brand pillars analysed'],
+                  ['BYOK', 'Runs on your own OpenAI key'],
+                  ['Local', 'Image and audio editing happen in your browser'],
+                  ['Open', 'PNG, GIF, .ics, .vtt and .srt exports']
+                ].map(([value, label]) => (
+                  <div key={label} className="flex flex-col items-center text-center">
+                    <div className="text-3xl font-bold gradient-text mb-2">{value}</div>
+                    <div className="text-sm text-muted-foreground">{label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>

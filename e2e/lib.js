@@ -6,7 +6,8 @@ const fs = require('node:fs');
 // Ports and output are configurable: E2E_BASE_URL (app), E2E_SUPABASE_URL (mock Supabase), E2E_OPENAI_URL (mock OpenAI), E2E_OUT (downloads/screenshots).
 const base = process.env.E2E_BASE_URL || process.env.BASE || 'http://127.0.0.1:5240';
 const SB = process.env.E2E_SUPABASE_URL || process.env.SB || 'http://127.0.0.1:5998';
-const OUT = process.env.E2E_OUT || path.join(os.tmpdir(), 'businessbranding-e2e');
+// unique per run (never a shared, predictable /tmp name that another process could pre-populate)
+const OUT = process.env.E2E_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'businessbranding-e2e-'));
 fs.mkdirSync(OUT, { recursive: true });
 const out = (name) => path.join(OUT, name);
 // the browser Supabase client keeps its session in a cookie named after the first label of the Supabase host

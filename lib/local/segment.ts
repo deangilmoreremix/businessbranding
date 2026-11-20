@@ -15,11 +15,15 @@ const FILES = {
   loader: { url: `${BASE}/wasm/vision_wasm_internal.js`, integrity: 'sha384-VG4L2pc/JhM3VpFdPd6t2AoiapZdLjSqTKIuofix3rkzN9Yfj0tXOb1uT9+k4I3h' },
   binary: { url: `${BASE}/wasm/vision_wasm_internal.wasm`, integrity: 'sha384-HQSquUNcS27439Q+k9aDBLpQXHgMM5HFO0K3mSjv1RierSrzbQq8Fbc2zL+CXlGK' }
 };
-const DEFAULT_MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
+// The model is pinned too: a versioned URL (not "latest") whose bytes are verified before MediaPipe reads them.
+const MODEL = {
+  url: process.env.NEXT_PUBLIC_SEGMENTER_MODEL_URL || 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite',
+  integrity: 'sha384-A2bQ8+iZyQM3KIGVBUf0FyetqxuynyKpjsjCE8uzoJEnj1ghCu6ge2daiRffAiS5'
+};
 
 export const aiSegmentationSupported = () => typeof WebAssembly === 'object' && typeof document !== 'undefined';
 
-import { fetchVerified, importVerifiedModule } from '@/lib/local/sri';
+import { fetchVerified, fetchVerifiedBytes, importVerifiedModule } from '@/lib/local/sri';
 
 let segmenterPromise: Promise<any> | null = null;
 
@@ -29,9 +33,9 @@ async function getSegmenter() {
       const { ImageSegmenter } = await importVerifiedModule(FILES.module.url, FILES.module.integrity);
       const [loader, binary] = await Promise.all([fetchVerified(FILES.loader.url, FILES.loader.integrity), fetchVerified(FILES.binary.url, FILES.binary.integrity)]);
       const fileset = { wasmLoaderPath: URL.createObjectURL(new Blob([loader], { type: 'text/javascript' })), wasmBinaryPath: URL.createObjectURL(binary) };
-      const modelAssetPath = process.env.NEXT_PUBLIC_SEGMENTER_MODEL_URL || DEFAULT_MODEL; // model weights are data, not code
+      const modelAssetBuffer = new Uint8Array(await fetchVerifiedBytes(MODEL.url, MODEL.integrity));
       const make = (delegate: 'GPU' | 'CPU') =>
-        ImageSegmenter.createFromOptions(fileset, { baseOptions: { modelAssetPath, delegate }, runningMode: 'IMAGE', outputCategoryMask: false, outputConfidenceMasks: true });
+        ImageSegmenter.createFromOptions(fileset, { baseOptions: { modelAssetBuffer, delegate }, runningMode: 'IMAGE', outputCategoryMask: false, outputConfidenceMasks: true });
       try {
         return await make('GPU');
       } catch {

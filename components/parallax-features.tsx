@@ -4,7 +4,6 @@ import { useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Tilt from 'react-parallax-tilt';
-import { Player } from '@lottiefiles/react-lottie-player';
 import { 
   Brain, 
   Palette, 
@@ -31,18 +30,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import gsap from 'gsap';
 
-const LOTTIE_ANIMATIONS = {
-  analysis: 'https://assets9.lottiefiles.com/packages/lf20_rjgikbck.json',
-  design: 'https://assets4.lottiefiles.com/packages/lf20_jR229r.json',
-  voice: 'https://assets3.lottiefiles.com/packages/lf20_kbfzivr8.json',
-  audio: 'https://assets3.lottiefiles.com/packages/lf20_ydo1amdf.json'
-};
 
 const features = [
   {
     title: 'Comprehensive Brand Analysis',
     icon: Brain,
-    lottie: LOTTIE_ANIMATIONS.analysis,
     description: 'Get a 360° view of your brand with our AI-powered analysis across 20 strategic pillars',
     color: 'indigo',
     details: [
@@ -92,7 +84,6 @@ const features = [
   {
     title: 'Visual Identity Evolution',
     icon: Palette,
-    lottie: LOTTIE_ANIMATIONS.design,
     description: 'Transform your visual brand identity with advanced AI design and style transfer',
     color: 'purple',
     details: [
@@ -142,7 +133,6 @@ const features = [
   {
     title: 'Brand Voice Innovation',
     icon: MessageSquare,
-    lottie: LOTTIE_ANIMATIONS.voice,
     description: 'Create a distinctive brand voice with AI-powered content generation',
     color: 'blue',
     details: [
@@ -192,7 +182,6 @@ const features = [
   {
     title: 'Unified Brand Management',
     icon: Layers,
-    lottie: LOTTIE_ANIMATIONS.audio,
     description: 'Manage your entire brand ecosystem from a centralized platform',
     color: 'cyan',
     details: [
@@ -414,12 +403,16 @@ function FeatureRow({ feature, index, scrollYProgress }: { feature: (typeof feat
                           <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5" />
                           
                           <div className="h-[300px] w-full relative">
-                            <Player
-                              src={feature.lottie}
-                              className="w-full h-full"
-                              loop
-                              autoplay
-                            />
+                            {/* Decorative panel drawn locally: the former remote Lottie animations were fetched from a third-party CDN at runtime
+                                (blocked/403 in some networks, and third-party content on every page view). */}
+                            <motion.div
+                              className="w-full h-full flex items-center justify-center"
+                              animate={{ y: [0, -12, 0] }}
+                              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                              aria-hidden
+                            >
+                              <feature.icon className={`h-28 w-28 text-${feature.color}-400/70`} />
+                            </motion.div>
                           </div>
                         </Card>
                       </Tilt>

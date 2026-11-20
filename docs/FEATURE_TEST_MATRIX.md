@@ -14,25 +14,24 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 
 | Suite | PASS | FAIL |
 |---|---|---|
-| vitest (unit, security, BYOK, auth-coverage enumeration, contact, stats, display, redirects, DB wrapper) | 219 | 0 |
-| `scripts/verify-ai.mjs` (API request shapes, BYOK, security, contact API) | 131 | 0 |
+| vitest (unit, security, BYOK, auth-coverage, SRI tamper + live pins, no-random guard, contact, stats, display incl. growth 0.5/50, settings, redirects, DB wrapper) | 245 | 0 |
+| `scripts/verify-ai.mjs` (API request shapes, BYOK, security, contact API incl. spoofed X-Forwarded-For) | 132 | 0 |
 | `scripts/edge-test.mjs` -> `verify-edge.ts` (all AI Edge Functions, Deno 2.9) | 38 | 0 |
-| `scripts/db-test.sh` (**16 migrations applied twice**, RLS, rate limiter, future-table privileges, contact table; Postgres 16) | 133 | 0 |
-| Playwright `auth` (sign-in/up/reset) | 22 | 0 |
+| `scripts/db-test.sh` (**16 migrations applied twice**, RLS, table/function privileges, future tables/functions, voice_profiles updates, rate limiter, contact table; Postgres 16) | 144 | 0 |
+| Playwright `auth` | 22 | 0 |
 | Playwright `byok-settings` | 16 | 0 |
 | Playwright `ui-fixes` | 11 | 0 |
 | Playwright `features-visual` | 14 | 0 |
 | Playwright `features-voice` | 16 | 0 |
 | Playwright `features-assistant` | 14 | 0 |
 | Playwright `features-analysis` | 18 | 0 |
-| Playwright `features-errors-pages` (error states, every page, contact, settings, API smoke) | 61 | 0 |
-| Playwright `features-local-ai` (real MediaPipe + Whisper downloads) | 4 | 0 |
+| Playwright `features-errors-pages` (error states, every page, contact, settings tabs, landing page without third-party animation requests / console errors, API smoke) | 63 | 0 |
+| Playwright `features-local-ai` (real MediaPipe + Whisper downloads, **SRI tamper test**) | 5 | 0 |
 | Playwright `features-dashboard` (real data, no fabricated numbers, analysis display, planning/calendar) | 22 | 0 |
-| **Total automated assertions** | **719** | **0** |
+| Playwright `features-settings` (Profile, Notifications, real password change, Billing) | 15 | 0 |
+| **Total automated assertions** | **775** | **0** |
 
-Also: `tsc` 0 errors (app and edge config), `next lint` 0 errors, `next build` green **with type checking and lint now enforced**
-(`ignoreBuildErrors`/`ignoreDuringBuilds` are `false`). Shared JS 127 kB (baseline 134 kB); every route is at or below baseline except
-`/contact` (+39 kB: it was an empty stub, it is now a real form).
+Also: `tsc` 0 errors (app and edge config), `next lint` 0 errors, `next build` green **with type checking and lint enforced**.
 
 ### NOT TESTABLE / NOT TESTED (complete list)
 
@@ -64,13 +63,17 @@ styles, and Gemini model options. Voices are now OpenAI's; images use the Images
 | Settings -> OpenAI: add / invalid / test per-model access / replace / remove, masked last 4, input cleared, no key in storage/URLs | `byok-settings` | PASS |
 | Per-user model override fixes "model unavailable" | `features-errors-pages` | PASS |
 | Session cookie survives a full page load (middleware) | `auth` (this was a bug, fixed) | PASS |
-| Settings tabs (Profile, Notifications, Security, OpenAI, Billing) open | `features-errors-pages` | PASS (open only; Profile/Notifications/Security/Billing forms are static UI with no backend) |
+| Settings -> Profile: saved server-side to `user_settings` (owner row), invalid website rejected with a field error, survives reload, does not wipe the key/model settings | `features-settings` | PASS |
+| Settings -> Notifications: preferences saved and restored; the card says plainly that e-mail is not sent yet | `features-settings` | PASS |
+| Settings -> Security: real password change via Supabase auth after verifying the current password (wrong current / <12 chars / mismatch refused; old password stops working, new one signs in). Two-factor is stated as unavailable | `features-settings` | PASS |
+| Settings -> Billing: honest BYOK note; the card number/CVV/zip inputs and the fake "Update Billing" button were removed | `features-settings` | PASS |
+| Settings -> OpenAI tab | `byok-settings` | PASS |
 
 ## Authentication coverage (automatic)
 
 `tests/auth-coverage.test.ts` enumerates every `app/api/**/route.ts` and every `supabase/functions/*/index.ts` from the file system: each must use
 `withUser` / `edgeHandler`, and each protected route handler is called without credentials and must answer **401**. A new route without the wrapper
-fails the test. The only open routes are an explicit allow-list with reasons: `/api/models`, `/api/case-studies` (GET), `/api/contact` and the
+fails the test; `route.ts/.tsx/.js/.jsx/.mjs` are all enumerated, and an open route that gains an extra HTTP method fails too (mutation-tested). The only open routes are an explicit allow-list with reasons: `/api/models`, `/api/case-studies` (GET), `/api/contact` and the
 `hello-world` function. | PASS (23 routes, 11 functions)
 
 ## Error states (real UI + API)
@@ -157,7 +160,10 @@ fails the test. The only open routes are an explicit allow-list with reasons: `/
 | `consume_rate_limit`: counts, blocks over the limit, per user and per bucket, window rolls, not executable by clients | PASS |
 | Tables created after the migrations are not reachable by `anon`/`authenticated` (default privileges revoked; explicit grants for owner tables) | PASS |
 | `contact_submissions`: no client access, service role only, length constraints | PASS |
-| Without `20261121000100_rls_hardening.sql` the same test fails 24 checks (anyone with the anon key could read/write five tables and NULL-owner rows on six) | verified |
+| Without `20261121000100_rls_hardening.sql` the current test fails **33** checks (anyone with the anon key could read/write five tables and NULL-owner rows on six; privileges, defaults and the voice_profiles fix are gone too). An earlier version of this document said 24: that was the count at the time, before the privilege probes were added | verified by removing the file |
+| Removing the `REVOKE` on `user_api_keys` (or the `voice_profiles.updated_at` fix) makes the suite FAIL (3 checks): the privilege and trigger probes are mutation-tested | verified |
+| Table privileges: no client privileges on `user_api_keys`, `rate_limits`, `contact_submissions`; `ai_*` read-only for authenticated; no TRUNCATE/REFERENCES/TRIGGER for clients anywhere; `case_studies` SELECT-only for anon; no `public` function executable by clients; functions created later are not executable by anon/authenticated/PUBLIC | PASS |
+| `voice_profiles` UPDATE works (the trigger referenced a column that did not exist) and is owner-scoped | PASS |
 
 ## Bugs found and fixed while testing
 
@@ -185,10 +191,23 @@ fails the test. The only open routes are an explicit allow-list with reasons: `/
 10. Third-party code at runtime: MediaPipe files are loaded from a pinned CDN URL and verified against SHA-384 hashes before use; Transformers.js and ONNX Runtime are self-hosted under `public/vendor/` by `scripts/vendor-local-ai.mjs` (SHA-384-pinned, runs before `npm run build`; WASM only, the WebGPU bundle is not vendored).
 11. e2e infrastructure: specs take configurable ports/paths (`E2E_*`), run via `npm run e2e*` against a production build with the mocks started under neutral process names (other tooling on shared machines was killing "mock-"/"next" processes mid-run); the rate-limit check no longer depends on earlier sections.
 
+## Bugs found and fixed in the second gate round
+
+1. **5000% growth:** `normalizeAnalysis` converted growth to a percentage and the UI multiplied by 100 again. Every rate/score is now normalised to a fraction in one place and shown via `formatFraction`; `GrowthTrajectoryCard` is tested with `current = 0.5` and `= 50` (both show `50.0%`).
+2. **Settings forms were fake** (a 1.5 s timer; a Billing tab collecting card details): Profile/Notifications/Security save for real, Billing is an honest note.
+3. **Random/invented numbers**: removed from competitor intelligence (stock competitors, random radar/heatmap/bar values, hard-coded segment, growth and regional charts), case-study generation (random metrics, "Client Name / CEO" testimonial) and the Edge Function demo fixtures; unused fabricating modules were deleted (sentiment dashboard, trend analysis, competitor-analysis, the lib social/website scanners, `transformAndSaveImage`, `lib/supabase/index.ts`). A guard test fails on any `Math.random()` outside two allow-listed id/jitter uses.
+4. Contact rate limiting trusted the first (client-controlled) `X-Forwarded-For` value: platform headers, then the rightmost hop.
+5. SRI: the integrity option made a tampered file indistinguishable from "offline" in the browser (the editor said "download blocked"); the hash is now compared explicitly and an integrity-specific message is shown. The segmenter model is pinned to a versioned URL with a hash and loaded from verified bytes.
+6. `voice_profiles` could never be updated; table/function privileges tightened (see Database).
+7. Invented marketing statistics (98 % satisfaction, 2,500+ brands, 30+ countries, 185 %, "+45 % revenue" ...) replaced by factual, non-numeric copy. The `/docs/case-studies` link pointed to a 404.
+8. Remote Lottie animations (third-party downloads, 403 in restricted networks) replaced by local decorative panels.
+
 ## Known gaps (stated plainly)
 
 - See the NOT TESTABLE / NOT TESTED table above; nothing there is hidden in the totals.
 - Pages marked "smoke only" were only loaded.
 - The MediaPipe/Transformers model **weights** are still fetched from Google/Hugging Face at use time (data, not code; Hugging Face serves them with its own integrity checks).
 - `/contact` grew from an empty stub to a real form (+39 kB First Load JS on that route).
+- The `/pricing` page still shows plan prices although the app has no payment flow (BYOK); it was not part of this round and is not changed.
+- Test scratch files use per-run unique directories (`mkdtemp`); the e2e runner no longer writes to predictable shared `/tmp` names.
 - `package-lock.json` was regenerated (`npm install --legacy-peer-deps`) to add eslint; the project already had unresolved peer-dependency conflicts.
