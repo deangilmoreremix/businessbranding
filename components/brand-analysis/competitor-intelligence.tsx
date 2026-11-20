@@ -26,6 +26,7 @@ import {
   Users,
 } from 'lucide-react';
 
+import { formatFraction } from '@/lib/format';
 import { ResponsiveRadar } from '@nivo/radar';
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveHeatMap } from '@nivo/heatmap';
@@ -33,6 +34,7 @@ import { ResponsivePie } from '@nivo/pie';
 
 interface CompetitorIntelligenceProps {
   industry?: string;
+  market?: { growthRate?: number; competitionLevel?: 'high' | 'medium' | 'low' };
   competitors?: Array<{
     name: string;
     marketShare?: number;
@@ -49,7 +51,14 @@ interface CompetitorIntelligenceProps {
 // Background deep research + notifications: browser-only, loaded on demand.
 const DeepResearchPanel = dynamic(() => import('@/components/local/deep-research-panel'), { ssr: false, loading: () => null });
 
-export function CompetitorIntelligence({ industry = 'Technology', competitors = [] }: CompetitorIntelligenceProps) {
+export function CompetitorIntelligence({ industry = 'your market', competitors = [], market }: CompetitorIntelligenceProps) {
+  const shares = competitors.map((c) => c.marketShare).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0).sort((x, y) => y - x);
+  const top3 = shares.length >= 3 && competitors.length === shares.length ? shares.slice(0, 3).reduce((x, y) => x + y, 0) : null;
+  const marketStats = [
+    { title: 'Market Growth Rate', value: typeof market?.growthRate === 'number' ? formatFraction(market.growthRate) : 'Not measured', icon: TrendingUp, sub: 'From this analysis' },
+    { title: 'Competition Level', value: market?.competitionLevel ? market.competitionLevel[0].toUpperCase() + market.competitionLevel.slice(1) : 'Not measured', icon: Target, sub: 'From this analysis' },
+    { title: 'Top 3 Share', value: top3 === null ? 'Not measured' : formatFraction(top3 > 1 ? top3 / 100 : top3, 0), icon: BarChart, sub: top3 === null ? 'Needs market share for at least 3 competitors' : 'Sum of the three largest shares in this analysis' }
+  ];
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCompetitor, setExpandedCompetitor] = useState<string | null>(null);
   const [activeView, setActiveView] = useState('overview');
@@ -100,7 +109,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-xl font-bold">Top Competitors Intelligence</CardTitle>
-          <Badge variant="outline">Industry: {industry}</Badge>
+          <Badge variant="outline">Market: {industry}</Badge>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
@@ -118,7 +127,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold">Top Competitors Intelligence</CardTitle>
-          <Badge variant="outline">Industry: {industry}</Badge>
+          <Badge variant="outline">Market: {industry}</Badge>
         </div>
         <div className="flex items-center gap-4 mt-4">
           <div className="relative flex-1">
@@ -510,52 +519,18 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                   </CardContent>
                 </Card>
                 
-                <Card>
-                  <CardHeader className="py-4">
-                    <CardTitle className="text-lg">Competitive Advantage</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      {[
-                        { area: "Customer Experience", advantage: 78, description: "7% above industry average" },
-                        { area: "Technical Innovation", advantage: 86, description: "Leading in 3 of 5 categories" },
-                        { area: "Price-to-Value", advantage: 73, description: "Mid-tier position with premium features" }
-                      ].map((advantage, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">{advantage.area}</span>
-                            <Badge variant="outline" className="bg-green-100 text-green-800">
-                              {advantage.advantage}% Advantage
-                            </Badge>
-                          </div>
-                          <Progress value={advantage.advantage} className="h-2" />
-                          <p className="text-sm text-muted-foreground">{advantage.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </TabsContent>
           
           <TabsContent value="market">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              {[
-                { title: 'Total Market Size', value: '$8.7B', growth: '+12%', icon: BarChart },
-                { title: 'Market Growth Rate', value: '14.8%', growth: '+2.3%', icon: TrendingUp },
-                { title: 'Market Concentration', value: 'Moderate', sub: 'Top 3 hold 65%', icon: Target },
-              ].map((stat, i) => (
+              {marketStats.map((stat, i) => (
                 <Card key={i} className="p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-muted-foreground text-sm">{stat.title}</p>
                       <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                      <p className="text-sm mt-1">
-                        <Badge variant="outline" className={(stat.growth?.startsWith('+')) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {stat.growth || 'N/A'} YoY
-                        </Badge>
-                      </p>
                     </div>
                     <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900">
                       <stat.icon className="text-blue-700 dark:text-blue-300 h-5 w-5" />

@@ -19,6 +19,7 @@ const ALLOW: Record<string, Record<string, string>> = {
   'app/docs/**': { 'stat-literal': 'documentation text and code samples (version numbers, example payloads), not product claims' },
   'app/{privacy,terms,cookies}/page.tsx': { 'stat-literal': 'legal text: retention periods and legal limits' },
   'lib/local/**': { 'stat-literal': 'engineering constants (sample rates, byte sizes), not displayed statistics' },
+  'lib/local/store.ts': { 'math-random': 'random suffix of a locally generated record id (uniqueness, never displayed or presented as data)' },
   'lib/ai-tasks.ts': { 'stat-literal': 'prompt instructions to the model (e.g. "score 0-100"), not displayed statistics' },
   'lib/**': { 'sample-fixture': 'lib code that implements the labelled sample-data mode (demo flag + sample:true) is reviewed in FAKE_DATA_AUDIT.md' }
 };
@@ -51,6 +52,7 @@ const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.rep
 for (const f of FILES) {
   const lines = stripComments(src(f)).split('\n');
   lines.forEach((line, i) => {
+    if (/^\s*[\w$]+\s*[:=]\s*\/.*\/[a-z]*;?\s*$/.test(line) || /(?:const|let)\s+\w+\s*=\s*\/.*\/[a-z]*;/.test(line) || /\bposition:\s*["']\d+% \d+%["']/.test(line) || /\bplaceholder=/.test(line)) return; // regex literals, CSS position, input placeholders (hints, not data)
     for (const [rule, re] of RULES) {
       if (!re.test(line)) continue;
       if (rule === 'stat-literal' && (NOT_DISPLAY.test(line) || /^\s*(import|export type|\*)/.test(line))) continue;
@@ -90,7 +92,7 @@ for (const f of FILES.filter((f) => f.endsWith('.tsx'))) checkButtons(f);
 // ---- sample / demo fixtures --------------------------------------------------------------------------------------------------
 const FIXTURE = /\b(demo|sample|mock|placeholder)[A-Za-z]*\s*(=|:)\s*[\[{]|\bget(Demo|Sample|Mock)[A-Za-z]*\(|\b(demo|sample)(Data|Items|Rows|Brands|Posts|Studies|Metrics|Competitors)\b/;
 for (const f of FILES) {
-  src(f).split('\n').forEach((line, i) => { if (FIXTURE.test(line) && !/^\s*(\/\/|\*)/.test(line)) add(f, i + 1, 'sample-fixture', line); });
+  src(f).split('\n').forEach((line, i) => { if (FIXTURE.test(line) && !/placeholder=/.test(line) && !/^\s*(\/\/|\*)/.test(line)) add(f, i + 1, 'sample-fixture', line); });
 }
 
 describe('no fabricated data or fake interactivity (whole app)', () => {

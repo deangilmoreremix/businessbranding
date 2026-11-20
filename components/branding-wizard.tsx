@@ -586,9 +586,7 @@ export function BrandingWizard({ websiteUrl, socialLinks, existingAnalysis }: Br
                           <div className="flex-1">
                             <div className="flex justify-between mb-1">
                               <span className="capitalize">{platform}</span>
-                              <span>75%</span>
                             </div>
-                            <Progress value={75} />
                           </div>
                         </div>
                       )

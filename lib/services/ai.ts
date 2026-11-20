@@ -128,9 +128,9 @@ async function generateBrandEvolution(currentBrand: string) {
         longTerm: ['Strategic evolution']
       },
       metrics: {
-        brandRecognition: 'Expected +40%',
-        engagement: 'Expected +65%',
-        conversion: 'Expected +25%'
+        brandRecognition: 'Sample only: not a measurement',
+        engagement: 'Sample only: not a measurement',
+        conversion: 'Sample only: not a measurement'
       }
     };
   }

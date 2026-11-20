@@ -1014,7 +1014,8 @@ export default function BrandAnalysisClient({
 
         <TabsContent value="competitors" className="mt-6">
           <CompetitorIntelligence
-            industry="Technology"
+            industry={businessIdea.split('\n')[0].slice(0, 80) || undefined}
+            market={results?.marketAnalysis?.marketDynamics}
             competitors={results?.competitors || []}
           />
         </TabsContent>
@@ -1589,7 +1590,7 @@ export default function BrandAnalysisClient({
                           <div>
                             <h4 className="font-medium mb-1">Growth Opportunity</h4>
                             <p className="text-sm text-muted-foreground">
-                              Based on your market analysis, there&apos;s a 23% growth opportunity in the digital transformation sector.
+                              {results?.growthTrajectory && typeof results.growthTrajectory.projected === 'number' ? `Your analysis projects ${formatFraction(results.growthTrajectory.projected)} growth${results.growthTrajectory.timeframe ? ` over ${results.growthTrajectory.timeframe}` : ''}.` : 'No growth projection was returned for this analysis.'}
                             </p>
                           </div>
                         </div>
@@ -1600,7 +1601,7 @@ export default function BrandAnalysisClient({
                           <div>
                             <h4 className="font-medium mb-1">Competitive Advantage</h4>
                             <p className="text-sm text-muted-foreground">
-                              Your brand strength in customer experience is 18% above the industry average.
+                              {results && typeof results.uniquenessScore === 'number' ? `Your brand uniqueness score is ${formatFraction(results.uniquenessScore, 0)}.` : 'No uniqueness score was returned for this analysis.'}
                             </p>
                           </div>
                         </div>

@@ -108,7 +108,7 @@ export function getDemoImplementationPlan(businessDescription = 'your business')
             title: 'Launch marketing channels',
             description: 'Website, social profiles and email.',
             tasks: [{ task: 'Publish website and social profiles', timeline: '3 weeks', resources: ['Content marketer', 'Designer'] }],
-            metrics: [{ metric: 'Monthly visitors', target: '5,000', timeline: '6 months' }]
+            metrics: [{ metric: 'Monthly visitors', target: 'Set after measuring your baseline', timeline: '6 months' }]
           }
         ]
       },
