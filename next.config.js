@@ -30,6 +30,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   webpack: (config, { isServer }) => {
+    // konva's Node build optionally requires `canvas`; the editor is browser-only (dynamic, ssr:false)
+    config.resolve.alias = { ...config.resolve.alias, canvas: false };
     // Avoid "self is not defined" error with Supabase client
     if (!isServer) {
       config.resolve.fallback = {

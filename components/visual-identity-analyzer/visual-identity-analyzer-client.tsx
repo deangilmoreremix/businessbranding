@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useLocalDraft } from '@/lib/local/use-draft';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -34,10 +36,13 @@ interface VisualIdentityAnalyzerProps {
   }) => void;
 }
 
+// Browser-only tools (editor, exports, local library) load lazily and only on the client.
+const AssetTools = dynamic(() => import('@/components/local/asset-tools'), { ssr: false, loading: () => null });
+
 export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: VisualIdentityAnalyzerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [transformPrompt, setTransformPrompt] = useState('');
+  const [transformPrompt, setTransformPrompt] = useLocalDraft('visual:prompt', '');
   const [transformStyle, setTransformStyle] = useState('');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -366,6 +371,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
             )}
           </div>
         </div>
+        <AssetTools images={[...(previewUrl ? [previewUrl] : []), ...transformedImages]} onAddImage={(url) => setTransformedImages((prev) => [...prev, url])} />
       </Card>
     </div>
   );
