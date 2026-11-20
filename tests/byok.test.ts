@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import '@/lib/openai';
 import { aadFor, decryptSecret, encryptSecret, last4Of, parseMasterKey } from '../supabase/functions/_shared/key-crypto.ts';
 import { getApiKey, isConfigured, textModel, describeOpenAIError, OpenAIError, NotConfiguredError, redactKeys, imageModel } from '../supabase/functions/_shared/openai-core.ts';
-import { cleanModelOverrides, withUser } from '../supabase/functions/_shared/byok.ts';
+import { cleanModelOverrides, cookieToken, isSameOriginRequest, withUser } from '../supabase/functions/_shared/byok.ts';
 import { getKeyRow, upsertKeyRow } from '../supabase/functions/_shared/supabase-rest.ts';
 
 const MASTER = randomBytes(32).toString('base64');
@@ -186,5 +186,70 @@ describe('cleanModelOverrides', () => {
   it('keeps valid ids only', () => {
     expect(cleanModelOverrides({ text: ' gpt-6.2-astra ', image: 'x y', tts: 5, bogus: 'a', realtime: 'gpt-realtime-2.1' })).toEqual({ text: 'gpt-6.2-astra', realtime: 'gpt-realtime-2.1' });
     expect(cleanModelOverrides(null)).toEqual({});
+  });
+});
+
+describe('cookie sessions and CSRF', () => {
+  const cookie = (token: string) => 'sb-proj-auth-token=' + encodeURIComponent(JSON.stringify({ access_token: token, refresh_token: 'r' }));
+  const post = (headers: Record<string, string>) => new Request('http://app.example/api/x', { method: 'POST', headers: { host: 'app.example', ...headers } });
+
+  it('reads the access token from plain, array and chunked Supabase cookies', () => {
+    expect(cookieToken(post({ cookie: cookie('tok-alice') }))).toBe('tok-alice');
+    expect(cookieToken(post({ cookie: 'sb-p-auth-token=' + encodeURIComponent(JSON.stringify(['tok-bob', 'r'])) }))).toBe('tok-bob');
+    const v = encodeURIComponent(JSON.stringify({ access_token: 'tok-alice' }));
+    expect(cookieToken(post({ cookie: `sb-p-auth-token.0=${v.slice(0, 10)}; sb-p-auth-token.1=${v.slice(10)}` }))).toBe('tok-alice');
+    expect(cookieToken(post({ cookie: 'sb-p-auth-token=%7Bnot-json' }))).toBeNull();
+    expect(cookieToken(post({}))).toBeNull();
+  });
+
+  it('same-origin check: Sec-Fetch-Site, else Origin host', () => {
+    expect(isSameOriginRequest(post({ 'sec-fetch-site': 'same-origin' }))).toBe(true);
+    expect(isSameOriginRequest(post({ 'sec-fetch-site': 'cross-site' }))).toBe(false);
+    expect(isSameOriginRequest(post({ 'sec-fetch-site': 'same-site' }))).toBe(false);
+    expect(isSameOriginRequest(post({ origin: 'http://app.example' }))).toBe(true);
+    expect(isSameOriginRequest(post({ origin: 'http://evil.example' }))).toBe(false);
+    expect(isSameOriginRequest(post({}))).toBe(false);
+  });
+
+  it('cookie-authenticated POST: 403 CSRF_BLOCKED cross-site, allowed same-origin; Bearer is exempt', async () => {
+    await storeKey(ALICE, 'sk-alice-AAAA1111BBBB2222');
+    const run = (r: Request) => withUser(r, { bucket: 'csrf' }, async (ctx) => new Response(ctx.userId));
+    const blocked = await run(post({ cookie: cookie('tok-alice'), origin: 'http://evil.example', 'sec-fetch-site': 'cross-site' }));
+    expect(blocked.status).toBe(403);
+    expect((await blocked.json()).code).toBe('CSRF_BLOCKED');
+    expect((await run(post({ cookie: cookie('tok-alice') }))).status).toBe(403); // no Origin / Sec-Fetch-Site at all
+    expect((await run(post({ cookie: cookie('tok-alice'), 'sec-fetch-site': 'same-origin' }))).status).toBe(200);
+    expect((await run(post({ authorization: 'Bearer tok-alice', 'sec-fetch-site': 'cross-site' }))).status).toBe(200);
+    const get = await withUser(new Request('http://app.example/api/x', { headers: { cookie: cookie('tok-alice'), 'sec-fetch-site': 'cross-site' } }), { bucket: 'csrf' }, async () => new Response('ok'));
+    expect(get.status).toBe(200); // safe methods are not state-changing
+  });
+});
+
+describe('rate limiter failure mode', () => {
+  it('fails CLOSED (503, no key material) when the limiter store is unreachable', async () => {
+    await storeKey(ALICE, 'sk-alice-AAAA1111BBBB2222');
+    const prevUrl = process.env.SUPABASE_URL;
+    const warn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...a: unknown[]) => { warnings.push(a.join(' ')); };
+    // auth still works (verify against the mock) but the rest/v1 rpc points nowhere: simulate by a token the mock verifies and a dead rest endpoint
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init?: any) => {
+      if (String(input).includes('/rpc/consume_rate_limit')) throw new TypeError('fetch failed');
+      return realFetch(input, init);
+    }) as typeof fetch;
+    try {
+      const r = await withUser(req('tok-alice'), { bucket: 'fc' }, async () => new Response('should not run'));
+      const body = await r.json();
+      expect(r.status).toBe(503);
+      expect(body.code).toBe('RATE_LIMIT_UNAVAILABLE');
+      expect(JSON.stringify(body)).not.toContain('sk-');
+      expect(warnings.join(' ')).toContain('rate limiter unavailable');
+      expect(warnings.join(' ')).not.toContain('sk-alice');
+    } finally {
+      globalThis.fetch = realFetch;
+      console.warn = warn;
+      process.env.SUPABASE_URL = prevUrl;
+    }
   });
 });

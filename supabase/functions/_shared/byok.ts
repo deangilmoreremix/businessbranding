@@ -21,6 +21,8 @@ import { consumeRateLimit, getKeyRow, getSettings, insertUsage, SupabaseConfigEr
 
 export interface UserContext {
   userId: string;
+  /** The caller's Supabase access token (for forwarding to our own edge functions; never the OpenAI key). */
+  accessToken?: string;
   /** The user's OpenAI key (decrypted for this request only). */
   key?: string;
   models: Partial<Record<ModelSlot, string>>;
@@ -54,6 +56,57 @@ export const bearerToken = (req: Request): string | null => {
   const m = /^Bearer\s+(\S+)$/i.exec(h);
   return m ? m[1] : null;
 };
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * CSRF defence for cookie-authenticated state-changing requests: the browser must say the request is same-origin
+ * (Sec-Fetch-Site, or an Origin whose host equals the request host). Bearer-token requests are exempt because a
+ * cross-site page cannot attach an Authorization header.
+ */
+export function isSameOriginRequest(req: Request): boolean {
+  const site = req.headers.get('sec-fetch-site');
+  if (site) return site === 'same-origin';
+  const origin = req.headers.get('origin');
+  if (!origin) return false;
+  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || new URL(req.url).host).split(',')[0].trim();
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
+/** Access token from the Supabase auth cookie (`sb-<ref>-auth-token`, possibly chunked `.0`, `.1`...). */
+export function cookieToken(req: Request): string | null {
+  const jar: Record<string, string> = {};
+  for (const part of (req.headers.get('cookie') ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) jar[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  const bases = new Set<string>();
+  for (const name of Object.keys(jar)) {
+    const m = /^(sb-.+-auth-token)(?:\.\d+)?$/.exec(name);
+    if (m) bases.add(m[1]);
+  }
+  for (const base of bases) {
+    let raw = jar[base];
+    if (raw === undefined) {
+      raw = '';
+      for (let i = 0; jar[`${base}.${i}`] !== undefined; i++) raw += jar[`${base}.${i}`];
+    }
+    try {
+      let value = decodeURIComponent(raw);
+      if (value.startsWith('base64-')) value = atob(value.slice(7));
+      const parsed = JSON.parse(value);
+      const token = Array.isArray(parsed) ? parsed[0] : parsed?.access_token;
+      if (typeof token === 'string' && token) return token;
+    } catch {
+      /* ignore a malformed cookie */
+    }
+  }
+  return null;
+}
 
 const MODEL_SLOTS: ModelSlot[] = ['text', 'reasoning', 'image', 'transcribe', 'tts', 'realtime'];
 const MODEL_ID = /^[A-Za-z0-9._:/-]{1,80}$/;
@@ -146,17 +199,33 @@ export async function withUser(req: Request, opts: WithUserOptions, handler: (ct
   installByok();
   const h = opts.headers ?? {};
   try {
-    const token = bearerToken(req);
+    let token = bearerToken(req);
+    if (!token) {
+      // Cookie session (plain browser requests): state-changing calls must be same-origin (CSRF)
+      token = cookieToken(req);
+      if (token && !SAFE_METHODS.has(req.method.toUpperCase()) && !isSameOriginRequest(req)) {
+        return json({ error: 'Cross-site request blocked.', code: 'CSRF_BLOCKED' }, 403, h);
+      }
+    }
     if (!token) return json({ error: 'Please sign in to use this feature.', code: 'AUTH_REQUIRED' }, 401, h);
     const user = await verifyAccessToken(token);
     if (!user) return json({ error: 'Your session has expired. Please sign in again.', code: 'AUTH_REQUIRED' }, 401, h);
 
     const window = opts.windowSeconds ?? 60;
-    if (!(await consumeRateLimit(user.id, opts.bucket, opts.limit ?? 30, window))) {
+    let allowed: boolean;
+    try {
+      allowed = await consumeRateLimit(user.id, opts.bucket, opts.limit ?? 30, window);
+    } catch {
+      // Fail closed: without the limiter a failing store would mean unlimited use of the user's key.
+      console.warn(`rate limiter unavailable (bucket ${opts.bucket}); refusing request`);
+      return json({ error: 'The service is temporarily unavailable. Please try again shortly.', code: 'RATE_LIMIT_UNAVAILABLE' }, 503, { 'Retry-After': '10', ...h });
+    }
+    if (!allowed) {
       return json({ error: 'You are doing that too often. Please wait a moment.', code: 'RATE_LIMITED' }, 429, { 'Retry-After': String(window), ...h });
     }
 
     const ctx = await loadContext(user.id);
+    ctx.accessToken = token;
     if ((opts.requireKey ?? true) && !ctx.key && !serverKeyFallbackAllowed()) return errorToResponse(new NotConfiguredError(), h);
 
     try {

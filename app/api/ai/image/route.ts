@@ -1,26 +1,13 @@
 import { NextResponse } from 'next/server';
 import { editImage, generateImage, MODELS, type ImageOptions } from '@/lib/openai';
 import { withUser } from '@/lib/server/user';
+import { safeFetchBlob } from '@/lib/server/safe-fetch';
 
 export const runtime = 'nodejs';
 
 const SIZES = /^(auto|\d{3,4}x\d{3,4})$/;
 const QUALITIES = new Set(['low', 'medium', 'high', 'xhigh', 'max', 'auto']);
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
-
-/** Reject URLs that point at private/loopback hosts (basic SSRF guard for reference-image fetches). */
-function isPublicHttps(raw: string): boolean {
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== 'https:') return false;
-    const h = u.hostname.toLowerCase();
-    if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return false;
-    if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || h === '::1' || h.startsWith('[')) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 async function loadReference(ref: string): Promise<{ data: Uint8Array; mime: string }> {
   const dataUrl = ref.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
@@ -29,13 +16,11 @@ async function loadReference(ref: string): Promise<{ data: Uint8Array; mime: str
     if (data.byteLength > MAX_IMAGE_BYTES) throw new Error('Reference image too large');
     return { data, mime: dataUrl[1] };
   }
-  if (!isPublicHttps(ref)) throw new Error('Reference image must be a data URL or a public https URL');
-  const res = await fetch(ref, { redirect: 'error' });
-  const mime = (res.headers.get('content-type') || '').split(';')[0];
-  if (!res.ok || !/^image\/(png|jpeg|webp)$/.test(mime)) throw new Error('Reference image could not be loaded (png, jpeg or webp required)');
-  const buf = new Uint8Array(await res.arrayBuffer());
-  if (buf.byteLength > MAX_IMAGE_BYTES) throw new Error('Reference image too large');
-  return { data: buf, mime };
+  // SSRF guard: public http(s) only, DNS resolved + pinned, no redirects, 15 MB / 15 s caps
+  const blob = await safeFetchBlob(ref, { maxBytes: MAX_IMAGE_BYTES });
+  const mime = (blob.type || '').split(';')[0];
+  if (!/^image\/(png|jpeg|webp)$/.test(mime)) throw new Error('Reference image could not be loaded (png, jpeg or webp required)');
+  return { data: new Uint8Array(await blob.arrayBuffer()), mime };
 }
 
 /**

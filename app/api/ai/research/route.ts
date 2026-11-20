@@ -18,7 +18,7 @@ const KINDS = {
 export async function POST(request: Request) {
   return withUser(request, { bucket: 'research', limit: 5, windowSeconds: 300 }, async (ctx) => {
     const { kind, industry, brandDescription } = await request.json();
-    if (!(kind in KINDS)) return NextResponse.json({ error: 'kind must be competitors or market' }, { status: 400 });
+    if (typeof kind !== 'string' || !Object.hasOwn(KINDS, kind)) return NextResponse.json({ error: 'kind must be competitors or market' }, { status: 400 });
     if (typeof industry !== 'string' || !industry.trim() || industry.length > 200) return NextResponse.json({ error: 'industry is required' }, { status: 400 });
 
     const k = KINDS[kind as keyof typeof KINDS];
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const id = url.searchParams.get('id') ?? '';
     const kind = url.searchParams.get('kind') ?? '';
-    if (!/^resp_[A-Za-z0-9_-]+$/.test(id) || !(kind in KINDS)) return NextResponse.json({ error: 'Invalid id or kind' }, { status: 400 });
+    if (!/^resp_[A-Za-z0-9_-]+$/.test(id) || !Object.hasOwn(KINDS, kind)) return NextResponse.json({ error: 'Invalid id or kind' }, { status: 400 });
     if (!(await getJob(ctx.userId, id))) return NextResponse.json({ error: 'Research job not found', code: 'JOB_NOT_FOUND' }, { status: 404 });
 
     const result = await retrieveResponse(id);

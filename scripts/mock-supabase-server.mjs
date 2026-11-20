@@ -17,6 +17,7 @@ const USERS = {
   'tok-bob': { id: '22222222-2222-4222-8222-222222222222', email: 'bob@example.test' }
 };
 
+let failRpc = false; // test hook: make the rate-limit RPC fail (POST /__fail {rpc:true})
 const db = { user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], limits: new Map(), requests: [] };
 
 function send(res, status, body) {
@@ -38,6 +39,7 @@ const server = http.createServer(async (req, res) => {
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   db.requests.push({ method: req.method, path: url.pathname });
 
+  if (url.pathname === '/__fail' && req.method === 'POST') { failRpc = !!JSON.parse(raw || '{}').rpc; return send(res, 200, { failRpc }); }
   if (url.pathname === '/__state') {
     if (req.method === 'DELETE') { for (const k of ['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
     return send(res, 200, { ...db, limits: [...db.limits.entries()] });
@@ -55,6 +57,7 @@ const server = http.createServer(async (req, res) => {
     if (bearer !== SERVICE_KEY) return send(res, 401, { code: '42501', message: 'permission denied' });
 
     if (table === 'rpc/consume_rate_limit') {
+      if (failRpc) return send(res, 500, { message: 'simulated outage' });
       const { p_user, p_bucket, p_limit, p_window_seconds } = JSON.parse(raw);
       const w = Math.floor(Date.now() / 1000 / p_window_seconds);
       const key = `${p_user}|${p_bucket}|${w}`;

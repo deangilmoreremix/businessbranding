@@ -349,5 +349,66 @@ ok('  job ownership recorded', st.ai_jobs.length >= 1 && st.ai_jobs[0].user_id =
 r = await afetch(app + '/api/ai/task');
 ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
 
+
+// 11. Security hardening: auth on formerly-open routes, SSRF guard, prototype keys, CSRF on cookie sessions
+{
+  const noAuth = async (path, init = {}) => fetch(app + path, init);
+  r = await noAuth('/api/scrape?url=https://example.com');
+  ok('/api/scrape without a session -> 401', r.status === 401);
+  r = await noAuth('/api/top-brands?industry=coffee');
+  ok('/api/top-brands without a session -> 401', r.status === 401);
+  r = await noAuth('/api/update-brand-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ businessIdea: 'x', improvements: [] }) });
+  ok('/api/update-brand-content without a session -> 401', r.status === 401);
+  r = await noAuth('/api/case-studies/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  ok('/api/case-studies/generate without a session -> 401', r.status === 401);
+
+  for (const target of ['http://127.0.0.1:1/', 'http://localhost/', 'http://169.254.169.254/latest/meta-data/', 'http://10.0.0.1/', 'http://[::1]/', 'http://[::ffff:127.0.0.1]/', 'http://100.64.0.1/', 'http://192.168.1.1/', 'file:///etc/passwd']) {
+    r = await afetch(app + '/api/scrape?url=' + encodeURIComponent(target));
+    j = await r.json().catch(() => ({}));
+    ok(`/api/scrape refuses ${target}`, r.status === 400 && j.code === 'UNSAFE_URL', `status ${r.status}`);
+  }
+  r = await afetch(app + '/api/scrape?url=' + encodeURIComponent('http://127.0.0.1:1/'));
+  ok('/api/scrape error body has no internals', !JSON.stringify(await r.json()).match(/ECONNREFUSED|stack|at \w+ \(/));
+
+  r = await post('/api/ai/image', { prompt: 'logo', referenceImages: ['http://169.254.169.254/latest/meta-data/'] });
+  j = await r.json();
+  ok('/api/ai/image refuses a metadata-address reference image', r.status === 400 && j.code === 'BAD_REFERENCE_IMAGE');
+  r = await post('/api/ai/image', { prompt: 'logo', referenceImages: ['https://127.0.0.1/x.png'] });
+  ok('/api/ai/image refuses a loopback https reference image', r.status === 400);
+
+  for (const kind of ['constructor', '__proto__']) {
+    r = await post('/api/ai/research', { kind, industry: 'coffee' });
+    ok(`/api/ai/research kind '${kind}' -> 400`, r.status === 400);
+  }
+  r = await afetch(app + '/api/ai/research?id=resp_x&kind=constructor');
+  ok('/api/ai/research poll kind=constructor -> 400', r.status === 400);
+
+  // cookie-authenticated requests: cross-site state-changing calls are blocked, same-origin allowed, Bearer exempt
+  const ck = 'sb-127-auth-token=' + encodeURIComponent(JSON.stringify({ access_token: 'tok-alice', refresh_token: 'r' }));
+  const body = JSON.stringify({ task: 'brand_content', input: 'x' });
+  r = await fetch(app + '/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: ck, 'Sec-Fetch-Site': 'cross-site', Origin: 'https://evil.example' }, body });
+  j = await r.json();
+  ok('cookie session + cross-site POST -> 403 CSRF_BLOCKED', r.status === 403 && j.code === 'CSRF_BLOCKED');
+  r = await fetch(app + '/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: ck }, body });
+  ok('cookie session + no Origin/Sec-Fetch-Site POST -> 403', r.status === 403);
+  r = await fetch(app + '/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: ck, 'Sec-Fetch-Site': 'same-origin' }, body });
+  ok('cookie session + same-origin POST -> allowed (not 401/403)', r.status !== 401 && r.status !== 403, `status ${r.status}`);
+  r = await fetch(app + '/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer tok-alice', 'Sec-Fetch-Site': 'cross-site' }, body });
+  ok('Bearer + cross-site POST is exempt', r.status !== 401 && r.status !== 403, `status ${r.status}`);
+  r = await fetch(app + '/api/ai/task', { headers: { Cookie: ck, 'Sec-Fetch-Site': 'cross-site' } });
+  ok('cookie session GET is not CSRF-blocked', r.status === 200);
+
+  // fail closed: limiter store down
+  const downed = await fetch(supa + '/__fail', { method: 'POST', body: JSON.stringify({ rpc: true }) }).then((x) => x.ok).catch(() => false);
+  if (downed) {
+    r = await post('/api/ai/task', { task: 'brand_content', input: 'x' });
+    j = await r.json();
+    ok('rate-limit store down -> 503 RATE_LIMIT_UNAVAILABLE (fails closed)', r.status === 503 && j.code === 'RATE_LIMIT_UNAVAILABLE');
+    await fetch(supa + '/__fail', { method: 'POST', body: JSON.stringify({ rpc: false }) });
+    r = await post('/api/ai/task', { task: 'brand_content', input: 'x' });
+    ok('  recovers when the store is back', r.status !== 503);
+  } else ok('mock supports /__fail', false);
+}
+
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll checks passed');
 process.exit(failed ? 1 : 0);

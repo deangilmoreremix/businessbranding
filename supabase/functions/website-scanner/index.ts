@@ -1,4 +1,5 @@
 import { edgeHandler } from "../_shared/edge.ts";
+import { safeFetchText, UnsafeUrlError } from "../_shared/safe-fetch.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createStructured, BRAND_DEVELOPER_PROMPT, isConfigured } from "../_shared/openai.ts";
 
@@ -89,17 +90,14 @@ Return the analysis as a structured JSON object.`;
 
 async function scrapeWebsite(url: string): Promise<string> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WebsiteScanner/1.0)'
-      }
-    });
+    // SSRF guard: public hosts only, redirects re-validated, 15 MB / 15 s caps
+    const response = await safeFetchText(url, { 'User-Agent': 'Mozilla/5.0 (compatible; WebsiteScanner/1.0)' });
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(`Failed to fetch website: ${response.status}`);
     }
 
-    const html = await response.text();
+    const html = response.text;
 
     // Extract basic content (simplified scraping)
     const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || '';
@@ -280,19 +278,14 @@ Deno.serve(edgeHandler(async (req: Request) => {
       }
     );
   } catch (error) {
-    console.error('Website scanning error:', error);
-
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    if (error instanceof UnsafeUrlError) {
+      // Refused by the SSRF guard (private/internal address, bad scheme, too large, redirect to a private host ...)
+      return new Response(JSON.stringify({ error: error.message, code: 'UNSAFE_URL' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    // Everything else (OpenAI errors, bad JSON) is mapped to a friendly response by the shared handler
+    throw error;
   }
 }, { bucket: 'website' }));

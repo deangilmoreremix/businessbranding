@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 import { extractSocialLinks } from './social-extractor';
 import * as cheerio from 'cheerio';
 
@@ -143,7 +144,7 @@ async function scrapeWebsiteRaw(url: string) {
       
       // Fallback to API endpoint
       try {
-        const response = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`, {
+        const response = await authFetch(`/api/scrape?url=${encodeURIComponent(url)}`, {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'

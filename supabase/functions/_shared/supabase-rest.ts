@@ -88,15 +88,10 @@ export async function saveSettings(userId: string, settings: Record<string, any>
 }
 
 // ---- rate limiting, usage log, jobs ----------------------------------------------------------
-/** True while the user is within `limit` requests per `windowSeconds`. Fails open if the store is unreachable. */
+/** True while the user is within `limit` requests per `windowSeconds`. Throws when the store is unreachable (callers fail closed). */
 export async function consumeRateLimit(userId: string, bucket: string, limit: number, windowSeconds: number): Promise<boolean> {
-  try {
-    const allowed = await rest('rpc/consume_rate_limit', { method: 'POST', body: { p_user: userId, p_bucket: bucket, p_limit: limit, p_window_seconds: windowSeconds } });
-    return allowed !== false;
-  } catch (e) {
-    console.error('rate limit check failed (allowing request):', (e as Error).message);
-    return true;
-  }
+  const allowed = await rest('rpc/consume_rate_limit', { method: 'POST', body: { p_user: userId, p_bucket: bucket, p_limit: limit, p_window_seconds: windowSeconds } });
+  return allowed !== false;
 }
 
 export async function insertUsage(rows: Record<string, unknown>[]): Promise<void> {
