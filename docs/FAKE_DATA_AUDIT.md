@@ -51,7 +51,7 @@ routes are an explicit allow-list with the allowed HTTP methods: `/api/models` G
 | `local/*` (`image-editor`, `audio-trimmer`, `caption-player`, `asset-tools`, `workflow-builder`, `deep-research-panel`) | R | In-browser tools. |
 | `settings/*`, `auth/*`, `openai-key-notice`, `error-boundary`, `loading-spinner`, `client-provider`, `documentation-links`, `support-agent*`, `sample-data-badge` | R | Real behaviour; sample data is always labelled. |
 
-**Deleted as fabricating or dead:** `geo-performance-analysis`, `feature-discovery`, `branding-wizard` (hard-coded 75% platform
+**Deleted as fabricating or dead (round 5 adds `export-dialog`, `pdf-generator`, `excel-generator`, `sample-data-badge`, the demo Supabase client and 7 Edge Functions):** `geo-performance-analysis`, `feature-discovery`, `branding-wizard` (hard-coded 75% platform
 bars), `auth-required`, `voice-controls`, the duplicate `components/brand-analysis-client.tsx`, the sentiment dashboard, trend
 analysis, real-time analytics, competitor-analysis modules, and ~30 earlier dead components (see git history).
 
@@ -65,17 +65,18 @@ including in exported reports.
 
 ## Known remaining (stated plainly)
 
-- Sample fixtures in `lib/services/ai.ts` and `lib/services/implementation-plan.ts` (demo/sample mode, labelled "Sample") still contain
-  illustrative text; they contain no numeric claims after this round.
-- Edge Functions `brand-analysis/index.ts:36-90` (healthScore 85 …) and `market-analysis/index.ts:142-215` still contain built-in demo payloads. They are only reachable when no OpenAI key is configured (`!isConfigured()`), which BYOK `withUser` rules out for real users (a keyless request is answered 412 first); they only run with the dev-only `ALLOW_SERVER_OPENAI_KEY` path unset, and every such response carries `demo: true`. `market-analysis`, `social-media-analyzer`, `voice-generator`, `website-scanner` and `hello-world` are not called by this app's UI (they are API surface, covered by `scripts/verify-edge.ts`). The guard does not scan `supabase/functions/`.
-- Static educational lists (e.g. best-practice do/don't bullets in the Best Practices tab) are generic advice, not measurements.
-- `app/docs/**` and legal pages are allow-listed from the numeric rule (version numbers, retention periods, example payloads).
+- There are no sample fixtures, demo payloads or fallback results in `app/`, `components/`, `lib/` or `supabase/functions/` (round 5 deleted the pattern: see
+  `docs/FEATURE_TEST_MATRIX.md`). The only fixture is `tests/fixtures/plan.ts`, imported by tests, never by app code.
+- `supabase/functions/_shared/schemas.ts` is now hand-maintained (its generator read the deleted fixtures). It still holds strict schemas for tasks whose
+  consumers were deleted (e.g. `market_analysis`, `competitor_intelligence`); they are inert.
+- The Best Practices tab keeps generic do/don't advice, now labelled "General guidance".
+- `app/docs/**` and `*.mdx` are exempt from the numeric-claim rules only (version numbers, limits, example payloads); every other rule still applies there.
 
-## Guard (`tests/no-fake-data.test.ts`)
+## Guard (`tests/no-fake-data.test.ts`, rules in `tests/guard/scanner.ts`)
 
-Scans `app/`, `components/`, `lib/` (comments stripped) for: numeric stat literals in text (`+45%`, `98%`, `125.8K`, `$150/mo`, `thousands of`,
-`Over N`), price literals, `Math.random`, `setTimeout` callbacks that only toast/alert/log, handlers that are only `console.log`,
-`alert('… saved/exported …')`, inert `<button>`/`<Button>` (AST check: no onClick/onSubmit/asChild/disabled, not `type=submit`, not inside a
-form/Link/Trigger), `href="#"`, invented social handles, known fake names, free-trial/partner-program claims and sample/demo fixtures
-outside demo-flagged code. Skips input `placeholder=` hints, regex literals and CSS positions. The allow-list is short and every entry
-carries a reason that the test verifies (and that it still matches a file).
+Scans `app/`, `components/`, `lib/`, `supabase/functions/` (`.ts .tsx .js .jsx .mjs .mdx`). Content rules run on JSX text (children re-joined, so `{98}%` and
+numbers split over lines are seen), string and template literals: percentages, prices, `125.8K`, `12 000`/`12000 teams`, `4.9/5 stars`, `3x`, "thousands of", "Over N",
+free-trial/partner claims, unsourced citations, known fake names and ANY `Firstname Lastname, Title` attribution. Structure rules (AST): numeric properties >= 10 in arrays of
+objects (any name outside a layout/config list), empty / toast-only / alert-only / console-only handlers, inert buttons, awaited fixed waits outside polling loops,
+`setInterval` counters, `Math.sin/cos`, literal style/class percentages and `<Progress value={N}>`, `href` of `""`, `#`, `javascript:`, `Math.random`, demo/sample fixtures and flags.
+The allow-list is empty for application code (documentation only skips the numeric rules). `tests/guard-fixtures/*.fixture` are 41 planted fakes/evasions; each must trigger its expected rule.

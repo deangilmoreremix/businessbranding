@@ -14,10 +14,10 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 
 | Suite | PASS | FAIL |
 |---|---|---|
-| vitest (unit, security, BYOK, auth-coverage over **every `route.*` file in the repo**, SRI, **whole-tree no-fake-data guard**, report exports (PDF/XLSX/DOCX parsed back), contact limiter incl. direct-spoof cases, stats, display, settings, workflow layout) | 267 (1 skipped: live SRI pins, opt-in `SRI_LIVE=1`) | 0 |
-| `scripts/verify-ai.mjs` (API request shapes, BYOK, security, contact API incl. spoofed XFF / rotating X-Real-IP, newsletter, blog, case-studies, usage) | 142 | 0 |
-| `scripts/edge-test.mjs` -> `verify-edge.ts` (all AI Edge Functions, Deno 2.9) | 38 | 0 |
-| `scripts/db-test.sh` (**17 migrations applied twice**, RLS, table/function privileges incl. `blog_posts`, `newsletter_subscriptions`, `case_studies` SELECT-only for clients; Postgres 16) | 148 | 0 |
+| vitest (unit, security, BYOK, auth-coverage over **every `route.*` file in the repo**, SRI, **whole-tree no-fake-data guard + its 41-fixture self-test**, report exports (PDF/XLSX/DOCX parsed back), contact limiter incl. direct-spoof / non-Netlify cases, stats, display, settings, workflow layout) | 290 (1 skipped: live SRI pins, opt-in `SRI_LIVE=1`) | 0 |
+| `scripts/verify-ai.sh` -> `verify-ai.mjs` (API request shapes, BYOK, security, contact/newsletter incl. spoofed XFF, rotating X-Real-IP, global hourly cap, blog, case-studies, usage) | 139 | 0 |
+| `scripts/edge-test.mjs` -> `verify-edge.ts` (the 4 remaining Edge Functions, Deno 2.9) | 16 | 0 |
+| `scripts/db-test.sh` (**17 migrations applied twice**, RLS, table/function privileges; Postgres 16) | 148 | 0 |
 | Playwright `auth` | 22 | 0 |
 | Playwright `byok-settings` | 16 | 0 |
 | Playwright `ui-fixes` | 11 | 0 |
@@ -27,13 +27,17 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 | Playwright `features-analysis` | 18 | 0 |
 | Playwright `features-errors-pages` | 62 | 0 |
 | Playwright `features-local-ai` (real MediaPipe + Whisper downloads, SRI tamper test) | 5 | 0 |
-| Playwright `features-dashboard` | 22 | 0 |
+| Playwright `features-dashboard` (real data, analysis display, planning, **competitive .xlsx and plan .ics/.docx parsed**) | 25 | 0 |
 | Playwright `features-settings` | 15 | 0 |
-| Playwright `public-pages` (empty states, seeded published rows, newsletter, footer, contact, pricing/integrations/analytics, **downloaded PDF/XLSX/DOCX are valid files**) | 37 | 0 |
-| Playwright `viewports` (30 routes x 3 widths, signed out and in: no horizontal overflow; workflow steps do not overlap) | 182 | 0 |
-| **Total automated assertions** | **1030** | **0** |
+| Playwright `public-pages` (empty states, seeded rows, newsletter, footer, contact, pricing/integrations/analytics, **brand-analysis PDF/XLSX/DOCX downloads are valid files**) | 37 | 0 |
+| Playwright `failures` (**5xx + edge down, signed-in-without-key, on /dashboard/brand-analysis, /brand-strategy, planning and voice: real cause + Retry, no scores/plan/audio, no retry loop**) | 9 | 0 |
+| Playwright `viewports` (30 routes x 3 widths, signed out and in; hero headline vs subtitle geometry; workflow steps) | 185 | 0 |
+| **Total automated assertions** | **1038** | **0** |
 
-NOT TESTABLE (reported by the specs, not counted as pass): 2 (live microphone-device capture, real model-download progress in a restricted network).
+NOT TESTABLE: exactly **1** is reported by the specs at run time: *live voice, the WebRTC SDP exchange and microphone audio with the Realtime model*
+(needs a real OpenAI Realtime peer; the ephemeral-secret route is tested). `features-local-ai` prints "see NOT TESTABLE lines" in its footer and only
+emits a NOT TESTABLE line if the MediaPipe/Whisper download fails in the browser; in the final run it did not. (An earlier version of this matrix said "2"; the
+second one was that footer text, not a skipped check.) The full list of untested/untestable items is the table below.
 
 Also: `tsc` 0 errors (app and edge config), `next lint` 0 errors, `next build` green **with type checking and lint enforced**.
 
@@ -43,10 +47,9 @@ Also: `tsc` 0 errors (app and edge config), `next lint` 0 errors, `next build` g
 |---|---|---|---|
 | 1 | Live voice: WebRTC SDP exchange + microphone audio with the model | NOT TESTABLE | needs a real OpenAI Realtime peer; a mock cannot answer the handshake (the ephemeral-secret route IS tested) |
 | 2 | Password reset **completion** from a real recovery e-mail link | NOT TESTABLE | needs a real Supabase recovery token (the request, the redirect URL and the "expired link" state are tested) |
-| 3 | `/api/ai/analyze` -> deployed `ai-analysis` Edge Function HTTP hop | NOT TESTABLE | the mock Supabase has no Functions runtime (the function itself runs in the Deno suite; the route's auth gate is tested) |
-| 4 | `supabase/functions/hello-world` | NOT TESTED | trivial scaffold; explicitly listed as open in `tests/auth-coverage.test.ts` |
+| 3 | The deployed `brand-analyzer` Edge Function HTTP hop from the browser | NOT TESTABLE | the mock Supabase has no Functions runtime (the function itself runs in the Deno suite; the app falls back to `/api/ai/task`, which is tested) |
 | 5 | A successful `/api/scrape` of a real public website | NOT TESTED | no public fixture reachable by the SSRF-guarded fetcher in the sandbox; every refusal path and the analyzer fallback are tested |
-| 6 | Smart-schedule **generation** (button click) on `/dashboard/planning` | NOT TESTED | the tab renders and the plan->calendar flow is tested; the generator button is not driven |
+| 6 | Smart-schedule **generation** (button click) on `/dashboard/planning` | NOT TESTED | the tab renders, the plan->calendar flow and the failure state are tested; a successful generation is not driven |
 | 7 | Anything on a real OpenAI or Supabase project (live model output, hosted RLS, real e-mail confirmation) | NOT TESTABLE | no credentials / by instruction; mocks verify request shapes and our handling only |
 
 Removed (not tested because they no longer exist): `/api/supabase/setup` and its component (it reported success while doing nothing),
@@ -95,7 +98,7 @@ fails the test; `route.ts/.tsx/.js/.jsx/.mjs` are all enumerated, and an open ro
 
 | Route | How exercised | Result |
 |---|---|---|
-| `/dashboard/brand-analysis` (analysis, tiles, pillar breakdown, sample label) | `features-analysis`, `ui-fixes` | PASS |
+| `/dashboard/brand-analysis` (analysis, tiles, pillar breakdown, key/auth/service error states) | `features-analysis`, `ui-fixes` | PASS |
 | `/brand-strategy` (business analyzer, one overview, IndexedDB history, reload) | `features-analysis`, `ui-fixes` | PASS |
 | `/dashboard/planning` (plan, **events placed on the calendar automatically**, `.ics` export validated, smart-schedule tab renders) | `features-analysis`, `features-dashboard` | PASS (smart-schedule generation not driven: NOT TESTED #6) |
 | `/dashboard/visual-identity` (upload, AI image, editor, exports; **Asset Library from IndexedDB with delete; tiles from real items**) | `features-visual`, `features-local-ai`, `features-dashboard` | PASS |
@@ -138,20 +141,19 @@ fails the test; `route.ts/.tsx/.js/.jsx/.mjs` are all enumerated, and an open ro
 | Dictation: fake mic -> MediaRecorder -> gpt-transcribe; Web Speech API fallback (mock `SpeechRecognition`) | `features-assistant` | PASS |
 | Content workflows: run (copy -> email -> voice), sandboxed email preview, autosave/restore, JSON export | `features-assistant` | PASS |
 | Email render route (no `javascript:` links) | `features-assistant`, `verify-ai` | PASS |
-| `/api/top-brands`, `/api/case-studies` (read), `/api/models` | `features-errors-pages`, `verify-ai` (auth gates) | PASS |
-| `/api/update-brand-content`, `/api/case-studies/generate` | auth gate and validation (`verify-ai`, `auth-coverage.test`); no UI calls them, so generation is not driven end to end | PASS (gate and validation only) |
+| `/api/case-studies` (read), `/api/models` | `features-errors-pages`, `verify-ai` | PASS |
+| `/api/top-brands`, `/api/update-brand-content`, `/api/case-studies/generate`, `/api/voice/optimize`, `/api/ai/analyze` | **deleted** (no UI called them; they returned sample data without a key) | removed |
 | `/api/scrape` (SSRF-safe) | `verify-ai` (refusals, auth), analyzer flow | PASS (a successful scrape of a real public site is not tested: no public-site fixture; refusal paths are) |
-| `/api/ai/analyze` -> `ai-analysis` edge function forwarding | auth gate in `verify-ai`; the edge function itself in `verify-edge`; the HTTP hop to a deployed function cannot be exercised (the mock Supabase has no Functions runtime) | PASS (parts) / hop **NOT TESTABLE** |
 
 ## Edge functions (Deno, real handlers against mock OpenAI/Supabase)
 
 | Function | Result |
 |---|---|
-| `ai-analysis`, `brand-analysis`, `brand-analyzer`, `competitor-intelligence`, `market-analysis`, `social-media-analyzer` (strict schema, developer message, web_search step where applicable) | PASS |
-| `website-scanner` (SSRF refusals of loopback, metadata address, localhost, `file:`) | PASS |
+| `brand-analyzer` (strict schema, developer message, 412 `OPENAI_KEY_REQUIRED` without a key, no demo payload) | PASS |
 | `openai` (text, image), `voice-generator`, `voice-content` (voices, generate, podcast, audiobook, transcribe, legacy speech endpoint) | PASS |
 | 401 without a session / 412 without a key / key never echoed (all functions share `withUser`) | PASS |
-| `hello-world` | not exercised (see NOT TESTED #4) | **NOT TESTED** |
+
+**Deleted Edge Functions** (the UI never called them; several returned `demo: true` payloads): `ai-analysis`, `brand-analysis`, `competitor-intelligence`, `market-analysis`, `social-media-analyzer`, `website-scanner`, `hello-world`.
 
 ## Database (real Postgres 16, `scripts/db-test.sh`)
 
@@ -224,6 +226,30 @@ or computed; see `docs/FAKE_DATA_AUDIT.md` for the per-route / per-component inv
   show "Not measured".
 - The Export dialog downloads real PDF, XLSX and DOCX files of the analysis (tested by parsing them back, in vitest and in the browser).
 - Git history still contains the original `.env` with live keys (first added in commit `a4f5488`; also in `2ff6c7f`, `ba0d981`). **Rotate** those keys; see `/docs/integration-guide`.
+
+## Round 5: the demo-data pattern is gone (root cause)
+
+The recurring fakes had one cause: code paths that return invented data when a key is missing or a call fails (`isDemoMode()` fixtures, `catch { return demo }`).
+All of it was deleted: `getDemoAnalysis`, every `isDemoMode()` branch and sample fixture in `lib/services/*`, the `sample` flag, the `X-Sample-Data`
+headers, the sample-data banner/label and its events, `demo: true` payloads and the "This is a demo response" string in the Edge Functions, the
+Supabase "demo client" that pretended writes succeeded, the local schedule planner used as an AI fallback, and the unused routes/functions that carried them.
+A signed-in user without a key gets the add-key state; every failure shows its real cause (key / sign-in / rate limit / service / network) with Retry and
+never a result. Proven by `e2e/failures.spec.js` (5xx + edge down + no key) and by the guard, which no longer allow-lists `lib/**`.
+
+- The legacy `ExportDialog`, `pdf-generator.ts` and `excel-generator.ts` (PDF "element not found", `Health Score undefined%`, empty `.ics`) were deleted; plan,
+  competitive and brand-analysis exports now use `lib/report-export.ts` (PDF/XLSX/DOCX, plus .ics for plans) with chosen sections and visible errors.
+- Competitive view uses true labels (brand health / market fit / uniqueness); Best Practices no longer shows status badges as measurements, generic advice is labelled
+  "General guidance"; the "Top Recommendation" comes from the analysis; the invented "Digital Presence Score 85%" card was removed.
+- Fake progress (time-based bars capped at 90-95 %, the 4x3 s artificial wait in schedule generation) was replaced by indeterminate status with real elapsed time.
+- Public forms: `x-nf-client-connection-ip` is trusted only when `NETLIFY=true`; a global hourly cap (`PUBLIC_FORM_HOURLY_CAP`) backs up the per-client limit;
+  deployment requirements are in the README and `docs/DEPLOYMENT.md`.
+- Guard: scans `.ts .tsx .js .jsx .mjs .mdx` in `app/ components/ lib/ supabase/functions/`; content-based rules (JSX text re-joined incl. `{98}%` and split lines),
+  numeric data in arrays, trig series, literal style percentages, empty/toast-only/console-only handlers, artificial delays, interval counters,
+  `Name, Title` attributions, dead hrefs. The allow-list contains documentation only. `tests/guard-fixtures/` plants 41 fakes and evasions; each must be caught.
+- `npm audit --omit=dev`: 52 -> 15 findings (critical 5 -> 1). Removed unused `@genkit-ai/ai` and `axios`; upgraded `next` to 14.2.35, `jspdf` to 4.2.1, `xlsx` to SheetJS 0.20.3
+  (installed from the vendor CDN tarball, as SheetJS documents). Remaining, assessed: `next` critical (Image Optimizer DoS): not reachable, `images.unoptimized` is on and `next/image` is unused; `postcss` (bundled in next),
+  `lodash`/`lodash-es`, `d3-color`, `glob`/`minimatch`/`brace-expansion`/`picomatch`/`cross-spawn`/`yaml`, `postcss-selector-parser`, `moment`: build-time or transitive
+  (nivo, tailwind, eslint/mdx toolchains), no untrusted input reaches them at runtime; `@supabase/ssr`/`cookie` (low): upgrading `@supabase/ssr` past 0.1 changes the cookie API and was not attempted. Next 15 was not attempted (React 19 / async request APIs).
 
 ## Known gaps (stated plainly)
 
