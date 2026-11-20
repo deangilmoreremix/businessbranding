@@ -16,7 +16,7 @@ export function headerTiles(a: BrandAnalysis | null | undefined): HeaderTile[] {
   let rank = EMPTY;
   if (a && num(a.healthScore)) {
     const scored = (a.competitors ?? []).filter((c) => num(c.score));
-    if (scored.length) rank = `#${1 + scored.filter((c) => (c.score as number) > a.healthScore).length}`;
+    if (scored.length) rank = `#${1 + scored.filter((c) => (c.score as number) > (a.healthScore as number)).length}`;
   }
 
   // projected growth relative to the current level

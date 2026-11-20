@@ -8,16 +8,17 @@ export interface BrandAnalysis {
   /** True when this is built-in sample data (no OpenAI key), not a real analysis: the UI labels it as such. */
   sample?: boolean;
   // Core Brand Metrics
-  healthScore: number;
-  marketFit: number;
-  uniquenessScore: number;
+  /** null = the model did not return it (shown as "Not measured"). */
+  healthScore: number | null;
+  marketFit: number | null;
+  uniquenessScore: number | null;
 
   // Real-time Monitoring
   lastUpdated?: string;
   monitoringStatus?: 'active' | 'paused' | 'error';
-  growthTrajectory: {
-    current: number;
-    projected: number;
+  growthTrajectory?: {
+    current: number | null;
+    projected: number | null;
     trend: 'up' | 'down' | 'stable';
     timeframe: string;
   };
@@ -32,7 +33,7 @@ export interface BrandAnalysis {
   }>;
 
   // Performance Metrics
-  performanceMetrics: {
+  performanceMetrics?: {
     engagement: {
       rate: number;
       trend: 'up' | 'down' | 'stable';
@@ -103,7 +104,7 @@ export interface BrandAnalysis {
   }>;
 
   // Implementation Tracking
-  implementationStatus: {
+  implementationStatus?: {
     completed: number;
     inProgress: number;
     planned: number;
@@ -112,7 +113,7 @@ export interface BrandAnalysis {
   };
 
   // Best Practices
-  bestPractices: {
+  bestPractices?: {
     dataCollection: {
       score: number;
       recommendations: string[];
@@ -234,68 +235,22 @@ export class BrandAnalyzer {
 
   private validateAndCleanAnalysis(analysis: any): BrandAnalysis {
     // Ensure all required fields are present, with fallbacks if missing
+    // Nothing is invented here: a field the model did not return stays missing/null and the UI shows "Not measured".
+    const arr = (v: unknown) => (Array.isArray(v) ? v : []);
     return {
-      healthScore: analysis.healthScore ?? 75,
-      marketFit: analysis.marketFit ?? 0.7,
-      uniquenessScore: analysis.uniquenessScore ?? 0.65,
+      healthScore: analysis.healthScore ?? null,
+      marketFit: analysis.marketFit ?? null,
+      uniquenessScore: analysis.uniquenessScore ?? null,
       lastUpdated: analysis.lastUpdated ?? new Date().toISOString(),
-      monitoringStatus: analysis.monitoringStatus ?? 'active',
-      growthTrajectory: analysis.growthTrajectory ?? {
-        current: 0,
-        projected: 0,
-        trend: 'stable' as const,
-        timeframe: '12 months'
-      },
-      brandFactors: Array.isArray(analysis.brandFactors) ? analysis.brandFactors :
-        BRAND_PILLARS.map(name => ({
-          name,
-          score: 0.7,
-          insights: ['Generic insight for this pillar'],
-          priority: 'medium' as const,
-          trend: 'stable' as const
-        })),
-      performanceMetrics: analysis.performanceMetrics ?? {
-        engagement: { rate: 0.75, trend: 'stable' as const, benchmark: 0.8 },
-        conversion: { rate: 0.12, trend: 'stable' as const, benchmark: 0.15 },
-        roi: { score: 0.85, trend: 'stable' as const, benchmark: 0.9 },
-        customerSatisfaction: { score: 0.82, trend: 'stable' as const, benchmark: 0.85 },
-        brandLoyalty: { score: 0.78, trend: 'stable' as const, benchmark: 0.8 }
-      },
-      marketAnalysis: analysis.marketAnalysis ?? {
-        industryTrends: [],
-        marketOpportunities: [],
-        growthBarriers: [],
-        customerSegments: [],
-        marketDynamics: {
-          totalMarketSize: 1000000000,
-          growthRate: 0.08,
-          competitionLevel: 'medium' as const,
-          entryBarriers: 'medium' as const
-        }
-      },
-      competitors: Array.isArray(analysis.competitors) ? analysis.competitors :
-        [{ name: 'Generic Competitor', strengths: ['Market presence'], weaknesses: ['Innovation'], marketPosition: 'follower' as const, growthRate: 0.05 }],
-      implementationStatus: analysis.implementationStatus ?? {
-        completed: 0,
-        inProgress: 0,
-        planned: 0,
-        total: 0,
-        progressPercentage: 0
-      },
-      bestPractices: analysis.bestPractices ?? {
-        dataCollection: { score: 0.7, recommendations: [] },
-        analysisReview: { score: 0.7, recommendations: [] },
-        optimization: { score: 0.7, recommendations: [] }
-      },
-      recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations :
-        [{
-          priority: 'high' as const,
-          category: 'Brand Identity',
-          recommendation: 'Enhance visual brand identity with more distinctive elements',
-          impact: 'high' as const,
-          timeframe: '3 months',
-          resources: ['Design team', 'Brand guidelines']
-        }],
+      monitoringStatus: analysis.monitoringStatus,
+      growthTrajectory: analysis.growthTrajectory,
+      brandFactors: arr(analysis.brandFactors),
+      performanceMetrics: analysis.performanceMetrics,
+      marketAnalysis: analysis.marketAnalysis ?? { industryTrends: [], marketOpportunities: [], growthBarriers: [], customerSegments: [] },
+      competitors: arr(analysis.competitors),
+      implementationStatus: analysis.implementationStatus,
+      bestPractices: analysis.bestPractices,
+      recommendations: arr(analysis.recommendations),
       toxicity: analysis.toxicity,
       riskFactors: analysis.riskFactors ?? []
     };
@@ -447,7 +402,8 @@ export class BrandAnalyzer {
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined);
 /** Fraction in [0, 1] from either scale (0.5 and 50 both give 0.5). */
 /** Signed fraction (growth can be negative): |v| <= 1 is already a fraction, larger values are percentages (clamped to +-1000%). */
-const signedFraction = (v: unknown): number => { const n = num(v); if (n === undefined) return 0; const f = Math.abs(n) <= 1 ? n : n / 100; return Math.max(-10, Math.min(10, f)); };
+const signedFraction = (v: unknown): number | null => { const n = num(v); if (n === undefined) return null; const f = Math.abs(n) <= 1 ? n : n / 100; return Math.max(-10, Math.min(10, f)); };
+const nullableFraction = (v: unknown): number | null => { const p = toPercent(v); return p === null ? null : p / 100; };
 const fraction = (v: unknown): number => { const p = toPercent(v); return p === null ? 0 : p / 100; };
 
 /**
@@ -457,9 +413,10 @@ const fraction = (v: unknown): number => { const p = toPercent(v); return p === 
  */
 export function normalizeAnalysis<T extends Partial<BrandAnalysis>>(a: T): T {
   const out: any = { ...a };
-  out.healthScore = Math.round(toPercent(a.healthScore) ?? 0);
-  out.marketFit = fraction(a.marketFit);
-  out.uniquenessScore = fraction(a.uniquenessScore);
+  const hp = toPercent(a.healthScore);
+  out.healthScore = hp === null ? null : Math.round(hp);
+  out.marketFit = nullableFraction(a.marketFit);
+  out.uniquenessScore = nullableFraction(a.uniquenessScore);
   const ts = typeof a.lastUpdated === 'string' ? new Date(a.lastUpdated) : null;
   out.lastUpdated = ts && !Number.isNaN(ts.getTime()) ? ts.toISOString() : undefined;
   out.monitoringStatus = a.monitoringStatus === 'active' || a.monitoringStatus === 'paused' ? a.monitoringStatus : undefined;

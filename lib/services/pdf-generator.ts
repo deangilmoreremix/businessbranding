@@ -1,3 +1,4 @@
+import { formatFraction, formatPercent } from '@/lib/format';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BrandAnalysis } from './brand-analyzer';
@@ -36,9 +37,9 @@ export async function generatePDF(analysis: BrandAnalysis, elementId: string) {
     pdf.text('Brand Health Overview', 40, 90);
     
     pdf.setFontSize(12);
-    pdf.text(`Health Score: ${analysis.healthScore}%`, 40, 110);
-    pdf.text(`Market Fit: ${Math.round(analysis.marketFit * 100)}%`, 40, 130);
-    pdf.text(`Uniqueness Score: ${Math.round(analysis.uniquenessScore * 100)}%`, 40, 150);
+    pdf.text(`Health Score: ${formatPercent(analysis.healthScore, 'Not measured')}`, 40, 110);
+    pdf.text(`Market Fit: ${formatFraction(analysis.marketFit, 0, 'Not measured')}`, 40, 130);
+    pdf.text(`Uniqueness Score: ${formatFraction(analysis.uniquenessScore, 0, 'Not measured')}`, 40, 150);
 
     // Add competitor analysis
     pdf.addPage();

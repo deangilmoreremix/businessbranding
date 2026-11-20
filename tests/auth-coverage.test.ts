@@ -9,6 +9,9 @@ import { join, relative } from 'node:path';
 const OPEN_ROUTES: Record<string, string> = {
   'app/api/models/route.ts': 'static list of default model ids; contains no user data',
   'app/api/case-studies/route.ts': 'GET only: published marketing case studies (public read); the POST generator is /api/case-studies/generate',
+  'app/api/blog/route.ts': 'GET only: published blog posts (public read of the blog_posts table, published rows only)',
+  'app/api/blog/[slug]/route.ts': 'GET only: one published blog post (public read)',
+  'app/api/newsletter/route.ts': 'public newsletter sign-up: validated, size-capped, honeypot, rate-limited per client hash; service-role write only',
   'app/api/contact/route.ts': 'public contact form: validated, size-capped and rate-limited per client; writes with the service role only'
 };
 const OPEN_EDGE: Record<string, string> = {
@@ -17,8 +20,11 @@ const OPEN_EDGE: Record<string, string> = {
 
 // every file Next.js treats as a route handler (route.ts / .tsx / .js / .jsx / .mjs)
 const isRoute = (f: string) => /^route\.(ts|tsx|js|jsx|mjs)$/.test(f);
+// every route.* file ANYWHERE in the repository (not only app/api), skipping vendored/build output
+const SKIP = new Set(['node_modules', '.next', '.git', 'out', 'dist', 'coverage', 'test-results', 'playwright-report', '.netlify']);
 const walk = (dir: string): string[] =>
   readdirSync(dir).flatMap((f) => {
+    if (SKIP.has(f)) return [];
     const p = join(dir, f);
     return statSync(p).isDirectory() ? walk(p) : isRoute(f) ? [p] : [];
   });
@@ -29,11 +35,14 @@ const exportedMethods = (src: string): string[] => METHODS.filter((m) => new Reg
 const OPEN_METHODS: Record<string, string[]> = {
   'app/api/models/route.ts': ['GET'],
   'app/api/case-studies/route.ts': ['GET'],
-  'app/api/contact/route.ts': ['POST']
+  'app/api/contact/route.ts': ['POST'],
+  'app/api/blog/route.ts': ['GET'],
+  'app/api/blog/[slug]/route.ts': ['GET'],
+  'app/api/newsletter/route.ts': ['POST']
 };
 const rel = (p: string) => relative(process.cwd(), p).split('\\').join('/');
 
-const routes = walk('app/api').map(rel).sort();
+const routes = walk('.').map(rel).sort();
 const edges = readdirSync('supabase/functions').filter((d) => !d.startsWith('_') && statSync(join('supabase/functions', d)).isDirectory()).map((d) => `supabase/functions/${d}/index.ts`);
 
 describe('auth coverage', () => {
@@ -69,6 +78,7 @@ describe('auth coverage', () => {
   it('the route detector recognises every file form and every export form', () => {
     for (const f of ['route.ts', 'route.tsx', 'route.js', 'route.jsx', 'route.mjs']) expect(isRoute(f)).toBe(true);
     expect(isRoute('page.tsx')).toBe(false);
+    expect(routes.every((r) => !r.startsWith('node_modules'))).toBe(true);
     expect(exportedMethods('export async function POST() {}\nexport const DELETE = () => {};\nexport { GET };').sort()).toEqual(['DELETE', 'GET', 'POST']);
     expect(exportedMethods('const x = 1')).toEqual([]);
   });

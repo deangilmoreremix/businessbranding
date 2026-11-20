@@ -47,7 +47,7 @@ export default function BrandStrategyPage() {
           <BusinessAnalyzer onAnalysisComplete={setBusinessInfo} />
         </div>
 
-        {brandAnalysisResults && (
+        {brandAnalysisResults && brandAnalysisResults.marketFit !== null && brandAnalysisResults.healthScore !== null && brandAnalysisResults.uniquenessScore !== null && (
           <div className="mb-16">
             <CompetitiveAnalysis 
               analysis={{

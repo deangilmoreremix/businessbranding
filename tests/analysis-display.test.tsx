@@ -45,7 +45,7 @@ describe('normalizeAnalysis handles odd model output', () => {
     expect(normalizeAnalysis({ lastUpdated: '2026-11-20T10:00:00Z', monitoringStatus: 'active' } as any)).toMatchObject({ monitoringStatus: 'active' });
   });
   it('survives an empty object', () => {
-    expect(normalizeAnalysis({} as any)).toMatchObject({ healthScore: 0, marketFit: 0, uniquenessScore: 0 });
+    expect(normalizeAnalysis({} as any)).toMatchObject({ healthScore: null, marketFit: null, uniquenessScore: null });
   });
   it('header tiles show placeholders, then real values on one scale', () => {
     expect(headerTiles(null).map((t) => t.value)).toEqual(['—', '—', '—', '—']);
@@ -91,7 +91,7 @@ describe('growth trajectory is never double-scaled', () => {
   });
   it('keeps negative growth and renders placeholders for junk', () => {
     expect(show(-0.05, -5)).toContain('>-5.0%<');
-    expect(show('abc', undefined)).toContain('>0.0%<'); // normalised junk -> 0, not NaN
+    expect(show('abc', undefined)).toContain('>Not measured<'); // junk is shown as not measured, never an invented 0.0%
     expect(formatFraction(NaN)).toBe('—');
   });
   it('every normalised rate/score is a fraction in the analysis object', () => {
