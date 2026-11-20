@@ -174,11 +174,14 @@ export default function PrivacyPolicy() {
                 If you have any questions or concerns about our Privacy Policy or our data practices, please contact us at:
               </p>
               <div className="bg-accent/5 p-4 rounded-lg mb-6">
-                <p className="font-medium">Email: privacy@aibrandcreator.com</p>
-                <p className="font-medium">Address: 123 AI Street, San Francisco, CA 94103</p>
+                {process.env.NEXT_PUBLIC_CONTACT_EMAIL ? (
+                  <p className="font-medium">Email: {process.env.NEXT_PUBLIC_CONTACT_EMAIL}</p>
+                ) : (
+                  <p className="font-medium">Use the <Link href="/contact" className="underline">contact form</Link>.</p>
+                )}
               </div>
               <p className="text-muted-foreground">
-                We will respond to your inquiry as soon as possible and work with you to address any concerns.
+                Messages sent through the contact form are stored for the operator of this deployment to read; no automatic reply is sent.
               </p>
             </Card>
           </div>

@@ -45,7 +45,7 @@ export default function ContactPage() {
           {state === 'sent' ? (
             <div role="status" data-testid="contact-done" className="flex items-start gap-3">
               <Mail className="h-6 w-6 text-green-500 mt-0.5" aria-hidden />
-              <p className="text-sm text-muted-foreground">Thanks, your message was received. We will reply to {form.email.trim()}.</p>
+              <p className="text-sm text-muted-foreground">Your message was saved. It is not emailed automatically, so a reply is not guaranteed and may take time.</p>
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4" noValidate>

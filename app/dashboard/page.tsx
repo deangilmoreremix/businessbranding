@@ -42,8 +42,8 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
             <Badge className="mb-2">DASHBOARD</Badge>
             <h1 className="text-3xl font-bold gradient-text">Content Dashboard</h1>
             <p className="text-muted-foreground mt-1">Your saved audio, images and analyses{updatedAt ? ` · updated ${updatedAt.toLocaleTimeString()}` : ''}</p>

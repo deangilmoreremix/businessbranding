@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { FolderOpen, Loader2, Play, Plus, Save, Trash2 } from 'lucide-react';
-import { STEP_LABELS, defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type StepKind, type Workflow } from '@/lib/local/workflow';
+import { STEP_LABELS, STEP_W, freePosition, separateOverlaps, defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type StepKind, type Workflow } from '@/lib/local/workflow';
 import { openFile, saveFile } from '@/lib/local/fs-access';
 import { useLocalDraft } from '@/lib/local/use-draft';
 import { authFetch } from '@/lib/client/auth-fetch';
@@ -19,7 +19,7 @@ interface StepResult { text?: string; html?: string; audioUrl?: string; error?: 
 
 function StepNodeView({ data, selected }: NodeProps<StepNode>) {
   return (
-    <div className={`rounded-lg border bg-background px-3 py-2 text-sm shadow ${selected ? 'ring-2 ring-primary' : ''}`} style={{ minWidth: 170 }}>
+    <div className={`rounded-lg border bg-background px-3 py-2 text-sm shadow ${selected ? 'ring-2 ring-primary' : ''}`} style={{ width: STEP_W, minHeight: 56 }}>
       {data.kind !== 'brief' && <Handle type="target" position={Position.Left} />}
       <div className="font-medium">{STEP_LABELS[data.kind]}</div>
       <div className="text-xs text-muted-foreground line-clamp-2">{Object.values(data.values)[0] || 'Click to edit'}</div>
@@ -38,7 +38,7 @@ const FIELDS: Record<StepKind, { key: string; label: string; multiline?: boolean
 };
 
 const toFlow = (w: Workflow) => ({
-  nodes: w.nodes.map<StepNode>((n) => ({ id: n.id, type: 'step', position: n.position, data: { kind: n.kind, values: n.data } })),
+  nodes: separateOverlaps(w.nodes.map<StepNode>((n) => ({ id: n.id, type: 'step', position: n.position, data: { kind: n.kind, values: n.data } }))),
   edges: w.edges.map((e) => ({ id: e.id, source: e.source, target: e.target }))
 });
 
@@ -81,7 +81,7 @@ export default function WorkflowBuilder() {
     const defaults: Record<StepKind, Record<string, string>> = {
       brief: { text: '' }, copy: { instruction: 'Write the copy.' }, email: { brandName: 'Your Brand', ctaLabel: '', ctaUrl: '' }, voice: { voiceId: 'marin' }
     };
-    setNodes((ns) => [...ns, { id, type: 'step', position: { x: 80 + ns.length * 20, y: 220 + ns.length * 10 }, data: { kind, values: defaults[kind] } }]);
+    setNodes((ns) => [...ns, { id, type: 'step', position: freePosition(ns.map((x) => x.position)), data: { kind, values: defaults[kind] } }]);
     setSelectedId(id);
   };
 

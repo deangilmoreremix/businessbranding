@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type Workflow } from '@/lib/local/workflow';
+import { STEP_W, STEP_H, freePosition, separateOverlaps, defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type Workflow } from '@/lib/local/workflow';
 
 describe('executionOrder', () => {
   it('orders the default workflow with upstream steps first', () => {
@@ -52,5 +52,24 @@ describe('serialize / parse', () => {
     expect(() => parseWorkflow('{"version":1,"nodes":[{"id":"a","kind":"hack"}],"edges":[]}')).toThrow(/unknown step/);
     const w = parseWorkflow('{"version":1,"nodes":[{"id":"a","kind":"brief","data":{"text":"ok","n":5}}],"edges":[]}');
     expect(w.nodes[0].data).toEqual({ text: 'ok' });
+  });
+});
+
+describe('workflow layout', () => {
+  const box = (p: { x: number; y: number }) => ({ l: p.x, r: p.x + STEP_W, t: p.y, b: p.y + STEP_H });
+  const clash = (a: { x: number; y: number }, b: { x: number; y: number }) => { const A = box(a), B = box(b); return A.l < B.r && B.l < A.r && A.t < B.b && B.t < A.b; };
+  const anyClash = (ps: { x: number; y: number }[]) => ps.some((p, i) => ps.slice(i + 1).some((q) => clash(p, q)));
+  it('default steps never overlap', () => { expect(anyClash(defaultWorkflow().nodes.map((n) => n.position))).toBe(false); });
+  it('separateOverlaps moves only stacked steps and leaves clear ones alone', () => {
+    const nodes = [{ id: 'a', position: { x: 0, y: 0 } }, { id: 'b', position: { x: 40, y: 10 } }, { id: 'c', position: { x: 600, y: 0 } }];
+    const out = separateOverlaps(nodes);
+    expect(out[0].position).toEqual({ x: 0, y: 0 });
+    expect(out[2].position).toEqual({ x: 600, y: 0 });
+    expect(anyClash(out.map((n) => n.position))).toBe(false);
+  });
+  it('freePosition returns a clear slot even when many steps exist', () => {
+    const taken: { x: number; y: number }[] = [];
+    for (let i = 0; i < 15; i++) taken.push(freePosition(taken));
+    expect(anyClash(taken)).toBe(false);
   });
 });

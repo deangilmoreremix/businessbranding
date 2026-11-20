@@ -109,7 +109,7 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await page.fill('#c-name', 'Ann'); await page.fill('#c-email', 'ann@example.test'); await page.fill('#c-message', 'Hello, I would like to know more.');
     await page.click('button[type=submit]');
     await page.waitForSelector('[data-testid=contact-done]');
-    ok('contact: valid form is stored server-side (contact_submissions) and confirmed', /received/.test(await page.innerText('[data-testid=contact-done]')));
+    ok('contact: valid form is stored server-side (contact_submissions) and confirmed', /saved/.test(await page.innerText('[data-testid=contact-done]')));
     const stored = await (await fetch(SB + '/__state')).json();
     ok('contact: the row is in contact_submissions with a hashed client, not a raw address', stored.contact_submissions.length === 1 && stored.contact_submissions[0].email === 'ann@example.test' && /^[0-9a-f]{64}$/.test(stored.contact_submissions[0].client_hash));
   });

@@ -40,9 +40,9 @@ export function defaultWorkflow(): Workflow {
     version: 1,
     nodes: [
       { id: 'brief', kind: 'brief', position: { x: 0, y: 80 }, data: { text: 'Launch announcement for Acme Coffee, a small-batch roaster.' } },
-      { id: 'copy', kind: 'copy', position: { x: 280, y: 80 }, data: { instruction: 'Write a short, warm launch announcement.' } },
-      { id: 'email', kind: 'email', position: { x: 560, y: 0 }, data: { brandName: 'Acme Coffee', ctaLabel: 'Shop now', ctaUrl: 'https://example.com' } },
-      { id: 'voice', kind: 'voice', position: { x: 560, y: 160 }, data: { voiceId: 'marin' } }
+      { id: 'copy', kind: 'copy', position: { x: 300, y: 80 }, data: { instruction: 'Write a short, warm launch announcement.' } },
+      { id: 'email', kind: 'email', position: { x: 600, y: 0 }, data: { brandName: 'Acme Coffee', ctaLabel: 'Shop now', ctaUrl: 'https://example.com' } },
+      { id: 'voice', kind: 'voice', position: { x: 600, y: 160 }, data: { voiceId: 'marin' } }
     ],
     edges: [
       { id: 'e1', source: 'brief', target: 'copy' },
@@ -128,4 +128,28 @@ export function parseWorkflow(json: string): Workflow {
   });
   const edges: WorkflowEdge[] = raw.edges.map((e: any) => ({ id: String(e.id), source: String(e.source), target: String(e.target) }));
   return { version: 1, nodes, edges };
+}
+
+/** Rendered step size (the builder gives every step a fixed 200px width; 80px is the tallest a step gets). */
+export const STEP_W = 200;
+export const STEP_H = 80;
+const overlaps = (a: { x: number; y: number }, b: { x: number; y: number }, gap = 20) => Math.abs(a.x - b.x) < STEP_W + gap && Math.abs(a.y - b.y) < STEP_H + gap;
+
+/** First position (scanning down the column, then right) that does not overlap any of `taken`. */
+export function freePosition(taken: { x: number; y: number }[], start = { x: 0, y: 240 }): { x: number; y: number } {
+  for (let col = 0; col < 20; col++) for (let row = 0; row < 40; row++) {
+    const p = { x: start.x + col * (STEP_W + 40), y: start.y + row * (STEP_H + 30) };
+    if (!taken.some((t) => overlaps(p, t))) return p;
+  }
+  return start;
+}
+
+/** Imported or older saved graphs may stack steps on top of each other: keep every position that is already clear, move only the overlapping ones. */
+export function separateOverlaps<T extends { position: { x: number; y: number } }>(nodes: T[]): T[] {
+  const placed: { x: number; y: number }[] = [];
+  return nodes.map((n) => {
+    const position = placed.some((p) => overlaps(p, n.position)) ? freePosition(placed, { x: n.position.x, y: n.position.y }) : n.position;
+    placed.push(position);
+    return position === n.position ? n : { ...n, position };
+  });
 }

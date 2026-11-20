@@ -167,7 +167,7 @@ export function NavHeader() {
             <span className="gradient-text font-bold hidden sm:block">AI Brand Creator</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-1">
@@ -244,7 +244,7 @@ export function NavHeader() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             {user ? (
               <Button variant="ghost" onClick={() => { signOut().then(() => router.push('/')).catch(() => {}); }}>Sign Out</Button>
             ) : (
@@ -264,7 +264,7 @@ export function NavHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? (
@@ -279,7 +279,7 @@ export function NavHeader() {
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <motion.div 
-          className="md:hidden backdrop-blur-lg bg-background/80 border-b border-accent/10"
+          className="lg:hidden backdrop-blur-lg bg-background/80 border-b border-accent/10"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}

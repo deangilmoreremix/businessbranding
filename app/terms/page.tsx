@@ -198,8 +198,11 @@ export default function TermsOfService() {
                 If you have any questions about these Terms of Service, please contact us at:
               </p>
               <div className="bg-accent/5 p-4 rounded-lg mb-6">
-                <p className="font-medium">Email: legal@aibrandcreator.com</p>
-                <p className="font-medium">Address: 123 AI Street, San Francisco, CA 94103</p>
+                {process.env.NEXT_PUBLIC_CONTACT_EMAIL ? (
+                  <p className="font-medium">Email: {process.env.NEXT_PUBLIC_CONTACT_EMAIL}</p>
+                ) : (
+                  <p className="font-medium">Use the <Link href="/contact" className="underline">contact form</Link>.</p>
+                )}
               </div>
             </Card>
           </div>
