@@ -74,8 +74,11 @@ const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs
     await tab('Audiobook').click();
     await page.fill('input[placeholder="Enter book title"]', 'My Book');
     await page.fill('input[placeholder="Enter author name"]', 'Jane Author');
-    await page.getByRole('combobox').filter({ hasText: /Select narrator voice/ }).click();
-    await page.getByRole('option').first().click();
+    // the narrator defaults to the voice saved in Voice Settings (marin unless changed); pick another explicitly
+    const narrator = page.getByRole('combobox').filter({ hasText: /marin/i }).first();
+    ok('audiobook: narrator defaults to the saved voice preference', await narrator.isVisible());
+    await narrator.click();
+    await page.getByRole('option').nth(1).click();
     await page.locator('textarea[placeholder="Enter chapter text"]').first().fill('Chapter one text. It begins.');
     const resp = page.waitForResponse((r) => r.url().includes('/api/voice/audiobook'), { timeout: 60000 });
     await page.getByRole('button', { name: 'Generate Audiobook' }).click();

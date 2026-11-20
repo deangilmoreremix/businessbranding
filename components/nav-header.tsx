@@ -256,7 +256,7 @@ export function NavHeader() {
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90"
               onClick={handleStartAnalysis}
             >
-              {user ? 'Open dashboard' : 'Analyze your brand'}
+              {user ? 'Open dashboard' : 'Get started'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -367,7 +367,7 @@ export function NavHeader() {
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
                 onClick={handleStartAnalysis}
               >
-                {user ? 'Open dashboard' : 'Analyze your brand'}
+                {user ? 'Open dashboard' : 'Get started'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
