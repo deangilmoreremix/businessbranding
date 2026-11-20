@@ -67,6 +67,7 @@ including in exported reports.
 
 - Sample fixtures in `lib/services/ai.ts` and `lib/services/implementation-plan.ts` (demo/sample mode, labelled "Sample") still contain
   illustrative text; they contain no numeric claims after this round.
+- Edge Functions `brand-analysis/index.ts:36-90` (healthScore 85 …) and `market-analysis/index.ts:142-215` still contain built-in demo payloads. They are only reachable when no OpenAI key is configured (`!isConfigured()`), which BYOK `withUser` rules out for real users (a keyless request is answered 412 first); they only run with the dev-only `ALLOW_SERVER_OPENAI_KEY` path unset, and every such response carries `demo: true`. `market-analysis`, `social-media-analyzer`, `voice-generator`, `website-scanner` and `hello-world` are not called by this app's UI (they are API surface, covered by `scripts/verify-edge.ts`). The guard does not scan `supabase/functions/`.
 - Static educational lists (e.g. best-practice do/don't bullets in the Best Practices tab) are generic advice, not measurements.
 - `app/docs/**` and legal pages are allow-listed from the numeric rule (version numbers, retention periods, example payloads).
 

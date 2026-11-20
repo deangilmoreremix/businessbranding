@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +26,6 @@ import {
   Brain
 } from 'lucide-react';
 import type { ImplementationPlan as ImplementationPlanData, ImplementationPhase } from '@/lib/services/implementation-plan';
-import { ResponsiveLine } from '@nivo/line';
 import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveBar } from '@nivo/bar';
 
@@ -115,18 +113,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
   );
 
   // Prepare data for charts
-  const timelineData = [
-    {
-      id: 'Implementation Progress',
-      data: [
-        { x: 'Start', y: 0 },
-        { x: '90 Days', y: 30 },
-        { x: '180 Days', y: 60 },
-        { x: '365 Days', y: 100 }
-      ]
-    }
-  ];
-
   const budgetData = plan.budgetEstimate.map(item => ({
     category: item.category,
     'Short Term': item.shortTerm,
@@ -149,7 +135,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
         <ExportDialog
           data={plan}
           charts={[
-            { id: 'timeline-chart', name: 'Implementation Timeline', type: 'line' },
             { id: 'budget-chart', name: 'Budget Allocation', type: 'bar' },
             { id: 'risk-chart', name: 'Risk Assessment', type: 'pie' }
           ]}
@@ -168,7 +153,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
               <p className="text-sm text-muted-foreground">{plan.overview.estimatedTimeline}</p>
             </div>
           </div>
-          <Progress value={25} className="h-2" />
         </Card>
 
         <Card className="p-4">
@@ -181,7 +165,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
               <p className="text-sm text-muted-foreground">{plan.overview.objectives.length} Key Goals</p>
             </div>
           </div>
-          <Progress value={50} className="h-2" />
         </Card>
 
         <Card className="p-4">
@@ -194,7 +177,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
               <p className="text-sm text-muted-foreground">{plan.overview.requiredResources.length} Required</p>
             </div>
           </div>
-          <Progress value={75} className="h-2" />
         </Card>
 
         <Card className="p-4">
@@ -207,7 +189,6 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
               <p className="text-sm text-muted-foreground">3 Phase Plan</p>
             </div>
           </div>
-          <Progress value={100} className="h-2" />
         </Card>
       </div>
 
@@ -220,69 +201,7 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
         </TabsList>
 
         <TabsContent value="timeline" className="mt-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Implementation Timeline</h3>
-            <div className="h-[300px]">
-              <ResponsiveLine
-                data={timelineData}
-                margin={{ top: 50, right: 110, bottom: 50, left: 60 }}
-                xScale={{ type: 'point' }}
-                yScale={{ type: 'linear', min: 0, max: 100 }}
-                axisTop={null}
-                axisRight={null}
-                axisBottom={{
-                  tickSize: 5,
-                  tickPadding: 5,
-                  tickRotation: 0,
-                  legend: 'Timeline',
-                  legendOffset: 36,
-                  legendPosition: 'middle'
-                }}
-                axisLeft={{
-                  tickSize: 5,
-                  tickPadding: 5,
-                  tickRotation: 0,
-                  legend: 'Progress (%)',
-                  legendOffset: -40,
-                  legendPosition: 'middle'
-                }}
-                pointSize={10}
-                pointColor={{ theme: 'background' }}
-                pointBorderWidth={2}
-                pointBorderColor={{ from: 'serieColor' }}
-                pointLabelYOffset={-12}
-                useMesh={true}
-                legends={[
-                  {
-                    anchor: 'bottom-right',
-                    direction: 'column',
-                    justify: false,
-                    translateX: 100,
-                    translateY: 0,
-                    itemsSpacing: 0,
-                    itemDirection: 'left-to-right',
-                    itemWidth: 80,
-                    itemHeight: 20,
-                    itemOpacity: 0.75,
-                    symbolSize: 12,
-                    symbolShape: 'circle',
-                    symbolBorderColor: 'rgba(0, 0, 0, .5)',
-                    effects: [
-                      {
-                        on: 'hover',
-                        style: {
-                          itemBackground: 'rgba(0, 0, 0, .03)',
-                          itemOpacity: 1
-                        }
-                      }
-                    ]
-                  }
-                ]}
-              />
-            </div>
-          </Card>
-
-          <div className="mt-6">
+          <div>
             {plan.phases.map((phase, index) => (
               <div key={index} className="mb-6">
                 {renderPhase(phase)}

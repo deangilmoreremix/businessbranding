@@ -20,6 +20,7 @@ const ALLOW: Record<string, Record<string, string>> = {
   'app/{privacy,terms,cookies}/page.tsx': { 'stat-literal': 'legal text: retention periods and legal limits' },
   'lib/local/**': { 'stat-literal': 'engineering constants (sample rates, byte sizes), not displayed statistics' },
   'lib/local/store.ts': { 'math-random': 'random suffix of a locally generated record id (uniqueness, never displayed or presented as data)' },
+  'lib/services/{ai,voice,brand-analyzer}.ts': { 'hardcoded-metric': 'sample-data fixtures returned only when isDemoMode() is true; that dispatches SAMPLE_DATA_EVENT (visible sample-data banner) and brand analyses also carry sample:true; covered by the sample-label e2e checks' },
   'lib/ai-tasks.ts': { 'stat-literal': 'prompt instructions to the model (e.g. "score 0-100"), not displayed statistics' },
   'lib/**': { 'sample-fixture': 'lib code that implements the labelled sample-data mode (demo flag + sample:true) is reviewed in FAKE_DATA_AUDIT.md' }
 };
@@ -38,6 +39,8 @@ const RULES: [string, RegExp][] = [
   ['abbrev-count', /\b\d{1,3}(?:\.\d)?[KMB]\+?\b(?!\w)/],
   ['big-number', /\b\d{1,3},\d{3}\+?(?!\d)/],
   ['vague-claim', /thousands of|millions of|trusted by|join (?:over )?\d|\bOver \d|\d+\+ (?:brands|clients|customers|companies|users|countries|businesses|agencies)/i],
+  ['hardcoded-metric', /\b(?:score|risk|advantage|percent|percentage|growth|rate|count|total|progress|share|potential|impact|confidence|rating|users|visitors|revenue)\s*:\s*-?\d/i],
+  ['literal-progress', /<Progress\s+value=\{\s*\d/],
   ['free-trial', /free trial|start free|money-back|14-day|cancel anytime/i],
   ['fake-name', /Sarah Chen|John Smith|Alex Johnson|Michael Chen|David Anderson|David Rodriguez|Sarah Williams|Michael Johnson|Emily Davis|Jane Doe|Lorem ipsum|TechFlex|GlobalTech/],
   ['unsourced-citation', /McKinsey|Bain & Company|Forrester|Gartner|Lucidpress|Statista|according to (?:a )?(?:recent )?(?:study|report)/i],

@@ -14,22 +14,26 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 
 | Suite | PASS | FAIL |
 |---|---|---|
-| vitest (unit, security, BYOK, auth-coverage, SRI tamper + live pins, no-random guard, contact, stats, display incl. growth 0.5/50, settings, redirects, DB wrapper) | 245 | 0 |
-| `scripts/verify-ai.mjs` (API request shapes, BYOK, security, contact API incl. spoofed X-Forwarded-For) | 132 | 0 |
+| vitest (unit, security, BYOK, auth-coverage over **every `route.*` file in the repo**, SRI, **whole-tree no-fake-data guard**, report exports (PDF/XLSX/DOCX parsed back), contact limiter incl. direct-spoof cases, stats, display, settings, workflow layout) | 267 (1 skipped: live SRI pins, opt-in `SRI_LIVE=1`) | 0 |
+| `scripts/verify-ai.mjs` (API request shapes, BYOK, security, contact API incl. spoofed XFF / rotating X-Real-IP, newsletter, blog, case-studies, usage) | 142 | 0 |
 | `scripts/edge-test.mjs` -> `verify-edge.ts` (all AI Edge Functions, Deno 2.9) | 38 | 0 |
-| `scripts/db-test.sh` (**16 migrations applied twice**, RLS, table/function privileges, future tables/functions, voice_profiles updates, rate limiter, contact table; Postgres 16) | 144 | 0 |
+| `scripts/db-test.sh` (**17 migrations applied twice**, RLS, table/function privileges incl. `blog_posts`, `newsletter_subscriptions`, `case_studies` SELECT-only for clients; Postgres 16) | 148 | 0 |
 | Playwright `auth` | 22 | 0 |
 | Playwright `byok-settings` | 16 | 0 |
 | Playwright `ui-fixes` | 11 | 0 |
 | Playwright `features-visual` | 14 | 0 |
-| Playwright `features-voice` | 16 | 0 |
+| Playwright `features-voice` | 17 | 0 |
 | Playwright `features-assistant` | 14 | 0 |
 | Playwright `features-analysis` | 18 | 0 |
-| Playwright `features-errors-pages` (error states, every page, contact, settings tabs, landing page without third-party animation requests / console errors, API smoke) | 63 | 0 |
-| Playwright `features-local-ai` (real MediaPipe + Whisper downloads, **SRI tamper test**) | 5 | 0 |
-| Playwright `features-dashboard` (real data, no fabricated numbers, analysis display, planning/calendar) | 22 | 0 |
-| Playwright `features-settings` (Profile, Notifications, real password change, Billing) | 15 | 0 |
-| **Total automated assertions** | **775** | **0** |
+| Playwright `features-errors-pages` | 62 | 0 |
+| Playwright `features-local-ai` (real MediaPipe + Whisper downloads, SRI tamper test) | 5 | 0 |
+| Playwright `features-dashboard` | 22 | 0 |
+| Playwright `features-settings` | 15 | 0 |
+| Playwright `public-pages` (empty states, seeded published rows, newsletter, footer, contact, pricing/integrations/analytics, **downloaded PDF/XLSX/DOCX are valid files**) | 37 | 0 |
+| Playwright `viewports` (30 routes x 3 widths, signed out and in: no horizontal overflow; workflow steps do not overlap) | 182 | 0 |
+| **Total automated assertions** | **1030** | **0** |
+
+NOT TESTABLE (reported by the specs, not counted as pass): 2 (live microphone-device capture, real model-download progress in a restricted network).
 
 Also: `tsc` 0 errors (app and edge config), `next lint` 0 errors, `next build` green **with type checking and lint enforced**.
 
@@ -102,7 +106,8 @@ fails the test; `route.ts/.tsx/.js/.jsx/.mjs` are all enumerated, and an open ro
 | `/settings`, `/login`, `/sign-up`, `/reset-password`, `/reset-password/update` | `auth`, `byok-settings`, smoke | PASS |
 | `/contact` (was an empty stub; now a validated form that **stores the message** in `contact_submissions` via `POST /api/contact`: honeypot, size cap, 5/hour per client, service-role write only) | `features-errors-pages`, `verify-ai`, `contact.test`, `db-test` | PASS |
 | `/dashboard` (real saved items: audio, images, analyses; honest empty states; no live indicator) | `features-dashboard` | PASS |
-| `/`, `/about`, `/agency`, `/analytics`, `/blogs`, `/case-studies`, `/cookies`, `/features`, `/integrations`, `/pricing`, `/privacy`, `/terms` | smoke (200, content, no uncaught error) | PASS (smoke only) |
+| `/`, `/agency`, `/cookies`, `/features`, `/privacy`, `/terms` | smoke (200, content, no uncaught error) + viewport + fake-data guard | PASS (smoke, viewport and static guard only; no behavioural flow) |
+| `/about`, `/blogs`, `/blogs/[slug]`, `/case-studies`, `/pricing`, `/integrations`, `/analytics`, `/contact`, footer newsletter | `public-pages` (empty states, seeded rows, saves to tables, computed status, no invented copy) | PASS |
 | `/docs`, `/docs/ai-features`, `/docs/best-practices`, `/docs/voice-features`, `/docs/integration-guide`, 11 `/docs/components/*`, `/docs/api/openai`, `/docs/api/voice` | smoke (the two API pages were unroutable before; fixed) | PASS (smoke only) |
 | `/docs/gemini-features` -> `/docs/ai-features` (308) | `ui-fixes` | PASS |
 
@@ -202,12 +207,30 @@ fails the test; `route.ts/.tsx/.js/.jsx/.mjs` are all enumerated, and an open ro
 7. Invented marketing statistics (98 % satisfaction, 2,500+ brands, 30+ countries, 185 %, "+45 % revenue" ...) replaced by factual, non-numeric copy. The `/docs/case-studies` link pointed to a 404.
 8. Remote Lottie animations (third-party downloads, 403 in restricted networks) replaced by local decorative panels.
 
+## Round 4: systematic purge (corrections to earlier claims)
+
+Earlier rounds of this matrix said fabricated competitor charts and "+45 % revenue" style copy had been removed. That was **incomplete**: the
+landing parallax section, `/about`, `/blogs`, `/case-studies`, `/analytics`, `/integrations`, `/pricing`, `/features`, the footer, the
+competitor Market/Overview tabs (Competitive Advantage, Opportunity Gaps, Disruption Risk with invented competitors), the implementation-plan
+timeline chart, the `75%` social bars and the fake export dialog still showed fabricated numbers or fake success. All of these are now removed
+or computed; see `docs/FAKE_DATA_AUDIT.md` for the per-route / per-component inventory and `tests/no-fake-data.test.ts` for the guard
+(which also fails on literal progress bars and hard-coded metric properties outside the labelled sample fixtures).
+
+- `/analytics` was rated "PASS (smoke only)" while showing an invented dashboard; it is now a real-data/empty-state page covered by `public-pages`.
+- **Features removed** (they only displayed fabricated data): trend analysis, sentiment dashboard, real-time analytics (client service and Edge Function),
+  the competitor-analysis module, geo-performance analysis, feature-discovery tour, branding wizard, partner program, pricing plans, invented team and
+  blog posts, invented social accounts. Case studies and blog posts now come from the `case_studies` / `blog_posts` tables and show an empty state when none are published.
+- Brand analysis no longer invents `healthScore 75 / marketFit 0.7 / uniquenessScore 0.65`, a stock competitor or stock recommendations; missing values
+  show "Not measured".
+- The Export dialog downloads real PDF, XLSX and DOCX files of the analysis (tested by parsing them back, in vitest and in the browser).
+- Git history still contains the original `.env` with live keys (first added in commit `a4f5488`; also in `2ff6c7f`, `ba0d981`). **Rotate** those keys; see `/docs/integration-guide`.
+
 ## Known gaps (stated plainly)
 
 - See the NOT TESTABLE / NOT TESTED table above; nothing there is hidden in the totals.
 - Pages marked "smoke only" were only loaded.
 - The MediaPipe/Transformers model **weights** are still fetched from Google/Hugging Face at use time (data, not code; Hugging Face serves them with its own integrity checks).
 - `/contact` grew from an empty stub to a real form (+39 kB First Load JS on that route).
-- The `/pricing` page still shows plan prices although the app has no payment flow (BYOK); it was not part of this round and is not changed.
+- `/pricing` is now an honest bring-your-own-key page (no plans, prices or trial); earlier rounds left invented plan prices there.
 - Test scratch files use per-run unique directories (`mkdtemp`); the e2e runner no longer writes to predictable shared `/tmp` names.
 - `package-lock.json` was regenerated (`npm install --legacy-peer-deps`) to add eslint; the project already had unresolved peer-dependency conflicts.
