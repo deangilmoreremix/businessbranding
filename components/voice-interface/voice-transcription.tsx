@@ -14,9 +14,7 @@ import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
 export function VoiceTranscription() {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('en');
-  const [speakerCount, setSpeakerCount] = useState(1);
-  const [wordTiming, setWordTiming] = useState(false);
-  const [model, setModel] = useState('scribe-v1');
+  const [context, setContext] = useState('');
   const [transcribing, setTranscribing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<string | null>(null);
@@ -37,9 +35,7 @@ export function VoiceTranscription() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('language', language);
-    formData.append('speakerCount', speakerCount.toString());
-    formData.append('wordTiming', wordTiming.toString());
-    formData.append('model', model);
+    if (context.trim()) formData.append('prompt', context.trim());
 
     try {
       const progressInterval = setInterval(() => {
@@ -121,34 +117,11 @@ export function VoiceTranscription() {
               </div>
 
               <div className="space-y-2">
-                <Label>Number of Speakers</Label>
+                <Label>Context (optional)</Label>
                 <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={speakerCount}
-                  onChange={(e) => setSpeakerCount(parseInt(e.target.value))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Transcription Model</Label>
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scribe-v1">Scribe V1</SelectItem>
-                    <SelectItem value="scribe-premium-v1">Scribe Premium V1</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Word-level Timing</Label>
-                <Switch
-                  checked={wordTiming}
-                  onCheckedChange={setWordTiming}
+                  placeholder="Names, product terms or topic to help accuracy"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
                 />
               </div>
             </div>

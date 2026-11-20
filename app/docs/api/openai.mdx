@@ -292,9 +292,12 @@ Without `referenceImages` it generates; with them it edits (logo/asset variation
 
 ### Content analysis
 ```typescript
-POST /api/ai/analyze   // legacy path /api/gemini/analyze still works
+POST /api/ai/analyze
 { "content": string, "type": "brand" | "visual" | "voice" }
 ```
+
+### Voice (audio)
+See the [Voice API](/docs/api/voice): text-to-speech (Realtime API), transcription (`gpt-transcribe`) and live voice (Realtime over WebRTC).
 
 ## Server-side usage
 

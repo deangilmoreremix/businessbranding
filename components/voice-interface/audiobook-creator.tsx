@@ -34,7 +34,7 @@ export function AudiobookCreator() {
   const [author, setAuthor] = useState('');
   const [narrator, setNarrator] = useState('');
   const [chapters, setChapters] = useState<Chapter[]>([
-    { id: '1', title: 'Chapter 1', text: '', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+    { id: '1', title: 'Chapter 1', text: '', voiceId: 'marin' }
   ]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -49,7 +49,7 @@ export function AudiobookCreator() {
         id: String(chapters.length + 1), 
         title: `Chapter ${chapters.length + 1}`, 
         text: '', 
-        voiceId: '21m00Tcm4TlvDq8ikWAM' 
+        voiceId: 'marin' 
       }
     ]);
   };
@@ -146,9 +146,9 @@ export function AudiobookCreator() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="21m00Tcm4TlvDq8ikWAM">Rachel</SelectItem>
-                  <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella</SelectItem>
-                  <SelectItem value="AZnzlk1XvdvUeBnXmlld">Antoni</SelectItem>
+                  <SelectItem value="marin">Marin</SelectItem>
+                  <SelectItem value="cedar">Cedar</SelectItem>
+                  <SelectItem value="alloy">Alloy</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -195,9 +195,9 @@ export function AudiobookCreator() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="21m00Tcm4TlvDq8ikWAM">Rachel</SelectItem>
-                          <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella</SelectItem>
-                          <SelectItem value="AZnzlk1XvdvUeBnXmlld">Antoni</SelectItem>
+                          <SelectItem value="marin">Marin</SelectItem>
+                          <SelectItem value="cedar">Cedar</SelectItem>
+                          <SelectItem value="alloy">Alloy</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>

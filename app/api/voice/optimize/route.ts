@@ -1,30 +1,29 @@
 import { NextResponse } from 'next/server';
-import { optimizeContent } from '@/lib/services/eleven-labs';
+import { optimizeContent } from '@/lib/services/voice';
 import { generateBrandingConcepts } from '@/lib/services/ai';
+import { errorResponse, rateLimit } from '@/lib/ai-http';
+
+export const runtime = 'nodejs';
+
+const PLATFORMS = ['podcast', 'audiobook', 'advertisement', 'training'] as const;
 
 export async function POST(request: Request) {
+  const limited = rateLimit(request, 'voice-optimize', 20);
+  if (limited) return limited;
   try {
-    const { text, type, brandGuidelines } = await request.json();
+    const { text, type } = await request.json();
+    if (typeof text !== 'string' || !text.trim()) return NextResponse.json({ error: 'text is required' }, { status: 400 });
 
-    // Generate optimized content with OpenAI
+    // Generate brand-aligned copy, then optimize it for the target platform (both via the Responses API).
     const brandingConcepts = await generateBrandingConcepts(text);
-
-    // Optimize for voice with ElevenLabs
     const optimizedContent = await optimizeContent(brandingConcepts.content, {
       text: brandingConcepts.content,
-      platform: type,
+      platform: PLATFORMS.includes(type) ? type : 'podcast',
       preserveKeyMessages: brandingConcepts.keyMessages
     });
 
-    return NextResponse.json({
-      optimizedContent,
-      brandingConcepts
-    });
+    return NextResponse.json({ optimizedContent, brandingConcepts });
   } catch (error) {
-    console.error('Content optimization failed:', error);
-    return NextResponse.json(
-      { error: 'Failed to optimize content' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to optimize content');
   }
 }

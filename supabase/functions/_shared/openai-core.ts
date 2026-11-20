@@ -12,6 +12,10 @@
 //   - Background mode: background:true (+ background_options.completion_window), poll GET /v1/responses/{id}
 //     while status is queued | in_progress.
 //   - Images API: POST /v1/images/generations and /v1/images/edits (multipart, image[]), base64 in data[].b64_json.
+//   - Audio: speech-to-text POST /v1/audio/transcriptions (gpt-transcribe; prompt/keywords[]/languages[]);
+//     text-to-speech via the Realtime API over WebSocket (gpt-realtime-2.1-mini, the documented migration path from
+//     the deprecated /v1/audio/speech models) or the legacy Speech API; live voice via ephemeral Realtime client
+//     secrets (POST /v1/realtime/client_secrets) + browser WebRTC (POST /v1/realtime/calls).
 
 import { AI_SCHEMAS, type AISchemaName } from './schemas.ts';
 
@@ -131,9 +135,10 @@ interface CallOptions {
   method?: 'GET' | 'POST';
   /** JSON object or FormData. */
   body?: unknown;
-  /** Return the raw Response (for SSE) instead of parsing JSON. */
+  /** Return the raw Response (for SSE or binary audio) instead of parsing JSON. */
   raw?: boolean;
   retries?: boolean;
+  headers?: Record<string, string>;
 }
 
 async function call(path: string, opts: CallOptions = {}): Promise<any> {
@@ -154,7 +159,8 @@ async function call(path: string, opts: CallOptions = {}): Promise<any> {
         method: opts.method ?? 'POST',
         headers: {
           Authorization: `Bearer ${key}`,
-          ...(opts.body && !isForm ? { 'Content-Type': 'application/json' } : {})
+          ...(opts.body && !isForm ? { 'Content-Type': 'application/json' } : {}),
+          ...opts.headers
         },
         body: opts.body ? (isForm ? (opts.body as FormData) : JSON.stringify(opts.body)) : undefined
       });
@@ -619,3 +625,332 @@ export async function editImage(opts: ImageOptions & { images: { data: Uint8Arra
 /** Reusable system prompt for the brand/market analysis edge functions (first `developer` message, cache-friendly). */
 export const BRAND_DEVELOPER_PROMPT =
   'You are a senior brand and market strategist. Be specific and realistic; never invent unverifiable statistics. Return only data that fits the required JSON structure.';
+
+// ---------------------------------------------------------------------------------------------
+// Audio: models, voices, WAV helpers
+// ---------------------------------------------------------------------------------------------
+export const AUDIO_MODELS = {
+  /** Speech-to-text for recorded files (/v1/audio/transcriptions). */
+  transcribe: 'gpt-transcribe',
+  /** Realtime model used for text-to-speech (replacement for the deprecated Speech API models). */
+  tts: 'gpt-realtime-2.1-mini',
+  /** Realtime model for live conversational voice in the browser. */
+  realtime: 'gpt-realtime-2.1',
+  /** Legacy /v1/audio/speech model; only used when OPENAI_TTS_ENDPOINT=speech (shuts down 2027-01-06). */
+  speech: 'gpt-4o-mini-tts'
+} as const;
+
+export const transcribeModel = () => readEnv('OPENAI_TRANSCRIBE_MODEL') || AUDIO_MODELS.transcribe;
+export const ttsModel = () => readEnv('OPENAI_TTS_MODEL') || AUDIO_MODELS.tts;
+export const realtimeModel = () => readEnv('OPENAI_REALTIME_MODEL') || AUDIO_MODELS.realtime;
+export const speechModel = () => readEnv('OPENAI_SPEECH_MODEL') || AUDIO_MODELS.speech;
+/** 'realtime' (default) or 'speech' (legacy /v1/audio/speech). */
+export const ttsEndpoint = (): 'realtime' | 'speech' => (readEnv('OPENAI_TTS_ENDPOINT') === 'speech' ? 'speech' : 'realtime');
+
+/** Built-in Realtime voices (marin and cedar recommended). The legacy Speech API also offers fable, nova and onyx. */
+export const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] as const;
+export const DEFAULT_VOICE = 'marin';
+
+export function normalizeVoice(voice?: string): string {
+  return REALTIME_VOICES.includes(voice as any) ? (voice as string) : DEFAULT_VOICE;
+}
+
+export interface WavAudio {
+  pcm: Uint8Array;
+  sampleRate: number;
+}
+
+/** Wrap mono 16-bit little-endian PCM in a WAV container. */
+export function pcm16ToWav(pcm: Uint8Array, sampleRate = 24000): Uint8Array {
+  const header = new ArrayBuffer(44);
+  const v = new DataView(header);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF');
+  v.setUint32(4, 36 + pcm.byteLength, true);
+  str(8, 'WAVE');
+  str(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, 1, true); // mono
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, sampleRate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  str(36, 'data');
+  v.setUint32(40, pcm.byteLength, true);
+  const out = new Uint8Array(44 + pcm.byteLength);
+  out.set(new Uint8Array(header), 0);
+  out.set(pcm, 44);
+  return out;
+}
+
+/** Extract PCM and sample rate from a 16-bit PCM WAV (walks RIFF chunks, so extra chunks are fine). */
+export function wavToPcm(wav: Uint8Array): WavAudio {
+  const v = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+  let sampleRate = 24000;
+  let offset = 12;
+  while (offset + 8 <= wav.byteLength) {
+    const id = String.fromCharCode(wav[offset], wav[offset + 1], wav[offset + 2], wav[offset + 3]);
+    const size = v.getUint32(offset + 4, true);
+    if (id === 'fmt ') sampleRate = v.getUint32(offset + 12, true);
+    if (id === 'data') return { pcm: wav.subarray(offset + 8, Math.min(offset + 8 + size, wav.byteLength)), sampleRate };
+    offset += 8 + size + (size % 2);
+  }
+  throw new Error('Not a PCM WAV file');
+}
+
+/** Join WAV clips (same sample rate) with a short pause between them. */
+export function concatWav(clips: Uint8Array[], pauseMs = 350): Uint8Array {
+  const parts = clips.map(wavToPcm);
+  const rate = parts[0]?.sampleRate ?? 24000;
+  const gap = new Uint8Array(Math.round((rate * pauseMs) / 1000) * 2);
+  const total = parts.reduce((n, p) => n + p.pcm.byteLength, 0) + gap.byteLength * Math.max(parts.length - 1, 0);
+  const pcm = new Uint8Array(total);
+  let o = 0;
+  parts.forEach((p, i) => {
+    pcm.set(p.pcm, o);
+    o += p.pcm.byteLength;
+    if (i < parts.length - 1) {
+      pcm.set(gap, o);
+      o += gap.byteLength;
+    }
+  });
+  return pcm16ToWav(pcm, rate);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Speech-to-text (file transcription)
+// ---------------------------------------------------------------------------------------------
+export interface TranscribeOptions {
+  data: Uint8Array | ArrayBuffer;
+  mime?: string;
+  filename?: string;
+  /** Unstructured context about the recording. */
+  prompt?: string;
+  /** Literal terms expected in the audio. */
+  keywords?: string[];
+  /** Expected input languages (ISO codes). Replaces the singular `language` for gpt-transcribe. */
+  languages?: string[];
+  model?: string;
+}
+
+export interface Transcription {
+  text: string;
+  languages?: { code: string }[];
+}
+
+/** POST /v1/audio/transcriptions (multipart). Files up to 25 MB (flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, webm). */
+export async function transcribeAudio(opts: TranscribeOptions): Promise<Transcription> {
+  const form = new FormData();
+  form.append('model', opts.model || transcribeModel());
+  form.append('file', new Blob([opts.data as BlobPart], { type: opts.mime || 'audio/webm' }), opts.filename || 'audio.webm');
+  if (opts.prompt) form.append('prompt', opts.prompt);
+  // The API rejects the whole request if a keyword contains < > CR or LF.
+  for (const k of opts.keywords ?? []) {
+    const clean = k.replace(/[<>\r\n]/g, ' ').trim();
+    if (clean) form.append('keywords[]', clean);
+  }
+  for (const l of opts.languages ?? []) form.append('languages[]', l);
+  return call('/audio/transcriptions', { body: form, feature: 'audio:transcribe' });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Text-to-speech
+// ---------------------------------------------------------------------------------------------
+export interface WebSocketLike {
+  send(data: string): void;
+  close(): void;
+  addEventListener(type: string, cb: (e: any) => void): void;
+}
+let wsFactory: ((url: string, headers: Record<string, string>) => WebSocketLike) | undefined;
+/** Provide a WebSocket constructor that can send an Authorization header (`ws` in Node, Deno's WebSocket). */
+export function setWebSocketFactory(f: (url: string, headers: Record<string, string>) => WebSocketLike) {
+  wsFactory = f;
+}
+
+export interface SpeechOptions {
+  text: string;
+  voice?: string;
+  /** Delivery guidance, e.g. "Warm, upbeat narrator". */
+  instructions?: string;
+  /** Stable hashed end-user id (OpenAI-Safety-Identifier). */
+  safetyIdentifier?: string;
+}
+
+const TTS_ENGINE_PROMPT =
+  'You are a text-to-speech engine. Speak exactly the text the user provides, word for word, with no introduction, commentary, additions or omissions.';
+const MAX_TTS_CHARS = 20_000;
+const TTS_CHUNK_CHARS = 900;
+
+/** Split on sentence boundaries so each Realtime response stays short. */
+export function chunkForSpeech(text: string, max = TTS_CHUNK_CHARS): string[] {
+  const sentences = text.replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]*\s*/g) ?? [text];
+  const chunks: string[] = [];
+  let cur = '';
+  for (const s of sentences) {
+    if (cur && (cur + s).length > max) {
+      chunks.push(cur.trim());
+      cur = '';
+    }
+    cur += s;
+    while (cur.length > max) {
+      chunks.push(cur.slice(0, max));
+      cur = cur.slice(max);
+    }
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
+/** Text-to-speech through a Realtime WebSocket session (audio output only). Returns a 24 kHz mono WAV. */
+async function synthesizeRealtime(opts: SpeechOptions): Promise<Uint8Array> {
+  const key = getApiKey();
+  if (!key) throw new NotConfiguredError();
+  if (!wsFactory) throw new Error('No WebSocket implementation configured (setWebSocketFactory)');
+
+  const chunks = chunkForSpeech(opts.text);
+  const model = ttsModel();
+  const url = `${apiBase().replace(/^http/, 'ws')}/realtime?model=${encodeURIComponent(model)}`;
+  const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
+  if (opts.safetyIdentifier) headers['OpenAI-Safety-Identifier'] = opts.safetyIdentifier;
+
+  const started = Date.now();
+  const pcmParts: Uint8Array[] = [];
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = wsFactory!(url, headers);
+    let index = 0;
+    let settled = false;
+    const finish = (err?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch { /* already closed */ }
+      err ? reject(err) : resolve();
+    };
+    const timer = setTimeout(() => finish(new Error('Text-to-speech timed out')), 120_000);
+    const send = (event: unknown) => ws.send(JSON.stringify(event));
+    const speakNext = () => {
+      send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: chunks[index] }] } });
+      send({ type: 'response.create', response: { output_modalities: ['audio'] } });
+    };
+
+    ws.addEventListener('error', () => finish(new Error('Realtime connection error')));
+    ws.addEventListener('close', () => finish(index < chunks.length ? new Error('Realtime connection closed early') : undefined));
+    ws.addEventListener('message', (e: any) => {
+      const event = JSON.parse(typeof e.data === 'string' ? e.data : e.data.toString());
+      switch (event.type) {
+        case 'session.created':
+          send({
+            type: 'session.update',
+            session: {
+              type: 'realtime',
+              model,
+              output_modalities: ['audio'],
+              instructions: opts.instructions ? `${TTS_ENGINE_PROMPT} Delivery: ${opts.instructions}` : TTS_ENGINE_PROMPT,
+              audio: { output: { format: { type: 'audio/pcm', rate: 24000 }, voice: normalizeVoice(opts.voice) } }
+            }
+          });
+          break;
+        case 'session.updated':
+          speakNext();
+          break;
+        case 'response.output_audio.delta': {
+          const bin = atob(event.delta);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          pcmParts.push(bytes);
+          break;
+        }
+        case 'response.done':
+          if (event.response?.status && event.response.status !== 'completed') {
+            finish(new Error(`Speech response ${event.response.status}`));
+          } else if (++index < chunks.length) speakNext();
+          else finish();
+          break;
+        case 'error':
+          finish(new OpenAIError(event.error?.message ?? 'Realtime error', { status: 500, code: event.error?.code }));
+          break;
+      }
+    });
+  });
+
+  usageLogger({ feature: 'audio:tts', endpoint: '/realtime (ws)', model, status: 200, attempts: 1, durationMs: Date.now() - started });
+  const total = pcmParts.reduce((n, p) => n + p.byteLength, 0);
+  const pcm = new Uint8Array(total);
+  let o = 0;
+  for (const p of pcmParts) {
+    pcm.set(p, o);
+    o += p.byteLength;
+  }
+  if (!total) throw new Error('No audio was returned');
+  return pcm16ToWav(pcm, 24000);
+}
+
+/** Legacy POST /v1/audio/speech (deprecated models; shuts down 2027-01-06). WAV output. */
+async function synthesizeSpeechEndpoint(opts: SpeechOptions): Promise<Uint8Array> {
+  const res: Response = await call('/audio/speech', {
+    raw: true,
+    feature: 'audio:tts',
+    body: {
+      model: speechModel(),
+      voice: opts.voice || DEFAULT_VOICE,
+      input: opts.text,
+      response_format: 'wav',
+      ...(opts.instructions ? { instructions: opts.instructions } : {})
+    }
+  });
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Text -> speech (WAV). Uses Realtime by default; set OPENAI_TTS_ENDPOINT=speech for the legacy Speech API. */
+export async function synthesizeSpeech(opts: SpeechOptions): Promise<{ audio: Uint8Array; mime: 'audio/wav' }> {
+  if (!opts.text?.trim()) throw new Error('text is required');
+  if (opts.text.length > MAX_TTS_CHARS) throw new Error(`text exceeds ${MAX_TTS_CHARS} characters`);
+  const audio = ttsEndpoint() === 'speech' ? await synthesizeSpeechEndpoint(opts) : await synthesizeRealtime(opts);
+  return { audio, mime: 'audio/wav' };
+}
+
+/** Multi-voice production (podcast, audiobook): one clip per segment, joined into a single WAV. */
+export async function synthesizeSegments(segments: { text: string; voice?: string; instructions?: string }[]): Promise<Uint8Array> {
+  const clips: Uint8Array[] = [];
+  for (const seg of segments) {
+    if (seg.text?.trim()) clips.push((await synthesizeSpeech(seg)).audio);
+  }
+  if (!clips.length) throw new Error('No text to synthesize');
+  return concatWav(clips);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Live voice (browser): ephemeral Realtime client secret
+// ---------------------------------------------------------------------------------------------
+export interface RealtimeSessionOptions {
+  instructions?: string;
+  voice?: string;
+  model?: string;
+  safetyIdentifier?: string;
+}
+
+/**
+ * Mint a short-lived client secret for a browser WebRTC session. The browser then POSTs its SDP offer to
+ * https://api.openai.com/v1/realtime/calls with `Authorization: Bearer <value>`; the real API key never leaves the server.
+ */
+export async function createRealtimeClientSecret(opts: RealtimeSessionOptions = {}): Promise<{ value: string; expires_at?: number; model: string }> {
+  const model = opts.model || realtimeModel();
+  const data = await call('/realtime/client_secrets', {
+    feature: 'realtime:client_secret',
+    headers: opts.safetyIdentifier ? { 'OpenAI-Safety-Identifier': opts.safetyIdentifier } : undefined,
+    body: {
+      session: {
+        type: 'realtime',
+        model,
+        ...(opts.instructions ? { instructions: opts.instructions } : {}),
+        audio: { output: { voice: normalizeVoice(opts.voice) } }
+      }
+    }
+  });
+  return { value: data.value, expires_at: data.expires_at, model };
+}
+
+/** Base URL browsers use for the WebRTC SDP exchange. */
+export const realtimeCallsUrl = () => `${apiBase()}/realtime/calls`;

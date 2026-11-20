@@ -22,8 +22,6 @@ Configure your environment variables in `.env`:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 OPENAI_API_KEY=your_openai_api_key   # server-side only
-NEXT_PUBLIC_ELEVEN_LABS_API_KEY=your_eleven_labs_key
-NEXT_PUBLIC_RECRAFT_API_KEY=your_recraft_key
 ```
 
 ## Core Components
@@ -151,18 +149,21 @@ From the browser, call `POST /api/ai/generate` or `POST /api/ai/image`.
 ### Voice Generation
 
 ```tsx
-import { generateVoiceOver } from '@/lib/services/eleven-labs';
+import { generateVoiceOver } from '@/lib/services/voice';
 
-const audioBlob = await generateVoiceOver(text, voiceId);
+// OpenAI text-to-speech (Realtime API); voiceId is a built-in voice such as "marin"
+const audioBlob = await generateVoiceOver(text, 'marin');
 const audioUrl = URL.createObjectURL(audioBlob);
 ```
 
 ### Image Generation
 
 ```tsx
-import { transformImage } from '@/lib/services/recraft';
+import { generateBrandImages, transformImage } from '@/lib/services/openai-images';
 
-const result = await transformImage(imageUrl, prompt, style);
+// OpenAI Images API (gpt-image-2.6): generate new concepts, or edit an existing image into variations
+const created = await generateBrandImages(prompt);
+const variations = await transformImage(imageUrl, prompt, style);
 ```
 
 ## Component Customization

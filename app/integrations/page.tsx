@@ -27,22 +27,22 @@ const integrations = [
     color: 'emerald'
   },
   {
-    title: 'ElevenLabs',
-    description: 'AI voice generation',
+    title: 'OpenAI Voice',
+    description: 'Text-to-speech, transcription and live voice (Realtime API)',
     icon: Cloud,
     status: 'Connected',
     color: 'blue'
   },
   {
     title: 'OpenAI',
-    description: 'AI content generation',
+    description: 'AI content generation (Responses API)',
     icon: Zap,
     status: 'Connected',
     color: 'purple'
   },
   {
-    title: 'Recraft',
-    description: 'AI image generation',
+    title: 'OpenAI Images',
+    description: 'Image generation and editing (gpt-image-2.6)',
     icon: Settings,
     status: 'Connected',
     color: 'indigo'

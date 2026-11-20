@@ -21,7 +21,6 @@ import {
   Check
 } from 'lucide-react';
 import { generateOrTransform } from '@/lib/services/openai-images';
-import { API_KEYS } from '@/lib/api-config';
 import { extractTagsFromPrompt } from '@/lib/services/image-service';
 import { createImageAsset } from '@/lib/supabase';
 import { BrandPresenceAnalyzer } from '@/components/brand-presence-analyzer';

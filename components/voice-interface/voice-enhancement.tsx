@@ -19,7 +19,6 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
-import { enhanceAudioQuality } from '@/lib/services/eleven-labs';
 
 interface VoiceEnhancementProps {
   onEnhancementComplete?: (enhancedAudio: Blob) => void;

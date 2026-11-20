@@ -35,6 +35,8 @@ export const TASKS = {
   realtime_analysis: { schema: 'realtime_analysis', effort: 'low', developer: BASE },
   top_brands: { schema: 'top_brands', effort: 'medium', web: true, developer: `${BASE} Use current market data; marketShare is a percentage.` },
   enhanced_text_analysis: { schema: 'enhanced_text_analysis', effort: 'medium', developer: BASE },
+  voice_analysis: { schema: 'voice_analysis', effort: 'medium', developer: `${BASE} Scores are 0-1.` },
+  content_optimization: { schema: 'content_optimization', effort: 'medium', developer: `${BASE} Rewrite scripts for spoken delivery.` },
   brand_content: { schema: 'brand_content', effort: 'low', developer: `${BASE} Write on-brand copy for the requested deliverable.` }
 } as const satisfies Record<string, TaskDef>;
 

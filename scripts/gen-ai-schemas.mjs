@@ -82,7 +82,7 @@ const edge = (f) => read(`supabase/functions/${f}/index.ts`);
 
 for (const [name, file] of [['brand_analysis_edge', 'brand-analysis'], ['brand_analyzer_edge', 'brand-analyzer']]) {
   const s = edge(file);
-  add(name, evalLiteral(extractLiteral(s, s.indexOf('JSON.stringify({', s.indexOf("'demo-mode'")) + 'JSON.stringify('.length)));
+  add(name, evalLiteral(extractLiteral(s, s.indexOf('JSON.stringify({', s.indexOf("=== 'demo-mode'")) + 'JSON.stringify('.length)));
 }
 for (const [name, file, anchor] of [
   ['competitor_intelligence', 'competitor-intelligence', 'const demoResult: CompetitorAnalysis ='],
@@ -124,6 +124,11 @@ for (const [name, file, anchor] of [
   add('social_profiles', evalLiteral(extractLiteral(s, s.indexOf('return {', s.indexOf('isDemoMode()', at)) + 'return '.length)));
 }
 {
+  const s = read('lib/services/voice.ts');
+  const at = s.indexOf('async function analyzeVoiceContent');
+  add('voice_analysis', evalLiteral(extractLiteral(s, s.indexOf('return {', s.indexOf('isDemoMode()', at)) + 'return '.length)));
+}
+{
   const s = read('lib/services/brand-analyzer.ts');
   const at = s.indexOf('private getDemoAnalysis');
   add('brand_analysis', evalLiteral(extractLiteral(s, s.indexOf('return {', at) + 'return '.length)));
@@ -135,6 +140,13 @@ const concepts = schemas.branding_concepts;
 concepts.properties.content = { type: 'string' };
 concepts.properties.keyMessages = { type: 'array', items: { type: 'string' } };
 concepts.required.push('content', 'keyMessages');
+
+schemas.content_optimization = {
+  type: 'object',
+  properties: { optimizedText: { type: 'string' }, changes: { type: 'array', items: { type: 'string' } } },
+  required: ['optimizedText', 'changes'],
+  additionalProperties: false
+};
 
 // Assistant quick actions (mission / story / posts / copy / suggestions)
 schemas.brand_content = {

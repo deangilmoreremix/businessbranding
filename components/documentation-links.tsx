@@ -66,9 +66,9 @@ const docLinks: Record<DocumentationLinksProps['component'], DocLink[]> = {
       category: 'Documentation'
     },
     {
-      title: 'Style Transfer API',
-      description: 'Image transformation and style transfer',
-      href: '/docs/api/recraft',
+      title: 'Image API',
+      description: 'Image generation and editing with OpenAI',
+      href: '/docs/api/openai#images-images-api',
       icon: Code,
       category: 'API'
     },

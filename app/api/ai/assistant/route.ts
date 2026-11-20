@@ -6,6 +6,11 @@ export const runtime = 'nodejs';
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 60_000;
 
+const SUPPORT_PROMPT = `You are the support assistant for an AI brand-building platform (brand analysis, visual identity, voice content).
+- Explain how to use the features and answer general branding questions.
+- Use web search only for current facts and cite sources inline.
+- Keep answers short and friendly.`;
+
 const DEVELOPER_PROMPT = `You are the AI Brand Assistant inside a brand-analysis app. Help the user understand their analysis and improve their brand.
 - Ground answers in the analysis data you can read with the provided functions; do not invent scores.
 - Use web search for current market, competitor or trend questions and cite sources inline.
@@ -54,7 +59,8 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const { message, previousResponseId, context } = body ?? {};
+  const { message, previousResponseId, context, mode } = body ?? {};
+  const support = mode === 'support';
   if (typeof message !== 'string' || !message.trim() || message.length > MAX_MESSAGE_CHARS) {
     return Response.json({ error: 'message is required (max 4000 chars)' }, { status: 400 });
   }
@@ -73,11 +79,11 @@ export async function POST(request: Request) {
       try {
         const result = await runAgentTurn({
           input: message,
-          developer: `${DEVELOPER_PROMPT}\n\nBusiness: ${analysis?.businessIdea ?? 'unknown'}. Health score: ${analysis?.healthScore ?? 'n/a'}.`,
+          developer: support ? SUPPORT_PROMPT : `${DEVELOPER_PROMPT}\n\nBusiness: ${analysis?.businessIdea ?? 'unknown'}. Health score: ${analysis?.healthScore ?? 'n/a'}.`,
           previousResponseId,
           model: textModel(),
           effort: 'medium',
-          functions: FUNCTIONS,
+          functions: support ? [] : FUNCTIONS,
           webSearch: true,
           feature: 'assistant',
           onText: (text) => send({ type: 'delta', text }),

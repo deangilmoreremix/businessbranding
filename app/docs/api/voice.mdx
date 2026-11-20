@@ -2,228 +2,70 @@
 
 ## Overview
 
-The Voice API provides advanced voice generation and analysis capabilities powered by OpenAI. This API enables you to create natural-sounding voice content with precise control over tone, emotion, and brand alignment.
+Voice features run on OpenAI audio models. All calls are made server-side; the browser only talks to `/api/*`.
 
-## Authentication
+| Feature | Endpoint | OpenAI API / model |
+|---|---|---|
+| Text-to-speech | `POST /api/voice/generate` | Realtime API, `gpt-realtime-2.1-mini` (`OPENAI_TTS_MODEL`) |
+| Podcast / audiobook | `POST /api/voice/podcast`, `/api/voice/audiobook` | Same, one clip per segment joined into one WAV |
+| Transcription | `POST /api/voice/transcribe` | `POST /v1/audio/transcriptions`, `gpt-transcribe` (`OPENAI_TRANSCRIBE_MODEL`) |
+| Live voice | `POST /api/voice/realtime` | Realtime API over WebRTC, `gpt-realtime-2.1` (`OPENAI_REALTIME_MODEL`) |
+| Voice analysis | `POST /api/voice/analyze` | Responses API, Structured Outputs |
+| Script optimization | `POST /api/voice/optimize` | Responses API, Structured Outputs |
+| Enhancement | `POST /api/voice/enhance` | Transcribe (if audio) → polish script → re-narrate |
 
-All API endpoints require authentication using your API key:
+Set `OPENAI_API_KEY` on the server. Voices (`voiceId`): `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar` (marin and cedar recommended).
 
-```typescript
-const API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY;
-```
+> Disclose to end users that the voice is AI-generated (OpenAI usage policy).
 
-## Endpoints
+The Speech API models (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) are deprecated and shut down on 2027-01-06, so text-to-speech uses the Realtime API by default. To use the legacy endpoint while it is available, set `OPENAI_TTS_ENDPOINT=speech` (and `OPENAI_SPEECH_MODEL`).
 
-### Voice Analysis
-
-```typescript
-POST /api/voice/analyze
-```
-
-Analyzes voice content for tone, sentiment, and brand alignment.
-
-#### Request
-```typescript
-{
-  "text": string,
-  "language"?: string,
-  "checkSensitivity"?: boolean,
-  "emotionAnalysis"?: boolean,
-  "audienceTargeting"?: {
-    "age"?: string[],
-    "region"?: string[],
-    "industry"?: string
-  }
-}
-```
-
-#### Response
-```typescript
-{
-  "tone": {
-    "formal": number,
-    "casual": number,
-    "emotional": number,
-    "professional": number
-  },
-  "sentiment": {
-    "positive": number,
-    "negative": number,
-    "neutral": number
-  },
-  "culturalSensitivity": {
-    "issues": string[],
-    "score": number
-  },
-  "emotionalResonance": {
-    "primary": string,
-    "secondary": string[],
-    "intensity": number
-  },
-  "audienceAlignment": {
-    "score": number,
-    "recommendations": string[]
-  }
-}
-```
-
-### Enhanced Voice Generation
+## Text to speech
 
 ```typescript
 POST /api/voice/generate
+{ "text": string, "voiceId"?: string, "instructions"?: string }   // instructions = delivery, e.g. "warm and upbeat"
+// -> audio/wav
 ```
-
-Generates enhanced voice content with precise control.
-
-#### Request
-```typescript
-{
-  "text": string,
-  "voiceId": string,
-  "emotionIntensity"?: number,
-  "style"?: "formal" | "casual" | "professional" | "friendly",
-  "emphasis"?: {
-    "words": string[],
-    "level": number
-  }[],
-  "pacing"?: number,
-  "crossLanguageStyle"?: boolean
-}
-```
-
-#### Response
-```typescript
-{
-  "audioUrl": string,
-  "duration": number,
-  "metadata": {
-    "words": number,
-    "characters": number,
-    "language": string
-  }
-}
-```
-
-### Voice Branding
 
 ```typescript
-POST /api/voice/branding
+POST /api/voice/podcast     { "segments": [{ "text": string, "voiceId": string }] }                  // -> audio/wav
+POST /api/voice/audiobook   { "title", "author", "narrator", "chapters": [{ "title", "text", "voiceId" }] } // -> audio/wav
 ```
 
-Creates a consistent voice brand identity.
-
-#### Request
-```typescript
-{
-  "industry": string,
-  "targetAudience": string[],
-  "brandValues": string[],
-  "tone": string[],
-  "region"?: string[]
-}
-```
-
-#### Response
-```typescript
-{
-  "voiceId": string,
-  "guidelines": {
-    "tone": string[],
-    "pacing": number,
-    "emphasis": string[],
-    "vocabulary": string[],
-    "prohibited": string[]
-  },
-  "examples": {
-    "text": string,
-    "audio": string
-  }[],
-  "metrics": {
-    "consistency": number,
-    "recognition": number,
-    "memorability": number
-  }
-}
-```
-
-## Error Handling
-
-The API uses standard HTTP status codes:
-
-- 200: Success
-- 400: Bad Request
-- 401: Unauthorized
-- 429: Too Many Requests
-- 500: Server Error
-
-Error responses include:
+## Transcription
 
 ```typescript
-{
-  "error": {
-    "code": string,
-    "message": string,
-    "details"?: any
-  }
-}
+POST /api/voice/transcribe   // multipart/form-data
+// file (required, up to 25 MB), language? (ISO code), prompt? (context), keywords? (repeatable)
+// -> { "text": string, "languages": [{ "code": string }] }
 ```
 
-## Rate Limits
+## Live voice (WebRTC)
 
-- Free tier: 100 requests/day
-- Pro tier: 1000 requests/day
-- Enterprise: Custom limits
-
-## Best Practices
-
-1. **Performance**
-   - Cache analysis results
-   - Batch similar requests
-   - Use appropriate quality settings
-
-2. **Quality**
-   - Validate input text
-   - Check audio quality
-   - Test with target audience
-
-3. **Security**
-   - Secure API keys
-   - Validate user input
-   - Monitor usage
-
-## Examples
-
-### Basic Voice Generation
 ```typescript
-const voice = await generateEnhancedVoice({
-  text: "Welcome to our service",
-  voiceId: "professional-voice-id",
-  style: "professional"
-});
+POST /api/voice/realtime  { "voiceId"?: string, "instructions"?: string }
+// -> { "value": string, "model": string, "callsUrl": string }
 ```
 
-### Advanced Analysis
+`value` is a short-lived client secret. In the browser, create an `RTCPeerConnection`, add the microphone track, create a
+data channel named `oai-events`, then `POST` the SDP offer to `callsUrl` with `Authorization: Bearer <value>` and
+`Content-Type: application/sdp`, and apply the returned SDP answer. See `components/voice-interface/live-voice.tsx`.
+
+## Analysis and optimization
+
 ```typescript
-const analysis = await analyzeVoiceContent({
-  text: "Your content here",
-  checkSensitivity: true,
-  emotionAnalysis: true,
-  audienceTargeting: {
-    industry: "technology",
-    age: ["25-34", "35-44"],
-    region: ["US", "EU"]
-  }
-});
+POST /api/voice/analyze   { "text": string, "voiceUrl"?: string }
+// -> { voice: { tone, sentiment, culturalSensitivity, emotionalResonance, audienceAlignment }, multiModal, recommendations }
+
+POST /api/voice/optimize  { "text": string, "type": "podcast" | "audiobook" | "advertisement" | "training" }
+// -> { optimizedContent: string, brandingConcepts }
+
+POST /api/voice/enhance   { "text": string, "settings"?: { emotion, pacing } }   // JSON -> { enhancedContent, audioUrl }
+POST /api/voice/enhance   multipart { audio }                                    // -> audio/wav
 ```
 
-### Brand Voice Creation
-```typescript
-const brand = await createVoiceBranding({
-  industry: "technology",
-  targetAudience: ["professionals"],
-  brandValues: ["innovation", "trust"],
-  tone: ["professional", "friendly"]
-});
-```
+## Removed
 
-For more examples and detailed documentation, visit our [Examples](/docs/examples) section.
+Earlier versions used third-party voice and image providers. They were removed: voice cloning/design, sound effects,
+dubbing and audio-cleanup have no OpenAI equivalent in this app. Enhancement now re-narrates a polished script instead.

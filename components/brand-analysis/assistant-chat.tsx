@@ -15,6 +15,8 @@ interface Message {
 interface AssistantChatProps {
   /** Current brand analysis; the server's function tools read scores from it. */
   analysis: unknown;
+  /** 'support' = general product support (no analysis tools); default = brand analysis assistant. */
+  mode?: 'brand' | 'support';
 }
 
 /**
@@ -22,7 +24,7 @@ interface AssistantChatProps {
  * Server-sent events stream text deltas; conversation state is kept by OpenAI, so the client only
  * remembers the last response id (previous_response_id) between turns.
  */
-export function AssistantChat({ analysis }: AssistantChatProps) {
+export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,7 @@ export function AssistantChat({ analysis }: AssistantChatProps) {
       const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, previousResponseId: previousResponseId.current, context: analysis })
+        body: JSON.stringify({ message: text, previousResponseId: previousResponseId.current, context: analysis, mode })
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
@@ -85,7 +87,9 @@ export function AssistantChat({ analysis }: AssistantChatProps) {
       <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Ask about your scores, competitors or market trends, or ask for a logo concept image.
+            {mode === 'support'
+              ? 'Ask how to use the platform, or about branding in general.'
+              : 'Ask about your scores, competitors or market trends, or ask for a logo concept image.'}
           </p>
         )}
         {messages.map((m, i) => (

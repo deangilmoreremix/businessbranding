@@ -8,9 +8,7 @@ const nextConfig = {
     unoptimized: true,
     domains: [
       'images.unsplash.com',
-      'gadedbrnqzpfqtsdfzcg.supabase.co', // Supabase storage domain
-      'api.recraft.ai', // Recraft API domain
-      'api.elevenlabs.io' // ElevenLabs API domain
+      'gadedbrnqzpfqtsdfzcg.supabase.co' // Supabase storage domain
     ]
   },
   experimental: {
@@ -20,7 +18,8 @@ const nextConfig = {
       'lucide-react',
       'framer-motion'
     ],
-    mdxRs: true
+    mdxRs: true,
+    serverComponentsExternalPackages: ['ws']
   },
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   typescript: {

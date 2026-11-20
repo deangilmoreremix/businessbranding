@@ -2409,6 +2409,124 @@ export const AI_SCHEMAS = {
     ],
     "additionalProperties": false
   },
+  "voice_analysis": {
+    "type": "object",
+    "properties": {
+      "tone": {
+        "type": "object",
+        "properties": {
+          "formal": {
+            "type": "number"
+          },
+          "casual": {
+            "type": "number"
+          },
+          "emotional": {
+            "type": "number"
+          },
+          "professional": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "formal",
+          "casual",
+          "emotional",
+          "professional"
+        ],
+        "additionalProperties": false
+      },
+      "sentiment": {
+        "type": "object",
+        "properties": {
+          "positive": {
+            "type": "number"
+          },
+          "negative": {
+            "type": "number"
+          },
+          "neutral": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "positive",
+          "negative",
+          "neutral"
+        ],
+        "additionalProperties": false
+      },
+      "culturalSensitivity": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "issues",
+          "score"
+        ],
+        "additionalProperties": false
+      },
+      "emotionalResonance": {
+        "type": "object",
+        "properties": {
+          "primary": {
+            "type": "string"
+          },
+          "secondary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "intensity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "primary",
+          "secondary",
+          "intensity"
+        ],
+        "additionalProperties": false
+      },
+      "audienceAlignment": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "score",
+          "recommendations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "tone",
+      "sentiment",
+      "culturalSensitivity",
+      "emotionalResonance",
+      "audienceAlignment"
+    ],
+    "additionalProperties": false
+  },
   "brand_analysis": {
     "type": "object",
     "properties": {
@@ -2952,6 +3070,25 @@ export const AI_SCHEMAS = {
       "bestPractices",
       "recommendations",
       "riskFactors"
+    ],
+    "additionalProperties": false
+  },
+  "content_optimization": {
+    "type": "object",
+    "properties": {
+      "optimizedText": {
+        "type": "string"
+      },
+      "changes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "optimizedText",
+      "changes"
     ],
     "additionalProperties": false
   },

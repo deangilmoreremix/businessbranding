@@ -18,7 +18,7 @@ import {
   Loader2,
   FileMusic
 } from 'lucide-react';
-import { createPodcast } from '@/lib/services/eleven-labs';
+import { createPodcast } from '@/lib/services/voice';
 import { createContentItem } from '@/lib/supabase';
 
 interface PodcastSegment {
@@ -31,7 +31,7 @@ export function PodcastStudio() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [segments, setSegments] = useState<PodcastSegment[]>([
-    { id: '1', text: '', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+    { id: '1', text: '', voiceId: 'marin' }
   ]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -45,7 +45,7 @@ export function PodcastStudio() {
       { 
         id: String(segments.length + 1), 
         text: '', 
-        voiceId: '21m00Tcm4TlvDq8ikWAM' 
+        voiceId: 'marin' 
       }
     ]);
   };
@@ -92,8 +92,8 @@ export function PodcastStudio() {
     }, 500);
 
     try {
-      // Generate podcast using ElevenLabs API
-      // For demo purposes, we'll simulate this with the first segment
+      // Generate the podcast with OpenAI text-to-speech (one voice per segment)
+      
       const audioBlob = await createPodcast(title, segments.map(s => ({
         text: s.text,
         voiceId: s.voiceId
@@ -210,9 +210,9 @@ export function PodcastStudio() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="21m00Tcm4TlvDq8ikWAM">Rachel</SelectItem>
-                          <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella</SelectItem>
-                          <SelectItem value="AZnzlk1XvdvUeBnXmlld">Antoni</SelectItem>
+                          <SelectItem value="marin">Marin</SelectItem>
+                          <SelectItem value="cedar">Cedar</SelectItem>
+                          <SelectItem value="alloy">Alloy</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>

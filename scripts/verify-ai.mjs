@@ -101,6 +101,81 @@ ok('research poll -> in_progress', poll.status === 'in_progress', JSON.stringify
 poll = await (await fetch(`${app}/api/ai/research?kind=market&id=resp_bg1`)).json();
 ok('research poll -> completed + structured data + citations', poll.status === 'completed' && poll.data && poll.citations?.[0]?.url === 'https://example.com/b', JSON.stringify(poll).slice(0, 120));
 
+
+// 11. Audio: text-to-speech over the Realtime WebSocket
+const riff = async (res) => { const b = Buffer.from(await res.arrayBuffer()); return { b, ok: b.length > 44 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WAVE' }; };
+await clear();
+r = await post('/api/voice/generate', { text: 'Hello brand world.', voiceId: 'cedar', instructions: 'warm and upbeat' });
+let wav = await riff(r); log = await getLog();
+const wsEv = (t) => log.filter((e) => e.path === 'ws ' + t);
+ok('voice generate -> audio/wav', r.status === 200 && r.headers.get('content-type') === 'audio/wav' && wav.ok, `status ${r.status}, ${wav.b.length} bytes`);
+ok('  ws connect: gpt-realtime-2.1-mini, Bearer auth, GA (no OpenAI-Beta header)', log.find((e) => e.path === 'ws connect')?.model === 'gpt-realtime-2.1-mini' && log.find((e) => e.path === 'ws connect')?.auth === 'Bearer sk-test' && log.find((e) => e.path === 'ws connect')?.sub === true);
+ok('  session.update: type realtime, audio-only, pcm 24k, voice cedar, delivery instructions', wsEv('session.update')[0]?.event.session.audio.output.voice === 'cedar' && wsEv('session.update')[0].event.session.instructions.includes('warm and upbeat'));
+ok('  item.create(input_text) then response.create(audio)', wsEv('conversation.item.create').length === 1 && wsEv('response.create').length === 1 && !log.some((e) => e.path === 'ws error'));
+ok('  3 audio deltas -> 4800 PCM bytes + 44 header', wav.b.length === 44 + 3 * 1600);
+
+await clear();
+r = await post('/api/voice/generate', { text: 'Sentence one is here. '.repeat(120), voiceId: 'nope' });
+wav = await riff(r); log = await getLog();
+ok('long text is chunked into several responses on one session', r.status === 200 && wsEv('response.create').length >= 2 && log.filter((e) => e.path === 'ws connect').length === 1, `responses ${wsEv('response.create').length}`);
+ok('  unknown voice falls back to marin', wsEv('session.update')[0]?.event.session.audio.output.voice === 'marin');
+r = await post('/api/voice/generate', { text: '' });
+ok('  empty text -> 400', r.status === 400);
+
+await clear();
+r = await post('/api/voice/podcast', { title: 'T', segments: [{ text: 'Host one speaking.', voiceId: 'marin' }, { text: 'Guest replies now.', voiceId: 'alloy' }] });
+wav = await riff(r); log = await getLog();
+ok('podcast: one clip per segment (own voice), joined into one WAV', r.status === 200 && wav.ok && wsEv('session.update').map((e) => e.event.session.audio.output.voice).join() === 'marin,alloy' && wav.b.length > 44 + 2 * 4800, `${wav.b.length} bytes`);
+await clear();
+r = await post('/api/voice/audiobook', { title: 'B', author: 'A', narrator: 'N', chapters: [{ title: 'Chapter 1', text: 'Once upon a time.', voiceId: 'cedar' }] });
+log = await getLog();
+ok('audiobook: chapter title is narrated first', r.status === 200 && wsEv('conversation.item.create')[0]?.event.item.content[0].text.startsWith('Chapter 1.'));
+
+// 12. Audio: transcription (gpt-transcribe, multipart)
+await clear();
+let form = new FormData();
+form.append('file', new Blob([Buffer.from('fakewav')], { type: 'audio/wav' }), 'clip.wav');
+form.append('language', 'en');
+form.append('prompt', 'A call about premium plans');
+form.append('keywords', 'premium plan');
+form.append('keywords', 'AC-<42>');
+r = await fetch(app + '/api/voice/transcribe', { method: 'POST', body: form });
+j = await r.json(); log = await getLog();
+const tf = log[0]?.fields ?? [];
+ok('transcribe -> { text, languages }', r.status === 200 && j.text === 'hello transcript' && j.languages?.[0]?.code === 'en', `status ${r.status}`);
+ok('  gpt-transcribe, file, languages[] (not language), keywords[] sanitized, prompt', tf.includes('model=gpt-transcribe') && tf.includes('file(file:clip.wav)') && tf.includes('languages[]=en') && !tf.some((f) => f.startsWith('language=')) && tf.includes('keywords[]=premium plan') && tf.some((f) => f.startsWith('keywords[]=AC-') && !/[<>]/.test(f)) && tf.some((f) => f.startsWith('prompt=')), JSON.stringify(tf));
+r = await fetch(app + '/api/voice/transcribe', { method: 'POST', body: new FormData() });
+ok('  missing file -> 400', r.status === 400);
+r = await fetch(app + '/api/models');
+ok('GET /api/models -> gpt-transcribe', (await r.json())[0]?.model_id === 'gpt-transcribe');
+
+// 13. Live voice: ephemeral client secret
+await clear();
+r = await post('/api/voice/realtime', { voiceId: 'marin' });
+j = await r.json(); log = await getLog();
+ok('realtime session -> ephemeral secret + calls URL (API key not exposed)', r.status === 200 && j.value === 'ek_mock_secret' && j.callsUrl.endsWith('/realtime/calls') && !JSON.stringify(j).includes('sk-test'));
+ok('  client_secrets body: session.type realtime, model gpt-realtime-2.1, audio.output.voice', log[0]?.body.session.model === 'gpt-realtime-2.1' && log[0].body.session.audio.output.voice === 'marin' && log[0].body.session.type === 'realtime');
+
+// 14. Voice analysis / optimize / enhance (Responses + audio)
+await clear();
+r = await post('/api/voice/analyze', { text: 'Welcome to Acme.' });
+j = await r.json(); log = await getLog();
+ok('voice analyze -> two strict-schema requests (voice_analysis + multimodal)', r.status === 200 && j.voice?.tone && log.filter((e) => e.path === '/responses').map((e) => e.body.text.format.name).sort().join() === 'multimodal_analysis,voice_analysis', `status ${r.status}`);
+await clear();
+r = await post('/api/voice/optimize', { text: 'Our coffee story', type: 'podcast' });
+j = await r.json(); log = await getLog();
+ok('voice optimize -> branding_concepts then content_optimization', r.status === 200 && typeof j.optimizedContent === 'string' && log.filter((e) => e.path === '/responses').map((e) => e.body.text.format.name).join() === 'branding_concepts,content_optimization', `status ${r.status}`);
+await clear();
+r = await post('/api/voice/enhance', { text: 'Make this better.', settings: { emotion: 0.9, pacing: 0.1 } });
+j = await r.json(); log = await getLog();
+ok('voice enhance (text) -> polished script + narrated data URL', r.status === 200 && j.audioUrl?.startsWith('data:audio/wav;base64,') && wsEv('session.update')[0]?.event.session.instructions.includes('expressive') && wsEv('session.update')[0].event.session.instructions.includes('slow'), `status ${r.status}`);
+await clear();
+form = new FormData();
+form.append('audio', new Blob([Buffer.from('fakewebm')], { type: 'audio/webm' }), 'rec.webm');
+r = await fetch(app + '/api/voice/enhance', { method: 'POST', body: form });
+wav = await riff(r); log = await getLog();
+ok('voice enhance (recording) -> transcribe -> polish -> re-narrate (audio/wav)', r.status === 200 && wav.ok && log.some((e) => e.path === '/audio/transcriptions') && log.some((e) => e.path === '/responses'), `status ${r.status}`);
+
 // 10. Config probe
 r = await fetch(app + '/api/ai/task');
 ok('GET /api/ai/task -> configured', (await r.json()).configured === true);

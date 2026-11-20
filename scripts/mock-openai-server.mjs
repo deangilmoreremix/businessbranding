@@ -3,10 +3,13 @@
  * Minimal mock of the OpenAI endpoints this app uses. It rejects requests that break the GPT-6.2 /
  * Responses API rules (temperature/top_p, non-strict schemas, instructions-style system prompts, ...) so the
  * request shapes the app sends can be checked without a live API key.
+ * Also mocks audio: /v1/audio/transcriptions, /v1/audio/speech, /v1/realtime/client_secrets and the Realtime WebSocket
+ * (/v1/realtime) with GA event shapes (session.update, conversation.item.create, response.create -> output_audio.delta).
  *   node scripts/mock-openai-server.mjs [port]   (then set OPENAI_BASE_URL=http://127.0.0.1:<port>/v1)
  * Every request is appended to the in-memory log, readable at GET /__log (and cleared with DELETE /__log).
  */
 import http from 'node:http';
+import { WebSocketServer } from 'ws';
 
 const port = Number(process.argv[2] || 4999);
 const log = [];
@@ -87,6 +90,17 @@ function respond(b) {
   return { id: 'resp_' + Math.random().toString(36).slice(2, 10), object: 'response', status: 'completed', model: b.model, output, usage };
 }
 
+
+/** Tiny valid 24 kHz mono 16-bit WAV with `n` samples of silence. */
+function wavBytes(n) {
+  const b = Buffer.alloc(44 + n * 2);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(24000, 24); b.writeUInt32LE(48000, 28);
+  b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+  return b;
+}
+const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
+
 const server = http.createServer(async (req, res) => {
   const chunks = []; for await (const c of req) chunks.push(c);
   const raw = Buffer.concat(chunks);
@@ -137,6 +151,79 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ data: [{ b64_json: Buffer.from('EDITED').toString('base64') }] }));
   }
+  if (url.pathname === '/v1/audio/transcriptions' && req.method === 'POST') {
+    const text = raw.toString('latin1');
+    const fields = [...text.matchAll(/name="([^"]+)"(?:; filename="([^"]*)")?\r\n(?:Content-Type: [^\r]+\r\n)?\r\n([^\r]*)/g)].map((m) => ({ name: m[1], filename: m[2], value: m[3] }));
+    log.push({ path: '/audio/transcriptions', fields: fields.map((f) => (f.filename ? `${f.name}(file:${f.filename})` : `${f.name}=${f.value}`)) });
+    const get = (n) => fields.find((f) => f.name === n)?.value;
+    if (!get('model')) return fail(res, 'model is required');
+    if (!fields.some((f) => f.name === 'file' && f.filename)) return fail(res, 'file is required');
+    if (fields.some((f) => f.name === 'language')) return fail(res, 'gpt-transcribe: use languages[] instead of language');
+    if (fields.filter((f) => f.name === 'keywords[]').some((f) => /[<>]/.test(f.value))) return fail(res, 'keywords must not contain < or >');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ text: 'hello transcript', languages: [{ code: 'en' }] }));
+  }
+  if (url.pathname === '/v1/audio/speech' && req.method === 'POST') {
+    const b = JSON.parse(raw.toString()); log.push({ path: '/audio/speech', body: b });
+    if (!b.model || !b.voice || !b.input) return fail(res, 'model, voice and input are required');
+    if (b.response_format !== 'wav') return fail(res, 'expected wav');
+    res.writeHead(200, { 'Content-Type': 'audio/wav' });
+    return res.end(Buffer.from(wavBytes(2400)));
+  }
+  if (url.pathname === '/v1/realtime/client_secrets' && req.method === 'POST') {
+    const b = JSON.parse(raw.toString()); log.push({ path: '/realtime/client_secrets', body: b });
+    const sess = b.session;
+    if (!sess || sess.type !== 'realtime' || !sess.model) return fail(res, 'session.type realtime and session.model are required');
+    if (!sess.audio?.output?.voice) return fail(res, 'session.audio.output.voice is required');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ value: 'ek_mock_secret', expires_at: 1800000000, session: sess }));
+  }
   fail(res, 'not found: ' + req.method + ' ' + url.pathname, 404);
 });
+// ---- Realtime WebSocket (text-to-speech flow) ----
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => {
+  const url = new URL(req.url, 'http://x');
+  if (url.pathname !== '/v1/realtime') return socket.destroy();
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    const model = url.searchParams.get('model');
+    log.push({ path: 'ws connect', model, auth: req.headers.authorization, sub: !req.headers['openai-beta'] });
+    const send = (e) => ws.send(JSON.stringify(e));
+    const bad = (msg) => { log.push({ path: 'ws error', msg }); send({ type: 'error', error: { message: msg, code: 'mock_invalid' } }); };
+    if (req.headers.authorization !== 'Bearer sk-test') { bad('bad key'); return ws.close(); }
+    if (!/^gpt-realtime/.test(model || '')) { bad('unexpected realtime model ' + model); return ws.close(); }
+    send({ type: 'session.created', session: { id: 'sess_mock', model } });
+    let updated = false;
+    ws.on('message', (data) => {
+      const e = JSON.parse(data.toString());
+      log.push({ path: 'ws ' + e.type, event: e });
+      if (e.type === 'session.update') {
+        const sn = e.session || {};
+        if (sn.type !== 'realtime') return bad('session.type must be "realtime"');
+        if (JSON.stringify(sn.output_modalities) !== '["audio"]') return bad('output_modalities must be ["audio"]');
+        const o = sn.audio?.output;
+        if (o?.format?.type !== 'audio/pcm' || o.format.rate !== 24000) return bad('audio.output.format must be audio/pcm 24000');
+        if (!VOICES.includes(o.voice)) return bad('invalid voice ' + o.voice);
+        if (typeof sn.instructions !== 'string') return bad('instructions required');
+        updated = true;
+        return send({ type: 'session.updated', session: sn });
+      }
+      if (e.type === 'conversation.item.create') {
+        const c = e.item?.content?.[0];
+        if (e.item?.type !== 'message' || e.item.role !== 'user' || c?.type !== 'input_text' || !c.text) return bad('bad conversation item');
+        return send({ type: 'conversation.item.created', item: e.item });
+      }
+      if (e.type === 'response.create') {
+        if (!updated) return bad('session not configured');
+        if (JSON.stringify(e.response?.output_modalities) !== '["audio"]') return bad('response.output_modalities must be ["audio"]');
+        send({ type: 'response.created', response: { id: 'resp_a' } });
+        for (let i = 0; i < 3; i++) send({ type: 'response.output_audio.delta', delta: Buffer.alloc(1600, i + 1).toString('base64') });
+        send({ type: 'response.output_audio.done' });
+        return send({ type: 'response.done', response: { status: 'completed', output: [] } });
+      }
+      bad('unexpected client event ' + e.type);
+    });
+  });
+});
+
 server.listen(port, '127.0.0.1', () => console.log(`mock OpenAI on http://127.0.0.1:${port}/v1`));

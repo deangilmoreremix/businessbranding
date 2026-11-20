@@ -1,9 +1,7 @@
-import { transformImage as recraftTransform } from './recraft';
-
 /**
  * Brand image generation and edits via the OpenAI Images API (through /api/ai/image; the key stays on the server).
  *  - generateBrandImages: text -> image (new logo / asset concepts)
- *  - transformImage: edit an existing image into variations (drop-in replacement for the Recraft transform)
+ *  - transformImage: edit an existing image into variations
  */
 
 export interface ImageRequestOptions {
@@ -16,7 +14,11 @@ export interface ImageRequestOptions {
   n?: number;
 }
 
-class ImageNotConfiguredError extends Error {}
+class ImageNotConfiguredError extends Error {
+  constructor() {
+    super('Image generation needs OPENAI_API_KEY to be configured on the server.');
+  }
+}
 
 async function toDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
@@ -36,7 +38,7 @@ async function requestImages(body: Record<string, unknown>): Promise<string[]> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  if (res.status === 503) throw new ImageNotConfiguredError('OPENAI_API_KEY is not configured');
+  if (res.status === 503) throw new ImageNotConfiguredError();
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Image request failed (${res.status})`);
   return data.images as string[];
@@ -46,25 +48,15 @@ export async function generateBrandImages(prompt: string, options: ImageRequestO
   return { images: await requestImages({ prompt, ...options }) };
 }
 
-/** Edit/transform a reference image. Falls back to the Recraft demo/provider when OpenAI is not configured. */
+/** Edit/transform a reference image into variations. */
 export async function transformImage(imageUrl: string, prompt: string, style?: string, options: ImageRequestOptions = {}): Promise<{ images: string[] }> {
-  try {
-    const reference = await toDataUrl(imageUrl);
-    const styled = style ? `${prompt}\n\nStyle: ${style}` : prompt;
-    return { images: await requestImages({ prompt: styled, referenceImages: [reference], n: 2, ...options }) };
-  } catch (error) {
-    if (error instanceof ImageNotConfiguredError) return recraftTransform(imageUrl, prompt, style);
-    throw error;
-  }
+  const reference = await toDataUrl(imageUrl);
+  const styled = style ? `${prompt}\n\nStyle: ${style}` : prompt;
+  return { images: await requestImages({ prompt: styled, referenceImages: [reference], n: 2, ...options }) };
 }
 
-/** Text-only generation with the same Recraft fallback behaviour. */
+/** Edit the uploaded image when there is one, otherwise generate new concepts from the prompt. */
 export async function generateOrTransform(imageUrl: string | undefined, prompt: string, style?: string): Promise<{ images: string[] }> {
   if (imageUrl) return transformImage(imageUrl, prompt, style);
-  try {
-    return await generateBrandImages(prompt + (style ? `\n\nStyle: ${style}` : ''), { n: 2 });
-  } catch (error) {
-    if (error instanceof ImageNotConfiguredError) return recraftTransform('', prompt, style);
-    throw error;
-  }
+  return generateBrandImages(prompt + (style ? `\n\nStyle: ${style}` : ''), { n: 2 });
 }

@@ -20,7 +20,7 @@ import {
   Pause,
   Save
 } from 'lucide-react';
-import { generateVoiceOver } from '@/lib/services/eleven-labs';
+import { generateVoiceOver } from '@/lib/services/voice';
 import { createContentItem } from '@/lib/supabase';
 
 export function VoiceRecorder() {
@@ -28,7 +28,6 @@ export function VoiceRecorder() {
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.5);
-  const [noiseReduction, setNoiseReduction] = useState(0.5);
   const [format, setFormat] = useState('mp3');
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -93,7 +92,6 @@ export function VoiceRecorder() {
     try {
       const formData = new FormData();
       formData.append('audio', recordedBlob);
-      formData.append('noiseReduction', noiseReduction.toString());
 
       const response = await fetch('/api/voice/enhance', {
         method: 'POST',
@@ -183,7 +181,6 @@ export function VoiceRecorder() {
         metadata: {
           format,
           duration: audioRef.current?.duration || 0,
-          noiseReduction,
           createdAt: new Date().toISOString()
         },
         user_id: 'user-id' // This would be the real user ID in a production app
@@ -282,15 +279,9 @@ export function VoiceRecorder() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Noise Reduction</Label>
-                <Slider
-                  value={[noiseReduction * 100]}
-                  onValueChange={([value]) => setNoiseReduction(value / 100)}
-                  max={100}
-                  step={1}
-                />
-              </div>
+              <p className="text-xs text-muted-foreground self-end">
+                Enhance transcribes your recording, polishes the script and re-narrates it with an AI voice.
+              </p>
 
               <div className="space-y-2">
                 <Label>Export Format</Label>

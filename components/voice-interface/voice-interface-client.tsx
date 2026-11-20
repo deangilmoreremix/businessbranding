@@ -18,7 +18,8 @@ import { PodcastStudio } from './podcast-studio';
 import { AudiobookCreator } from './audiobook-creator';
 import { VoiceTranscription } from './voice-transcription';
 import { VoiceSettings } from './voice-settings';
-import { generateVoiceOver, getAvailableVoices } from '@/lib/services/eleven-labs';
+import { LiveVoice } from './live-voice';
+import { generateVoiceOver, getAvailableVoices } from '@/lib/services/voice';
 import { 
   Play, 
   Pause, 
@@ -44,7 +45,7 @@ import {
 } from 'lucide-react';
 
 export default function VoiceInterfaceClient() {
-  const [selectedVoiceId, setSelectedVoiceId] = useState('21m00Tcm4TlvDq8ikWAM');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('marin');
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -95,7 +96,7 @@ export default function VoiceInterfaceClient() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="voice-over" className="space-y-6">
-        <TabsList className="grid grid-cols-1 md:grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-1 md:grid-cols-6 w-full">
           <TabsTrigger value="voice-over" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Voice Over
@@ -111,6 +112,10 @@ export default function VoiceInterfaceClient() {
           <TabsTrigger value="transcription" className="flex items-center gap-2">
             <Mic className="h-4 w-4" />
             Transcription
+          </TabsTrigger>
+          <TabsTrigger value="live" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Live Voice
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <LucideBrain className="h-4 w-4" />
@@ -132,6 +137,10 @@ export default function VoiceInterfaceClient() {
 
         <TabsContent value="transcription">
           <VoiceTranscription />
+        </TabsContent>
+
+        <TabsContent value="live">
+          <LiveVoice voiceId={selectedVoiceId} />
         </TabsContent>
 
         <TabsContent value="settings">

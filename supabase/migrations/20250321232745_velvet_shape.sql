@@ -18,7 +18,7 @@
     - `voice_profiles`
       - `id` (uuid, primary key)
       - `name` (text)
-      - `voice_id` (text) - ElevenLabs voice ID
+      - `voice_id` (text) - OpenAI voice name (e.g. marin)
       - `settings` (jsonb) - Voice settings and parameters
       - `created_at` (timestamptz)
       - `user_id` (uuid)

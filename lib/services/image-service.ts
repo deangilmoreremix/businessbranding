@@ -8,7 +8,7 @@ interface ImageAsset {
   url: string;
   prompt?: string;
   style?: string;
-  source?: 'recraft' | 'upload' | 'other';
+  source?: 'openai' | 'upload' | 'other';
   tags?: string[];
   metadata: Record<string, any>;
   created_at: string;
@@ -34,7 +34,7 @@ export async function transformAndSaveImage(
   }
 
   try {
-    // Transform the image (OpenAI Images API; Recraft only when OpenAI is not configured)
+    // Transform the image with the OpenAI Images API (gpt-image-2.6)
     const transformResult = await transformImage(
       imageUrl,
       prompt,

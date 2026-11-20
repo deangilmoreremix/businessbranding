@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { WebsiteAnalyzer } from '@/components/website-analyzer';
 import { createContentItem } from '@/lib/supabase';
-import { generateVoiceOver, getAvailableVoices, createPodcast, createAudiobook, transcribeAudio, getTranscriptionModels } from '@/lib/services/eleven-labs';
+import { VOICES, generateVoiceOver, getAvailableVoices, createPodcast, createAudiobook, transcribeAudio, getTranscriptionModels } from '@/lib/services/voice';
 import { 
   Play, 
   Pause, 
@@ -54,7 +54,7 @@ interface AudiobookChapter {
 
 export function VoiceInterface() {
   // Voice selection state
-  const [selectedVoiceId, setSelectedVoiceId] = useState('21m00Tcm4TlvDq8ikWAM'); // Default voice
+  const [selectedVoiceId, setSelectedVoiceId] = useState('marin'); // Default voice
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   
@@ -73,7 +73,7 @@ export function VoiceInterface() {
   const [podcastTitle, setPodcastTitle] = useState('');
   const [podcastDescription, setPodcastDescription] = useState('');
   const [podcastSegments, setPodcastSegments] = useState<PodcastSegment[]>([
-    { id: '1', text: '', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+    { id: '1', text: '', voiceId: 'marin' }
   ]);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastAudioSrc, setPodcastAudioSrc] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export function VoiceInterface() {
   const [audiobookAuthor, setAudiobookAuthor] = useState('');
   const [audiobookNarrator, setAudiobookNarrator] = useState('');
   const [audiobookChapters, setAudiobookChapters] = useState<AudiobookChapter[]>([
-    { id: '1', title: 'Chapter 1', text: '', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+    { id: '1', title: 'Chapter 1', text: '', voiceId: 'marin' }
   ]);
   const [generatingAudiobook, setGeneratingAudiobook] = useState(false);
   const [audiobookAudioSrc, setAudiobookAudioSrc] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export function VoiceInterface() {
   const [speakerCount, setSpeakerCount] = useState<number>(1);
   const [wordTimingEnabled, setWordTimingEnabled] = useState<boolean>(false);
   const [transcriptionModels, setTranscriptionModels] = useState<any[]>([]);
-  const [selectedTranscriptionModel, setSelectedTranscriptionModel] = useState<string>('scribe-v1');
+  const [selectedTranscriptionModel, setSelectedTranscriptionModel] = useState<string>('gpt-transcribe');
 
   // Load voices and transcription models on component mount
   useEffect(() => {
@@ -164,7 +164,7 @@ export function VoiceInterface() {
       console.error('Failed to load voices:', error);
       // Set default voices if fetch fails
       setAvailableVoices([
-        { voice_id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'professional' },
+        { voice_id: 'marin', name: 'Rachel', category: 'professional' },
         { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', category: 'casual' },
         { voice_id: 'AZnzlk1XvdvUeBnXmlld', name: 'Antoni', category: 'professional' }
       ]);
@@ -180,10 +180,7 @@ export function VoiceInterface() {
     } catch (error) {
       console.error('Failed to load transcription models:', error);
       // Set default models if fetch fails
-      setTranscriptionModels([
-        { model_id: 'scribe-v1', name: 'Scribe V1', description: 'Standard transcription model' },
-        { model_id: 'scribe-premium-v1', name: 'Scribe Premium V1', description: 'High-accuracy transcription model' }
-      ]);
+      setTranscriptionModels([{ model_id: 'gpt-transcribe', name: 'gpt-transcribe', description: 'OpenAI speech-to-text' }]);
     }
   };
 

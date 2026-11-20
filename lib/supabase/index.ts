@@ -99,7 +99,7 @@ export type ImageAsset = {
   url: string;
   prompt?: string;
   style?: string;
-  source?: 'recraft' | 'upload' | 'other';
+  source?: 'openai' | 'upload' | 'other';
   tags?: string[];
   metadata: Record<string, any>;
   created_at: string;
@@ -149,7 +149,7 @@ const demoImageAssets: ImageAsset[] = [
     url: 'https://images.unsplash.com/photo-1557683316-973673baf926',
     prompt: 'A modern, minimalist logo for a tech company with blue color scheme',
     style: 'digital-art',
-    source: 'recraft',
+    source: 'openai',
     tags: ['logo', 'modern', 'tech'],
     metadata: {
       width: 1024,
@@ -166,7 +166,7 @@ const demoImageAssets: ImageAsset[] = [
     url: 'https://images.unsplash.com/photo-1557683311-eac922347aa1',
     prompt: 'A friendly cartoon fox mascot for a children education brand',
     style: 'comic-book',
-    source: 'recraft',
+    source: 'openai',
     tags: ['mascot', 'illustration', 'character'],
     metadata: {
       width: 1024,
@@ -183,7 +183,7 @@ const demoImageAssets: ImageAsset[] = [
     url: 'https://images.unsplash.com/photo-1557683304-673a23048d34',
     prompt: 'A minimal, clean color palette with blue and green tones for a sustainable brand',
     style: 'flat-design',
-    source: 'recraft',
+    source: 'openai',
     tags: ['colors', 'palette', 'branding'],
     metadata: {
       width: 1024,

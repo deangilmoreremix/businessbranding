@@ -9,10 +9,14 @@ const ok = (n: string, c: boolean, x = '') => { console.log(`${c ? 'PASS' : 'FAI
 let handler: (r: Request) => Promise<Response>;
 (Deno as any).serve = (h: any) => { handler = h; };
 
-async function call(fn: string, body: unknown) {
+async function call(fn: string, body: unknown, path = fn) {
   await import(`../supabase/functions/${fn}/index.ts?${Math.random()}`);
-  const res = await handler(new Request('http://edge/' + fn, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+  const res = await handler(new Request('http://edge/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   return { status: res.status, json: await res.json() };
+}
+async function callRaw(fn: string, path: string, init: RequestInit) {
+  await import(`../supabase/functions/${fn}/index.ts?${Math.random()}`);
+  return handler(new Request('http://edge/' + path, init));
 }
 const log = async () => (await fetch(mock + '/__log')).json();
 const clear = () => fetch(mock + '/__log', { method: 'DELETE' });
@@ -43,6 +47,44 @@ let r = await call('openai', { prompt: 'hi', effort: 'low' });
 ok('openai fn text', r.status === 200 && r.json.text === 'hello from mock');
 r = await call('openai', { prompt: 'logo', type: 'image' });
 ok('openai fn image', r.status === 200 && r.json.images?.[0]?.startsWith('data:image/png;base64,'));
+
+// Voice edge functions (Realtime TTS over Deno's WebSocket, gpt-transcribe)
+const isWav = (b: Uint8Array) => new TextDecoder().decode(b.slice(0, 4)) === 'RIFF' && b.length > 44;
+await clear();
+let res = await callRaw('voice-generator', 'voice-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Hello from the edge.', voiceId: 'cedar' }) });
+let bytes = new Uint8Array(await res.arrayBuffer());
+let l = await log();
+ok('voice-generator: WAV via Realtime WebSocket (Deno WebSocket headers)', res.status === 200 && isWav(bytes) && l.some((e: any) => e.path === 'ws connect' && e.auth === 'Bearer sk-test'), `status ${res.status}`);
+ok('  session voice cedar, no ws errors', l.find((e: any) => e.path === 'ws session.update')?.event.session.audio.output.voice === 'cedar' && !l.some((e: any) => e.path === 'ws error'));
+
+for (const [path, body, label] of [
+  ['voices', {}, 'voices'],
+  ['generate', { text: 'Generate this.', voiceId: 'marin' }, 'generate'],
+  ['podcast', { segments: [{ text: 'One.', voiceId: 'marin' }, { text: 'Two.', voiceId: 'alloy' }] }, 'podcast'],
+  ['audiobook', { chapters: [{ title: 'Ch 1', text: 'Text.', voiceId: 'cedar' }] }, 'audiobook']
+] as const) {
+  await clear();
+  res = await callRaw('voice-content', `voice-content/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const ct = res.headers.get('content-type');
+  const ok1 = path === 'voices' ? ct === 'application/json' && (await res.json()).length === 10 : isWav(new Uint8Array(await res.arrayBuffer()));
+  ok(`voice-content/${label}`, res.status === 200 && ok1, `status ${res.status}`);
+}
+await clear();
+const form = new FormData();
+form.append('audio', new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/wav' }), 'a.wav');
+form.append('language', 'en');
+res = await callRaw('voice-content', 'voice-content/transcribe', { method: 'POST', body: form });
+l = await log();
+ok('voice-content/transcribe -> gpt-transcribe with languages[]', res.status === 200 && (await res.json()).text === 'hello transcript' && l[0]?.fields.includes('languages[]=en') && l[0].fields.includes('model=gpt-transcribe'));
+
+// Legacy Speech API mode (OPENAI_TTS_ENDPOINT=speech)
+Deno.env.set('OPENAI_TTS_ENDPOINT', 'speech');
+await clear();
+res = await callRaw('voice-generator', 'voice-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Legacy mode.', voiceId: 'marin' }) });
+bytes = new Uint8Array(await res.arrayBuffer());
+l = await log();
+ok('OPENAI_TTS_ENDPOINT=speech -> POST /audio/speech (gpt-4o-mini-tts, wav)', res.status === 200 && isWav(bytes) && l[0]?.path === '/audio/speech' && l[0].body.model === 'gpt-4o-mini-tts' && l[0].body.response_format === 'wav', `status ${res.status}`);
+Deno.env.delete('OPENAI_TTS_ENDPOINT');
 
 console.log(failed ? `\n${failed} FAILED` : '\nAll edge checks passed');
 Deno.exit(failed ? 1 : 0);
