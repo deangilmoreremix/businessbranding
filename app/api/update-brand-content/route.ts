@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateBrandingConcepts } from '@/lib/services/gemini';
+import { generateBrandingConcepts } from '@/lib/services/ai';
 
 export async function POST(request: Request) {
   try {

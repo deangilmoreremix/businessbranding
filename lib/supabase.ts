@@ -25,7 +25,7 @@ const isValidKey = (key: string | undefined): boolean => {
 const isDemoMode = !isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey);
 
 // Create a client with safeguards for demo mode
-let supabase;
+let supabase: any;
 
 if (isDemoMode) {
   // Create a mock client that returns demo data and never throws network errors

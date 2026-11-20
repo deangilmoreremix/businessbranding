@@ -34,7 +34,7 @@ const integrations = [
     color: 'blue'
   },
   {
-    title: 'Gemini',
+    title: 'OpenAI',
     description: 'AI content generation',
     icon: Zap,
     status: 'Connected',

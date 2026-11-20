@@ -16,9 +16,11 @@ import {
   Plus,
   X,
   Camera,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  Check
 } from 'lucide-react';
-import { transformImage } from '@/lib/services/recraft';
+import { generateOrTransform } from '@/lib/services/openai-images';
 import { API_KEYS } from '@/lib/api-config';
 import { extractTagsFromPrompt } from '@/lib/services/image-service';
 import { createImageAsset } from '@/lib/supabase';
@@ -58,8 +60,8 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
   };
 
   const handleTransformImage = async () => {
-    if (!previewUrl || !transformPrompt) {
-      setError('Image and prompt are required');
+    if (!transformPrompt) {
+      setError('A prompt is required');
       return;
     }
 
@@ -76,8 +78,9 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
       setTags(extractedTags);
       setImageTitle(transformPrompt.split('.')[0]);
       
-      const result = await transformImage(
-        previewUrl,
+      // With an uploaded image this edits it into variations; without one it generates new concepts.
+      const result = await generateOrTransform(
+        previewUrl || undefined,
         transformPrompt,
         transformStyle || undefined
       );
@@ -112,7 +115,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
         url: imageUrl,
         prompt: transformPrompt,
         style: transformStyle || undefined,
-        source: 'recraft' as const,
+        source: 'other' as const,
         tags,
         metadata: {
           width: 1024,
@@ -233,14 +236,14 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
               </div>
             </div>
 
-            {previewUrl && transformPrompt && (
+            {transformPrompt && (
               <Button
                 type="button"
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90"
                 onClick={handleTransformImage}
-                disabled={loading || !previewUrl || !transformPrompt}
+                disabled={loading || !transformPrompt}
               >
-                {loading ? 'Transforming...' : 'Transform Image with Recraft AI'}
+                {loading ? 'Generating...' : previewUrl ? 'Create Variations with AI' : 'Generate Image with AI'}
               </Button>
             )}
 

@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai";
-import { getEdgeSecret } from '../../lib/edge-secrets.ts';
+import { createStructured, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
 
-const GEMINI_API_KEY = getEdgeSecret('GEMINI_API_KEY');
+const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -159,7 +158,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Return demo data if API key is missing
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo-mode') {
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
       const demoResult: WebsiteScanResult = {
         url,
         scanDate: new Date().toISOString(),
@@ -255,46 +254,29 @@ Deno.serve(async (req: Request) => {
     // Scrape the website
     const scrapedContent = await scrapeWebsite(url);
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-lite',
-      safetySettings: [
-        {
-          category: HarmCategory.HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        }
-      ]
-    });
 
     const prompt = WEBSITE_ANALYSIS_PROMPT
       .replace('{url}', url)
       .replace('{content}', scrapedContent);
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const analysisText = response.text();
+    const { data: analysisJson } = await createStructured<any>('website_scan', {
+      input: prompt,
+      developer: BRAND_DEVELOPER_PROMPT,
+      effort: 'low',
+      feature: 'website-scanner'
+    });
 
-    try {
-      const analysisJson = JSON.parse(analysisText);
-      console.log('Website analysis completed successfully');
+    console.log('Website analysis completed successfully');
 
-      return new Response(
-        JSON.stringify(analysisJson),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
+    return new Response(
+      JSON.stringify(analysisJson),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         }
-      );
-    } catch (parseError) {
-      console.error('Failed to parse website analysis result:', parseError);
-      throw new Error('Invalid analysis format returned');
-    }
+      }
+    );
   } catch (error) {
     console.error('Website scanning error:', error);
 

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { optimizeContent } from '@/lib/services/eleven-labs';
-import { generateBrandingConcepts } from '@/lib/services/gemini';
+import { generateBrandingConcepts } from '@/lib/services/ai';
 
 export async function POST(request: Request) {
   try {
     const { text, type, brandGuidelines } = await request.json();
 
-    // Generate optimized content with Gemini
+    // Generate optimized content with OpenAI
     const brandingConcepts = await generateBrandingConcepts(text);
 
     // Optimize for voice with ElevenLabs
     const optimizedContent = await optimizeContent(brandingConcepts.content, {
+      text: brandingConcepts.content,
       platform: type,
       preserveKeyMessages: brandingConcepts.keyMessages
     });

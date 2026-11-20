@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { performEnhancedAnalysis } from '@/lib/services/gemini';
+import { performEnhancedAnalysis } from '@/lib/services/ai';
 import { enhanceAudioQuality } from '@/lib/services/eleven-labs';
 
 export async function POST(request: Request) {
   try {
     const { text, settings } = await request.json();
 
-    // Analyze and enhance text content with Gemini
+    // Analyze and enhance text content with OpenAI
     const enhancedContent = await performEnhancedAnalysis(text);
 
     // Enhance audio quality with ElevenLabs

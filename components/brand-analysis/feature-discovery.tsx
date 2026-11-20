@@ -38,7 +38,7 @@ export function BrandAnalysisFeatureDiscovery({ onComplete }: FeatureDiscoveryPr
   const steps: Step[] = [
     {
       target: '.brand-analysis-intro',
-      content: 'Welcome to the enhanced Brand Analysis powered by Gemini 2.5! Let me show you our powerful new features.',
+      content: 'Welcome to the enhanced Brand Analysis powered by OpenAI! Let me show you our powerful new features.',
       placement: 'center',
       disableBeacon: true
     },
@@ -105,7 +105,7 @@ export function BrandAnalysisFeatureDiscovery({ onComplete }: FeatureDiscoveryPr
             <div>
               <h3 className="font-medium">Enhanced Brand Analysis</h3>
               <p className="text-sm text-muted-foreground">
-                Powered by Gemini 2.5 Flash
+                Powered by OpenAI
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export function BrandAnalysisFeatureDiscovery({ onComplete }: FeatureDiscoveryPr
         <Badge className="mb-4">NEW</Badge>
         <h2 className="text-2xl font-bold mb-4">Ready to Experience Enhanced Analysis?</h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
-          Start analyzing your brand with our powerful new features powered by Gemini 2.5 Flash
+          Start analyzing your brand with our powerful new features powered by OpenAI
         </p>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
           Begin Analysis

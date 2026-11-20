@@ -44,7 +44,7 @@ const nextConfig = {
     config.cache = false;
     config.resolve.preferRelative = true;
     
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isServer) {
       config.optimization = {
         ...config.optimization,
         minimize: true,

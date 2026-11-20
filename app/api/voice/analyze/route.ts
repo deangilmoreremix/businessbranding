@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { analyzeMultimodal } from '@/lib/services/gemini';
+import { analyzeMultimodal } from '@/lib/services/ai';
 import { analyzeVoiceContent } from '@/lib/services/eleven-labs';
 
 export async function POST(request: Request) {
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     // Get voice analysis from ElevenLabs
     const voiceAnalysis = await analyzeVoiceContent(text);
 
-    // Get multi-modal analysis from Gemini
+    // Get multi-modal analysis from OpenAI
     const multiModalAnalysis = await analyzeMultimodal({
       text,
       voiceUrl

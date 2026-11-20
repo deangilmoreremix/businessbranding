@@ -36,7 +36,7 @@ const sidebarNavItems = [
       },
       {
         title: 'AI Features',
-        href: '/docs/gemini-features',
+        href: '/docs/ai-features',
         icon: Brain
       },
       {

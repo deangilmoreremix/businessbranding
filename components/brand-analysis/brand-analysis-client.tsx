@@ -30,6 +30,8 @@ import {
 import { BrandAnalyzer, BRAND_PILLARS, type BrandAnalysis } from '@/lib/services/brand-analyzer';
 import { ResponsiveRadar } from '@nivo/radar';
 import { LoadingState } from './loading-state';
+import { AssistantChat } from './assistant-chat';
+import { callTask } from '@/lib/services/ai';
 import { ErrorState } from './error-state';
 import { AnalysisError, AnalysisErrorType } from '@/lib/types/errors';
 import { CompetitorIntelligence } from './competitor-intelligence';
@@ -59,6 +61,8 @@ export default function BrandAnalysisClient({
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [aiAssistantTab, setAiAssistantTab] = useState('suggestions');
+  const [generated, setGenerated] = useState<{ title: string; content: string; bullets: string[] } | null>(null);
+  const [generating, setGenerating] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'word'>('pdf');
   const [isExporting, setIsExporting] = useState(false);
   const analyzerRef = useRef<BrandAnalyzer | null>(null);
@@ -99,6 +103,25 @@ export default function BrandAnalysisClient({
       handleWebsiteScan();
     }
   }, [mounted, websiteUrl, websiteData, scanningWebsite]);
+
+  /** Assistant quick actions: generate on-brand content with a strict-schema Responses API task. */
+  const runBrandContent = async (label: string, request: string) => {
+    if (!results) return;
+    setGenerating(label);
+    try {
+      const summary = results.brandFactors.map(f => `${f.name}: ${Math.round(f.score * 100)}%`).join('; ');
+      const { data } = await callTask<{ title: string; content: string; bullets: string[] }>(
+        'brand_content',
+        `${request}\n\nBusiness: ${businessIdea ?? 'unknown'}\nBrand factor scores: ${summary}`
+      );
+      setGenerated(data);
+    } catch (e) {
+      console.error('Brand content generation failed:', e);
+      setGenerated({ title: label, content: 'Could not generate this right now. Check that OPENAI_API_KEY is configured and try again.', bullets: [] });
+    } finally {
+      setGenerating(null);
+    }
+  };
 
   const handleAnalysis = async () => {
     if (!businessIdea || !analyzerRef.current || loading) return;
@@ -1501,11 +1524,12 @@ export default function BrandAnalysisClient({
             </CardHeader>
             <CardContent className="overflow-y-auto max-h-[60vh]">
               <Tabs value={aiAssistantTab} onValueChange={setAiAssistantTab}>
-                <TabsList className="grid grid-cols-4 w-full">
+                <TabsList className="grid grid-cols-5 w-full">
                   <TabsTrigger value="suggestions">Smart Suggestions</TabsTrigger>
                   <TabsTrigger value="content">Content Generation</TabsTrigger>
                   <TabsTrigger value="insights">AI Insights</TabsTrigger>
                   <TabsTrigger value="strategy">Strategy Help</TabsTrigger>
+                  <TabsTrigger value="chat">Chat</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="suggestions" className="mt-4">
@@ -1524,7 +1548,7 @@ export default function BrandAnalysisClient({
                                 <p className="text-sm text-muted-foreground mb-3">
                                   Current score: {Math.round(factor.score * 100)}%
                                 </p>
-                                <Button size="sm" variant="outline" className="w-full">
+                                <Button size="sm" variant="outline" className="w-full" disabled={!!generating} onClick={() => runBrandContent(`Suggestions: ${factor.name}`, `Give 4 specific, actionable suggestions to improve the "${factor.name}" factor (current score ${Math.round(factor.score * 100)}%).`)}>
                                   Get AI Suggestions
                                 </Button>
                               </div>
@@ -1544,8 +1568,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Create a compelling mission statement based on your brand analysis
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate Mission
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Mission statement', 'Write a compelling mission statement for this brand.')}>
+                          {generating === 'Mission statement' ? 'Working…' : 'Generate Mission'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1553,8 +1577,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Craft a narrative that connects with your audience
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate Story
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Brand story', 'Write a short brand story that connects with the target audience.')}>
+                          {generating === 'Brand story' ? 'Working…' : 'Generate Story'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1562,8 +1586,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Create engaging social media content
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate Posts
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Social media posts', 'Write five engaging social media posts for this brand.')}>
+                          {generating === 'Social media posts' ? 'Working…' : 'Generate Posts'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1571,8 +1595,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Write persuasive marketing copy
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate Copy
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Marketing copy', 'Write persuasive marketing copy (headline, subhead, call to action).')}>
+                          {generating === 'Marketing copy' ? 'Working…' : 'Generate Copy'}
                         </Button>
                       </Card>
                     </div>
@@ -1629,8 +1653,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Generate a comprehensive SWOT analysis based on your brand data
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate SWOT
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('SWOT analysis', 'Create a SWOT analysis; put each item as a bullet prefixed with its category.')}>
+                          {generating === 'SWOT analysis' ? 'Working…' : 'Generate SWOT'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1638,8 +1662,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Create a prioritized action plan for the next 90 days
                         </p>
-                        <Button size="sm" className="w-full">
-                          Generate Plan
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Strategic plan', 'Create a 90-day brand strategy plan with concrete steps as bullets.')}>
+                          {generating === 'Strategic plan' ? 'Working…' : 'Generate Plan'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1647,8 +1671,8 @@ export default function BrandAnalysisClient({
                         <p className="text-sm text-muted-foreground mb-3">
                           Identify potential risks and mitigation strategies
                         </p>
-                        <Button size="sm" className="w-full">
-                          Assess Risks
+                        <Button size="sm" className="w-full" disabled={!!generating} onClick={() => runBrandContent('Risk assessment', 'Assess the main brand risks and mitigations; one risk per bullet.')}>
+                          {generating === 'Risk assessment' ? 'Working…' : 'Assess Risks'}
                         </Button>
                       </Card>
                       <Card className="p-4">
@@ -1663,7 +1687,25 @@ export default function BrandAnalysisClient({
                     </div>
                   </div>
                 </TabsContent>
+
+                <TabsContent value="chat" className="mt-4">
+                  <AssistantChat analysis={{ businessIdea, healthScore: results.healthScore, brandFactors: results.brandFactors }} />
+                </TabsContent>
               </Tabs>
+
+              {generated && (
+                <Card className="mt-4 p-4">
+                  <h4 className="font-medium mb-2">{generated.title}</h4>
+                  <p className="text-sm whitespace-pre-wrap">{generated.content}</p>
+                  {generated.bullets.length > 0 && (
+                    <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+                      {generated.bullets.map((b, i) => (
+                        <li key={i}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              )}
             </CardContent>
           </Card>
         </div>

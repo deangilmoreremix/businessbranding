@@ -1,126 +1,56 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { API_KEYS } from '../api-config';
-import { extractSocialLinks } from './social-extractor';
-import { sleep } from '@/lib/utils';
+import type { TaskName } from '@/lib/ai-tasks';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000; // 5 seconds
-const RATE_LIMIT_DELAY = 10000; // 10 seconds between requests
-const RATE_LIMIT_BACKOFF = 1.5; // Exponential backoff multiplier
-const MAX_PARALLEL_REQUESTS = 1; // Maximum parallel requests allowed
+/**
+ * AI features (Responses API + Structured Outputs), usable from server and client code.
+ *  - server (API routes): runs the named task directly (lib/ai-tasks.ts)
+ *  - browser: calls /api/ai/task so OPENAI_API_KEY never reaches the client
+ * Every result is schema-validated JSON; when no key is configured each function returns its built-in
+ * demo data (the demo fixtures also define the JSON schemas: see scripts/gen-ai-schemas.mjs).
+ */
 
-const isDemoMode = !API_KEYS.GEMINI || API_KEYS.GEMINI === 'demo-mode';
-let genAI: GoogleGenerativeAI | null = null;
-let lastRequestTime = 0;
-let currentDelay = RATE_LIMIT_DELAY;
-let activeRequests = 0;
+let clientConfigured: boolean | null = null;
 
-try {
-  if (!isDemoMode) {
-    genAI = new GoogleGenerativeAI(API_KEYS.GEMINI);
-    console.debug('Gemini API initialized successfully');
-  } else {
-    console.warn('Running in demo mode - invalid or missing API key');
+export async function isDemoMode(): Promise<boolean> {
+  if (typeof window === 'undefined') {
+    const { isConfigured } = await import('@/lib/openai');
+    return !isConfigured();
   }
-} catch (error) {
-  console.error('Failed to initialize Gemini API:', error);
-  genAI = null;
-}
-
-const MODELS = {
-  FLASH_PRO: 'gemini-2.0-flash',
-  FLASH_LITE: 'gemini-2.0-flash-lite'
-};
-
-const defaultConfig = {
-  temperature: 0.9,
-  topK: 40,
-  topP: 0.95
-};
-
-const getModel = (useFlashPro = false) => {
-  if (!genAI) {
-    throw new Error('Gemini API is not initialized');
-  }
-  
-  return genAI.getGenerativeModel({
-    ...defaultConfig,
-    model: useFlashPro ? MODELS.FLASH_PRO : MODELS.FLASH_LITE
-  });
-};
-
-async function enforceRateLimit() {
-  const now = Date.now();
-  let timeSinceLastRequest = now - lastRequestTime;
-  
-  while (activeRequests >= MAX_PARALLEL_REQUESTS || timeSinceLastRequest < currentDelay) {
-    const waitTime = Math.max(
-      currentDelay - timeSinceLastRequest,
-      1000 // Minimum wait time
-    );
-    await sleep(waitTime);
-    timeSinceLastRequest = Date.now() - lastRequestTime;
-  }
-
-  activeRequests++;
-  lastRequestTime = Date.now();
-
-  if (timeSinceLastRequest > currentDelay * 2) {
-    currentDelay = RATE_LIMIT_DELAY;
-  }
-}
-
-async function releaseRequest() {
-  activeRequests = Math.max(0, activeRequests - 1);
-}
-
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>,
-  retries = MAX_RETRIES,
-  attempt = 1
-): Promise<T> {
-  try {
-    await enforceRateLimit();
+  if (clientConfigured === null) {
     try {
-      await sleep(RETRY_DELAY);
-      const result = await operation();
-      if (currentDelay > RATE_LIMIT_DELAY) {
-        currentDelay = Math.max(RATE_LIMIT_DELAY, currentDelay / RATE_LIMIT_BACKOFF);
-      }
-      return result;
-    } finally {
-      await releaseRequest();
+      const res = await fetch('/api/ai/task');
+      clientConfigured = res.ok ? !!(await res.json()).configured : false;
+    } catch {
+      clientConfigured = false;
     }
-  } catch (error) {
-    if (retries === 0 || !(error instanceof Error)) {
-      await releaseRequest();
-      throw error;
-    }
-
-    const isQuotaError = error.message.includes('Resource has been exhausted');
-    const isRateLimitError = error.message.includes('429') || isQuotaError;
-    
-    if (isRateLimitError) {
-      await releaseRequest();
-      currentDelay = Math.min(currentDelay * RATE_LIMIT_BACKOFF, 30000);
-      console.warn(`Rate limit hit, retrying after ${currentDelay}ms delay... (Attempt ${attempt}/${MAX_RETRIES})`);
-      await sleep(currentDelay);
-      return retryWithBackoff(operation, retries - 1, attempt + 1);
-    }
-
-    if (retries > 0) {
-      await releaseRequest();
-      await sleep(RETRY_DELAY * attempt);
-      return retryWithBackoff(operation, retries - 1, attempt + 1);
-    }
-
-    await releaseRequest();
-    throw error;
   }
+  return !clientConfigured;
 }
+
+export interface AITaskResult<T> {
+  data: T;
+  /** Web sources used by search-backed tasks; show them as links wherever the data is displayed. */
+  citations: { url: string; title?: string }[];
+}
+
+/** Run a named AI task and return schema-validated data. */
+export async function callTask<T = any>(task: TaskName, input: string, opts: { imageUrls?: string[] } = {}): Promise<AITaskResult<T>> {
+  if (typeof window === 'undefined') {
+    const { runTask } = await import('@/lib/ai-tasks');
+    return runTask<T>(task, input, opts);
+  }
+  const res = await fetch('/api/ai/task', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task, input, imageUrls: opts.imageUrls })
+  });
+  if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+  return res.json();
+}
+
+const isImageRef = (u: unknown): u is string => typeof u === 'string' && /^(https?:|data:image\/)/.test(u);
 
 async function detectSocialProfiles(websiteUrl: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       facebook: 'https://facebook.com/demo',
       twitter: 'https://twitter.com/demo',
@@ -130,14 +60,8 @@ async function detectSocialProfiles(websiteUrl: string) {
   }
 
   try {
-    const model = getModel(false); // Use Flash Lite for simple extraction
-    const result = await model.generateContent([
-      `Extract all social media profile links from this website URL: ${websiteUrl}`
-    ]);
-    
-    const response = await result.response;
-    const links = response.text().split('\n').filter(Boolean);
-    return extractSocialLinks(links);
+    const { data } = await callTask('social_profiles', `Find the official social media profile URLs for the business at ${websiteUrl}.`);
+    return data;
   } catch (error) {
     console.error('Failed to detect social profiles:', error);
     throw error;
@@ -145,7 +69,7 @@ async function detectSocialProfiles(websiteUrl: string) {
 }
 
 async function analyzeSocialMedia(profileUrl: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       brandVoice: {
         tone: 'professional',
@@ -171,13 +95,7 @@ async function analyzeSocialMedia(profileUrl: string) {
   }
 
   try {
-    const model = getModel(true); // Use Flash Pro for complex analysis
-    const result = await model.generateContent([
-      `Analyze this social media profile: ${profileUrl}`
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    return (await callTask('social_profile_insights', `Analyze this social media profile: ${profileUrl}`)).data;
   } catch (error) {
     console.error('Social media analysis failed:', error);
     throw error;
@@ -185,7 +103,7 @@ async function analyzeSocialMedia(profileUrl: string) {
 }
 
 async function generateBrandEvolution(currentBrand: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       strategy: {
         core: ['Strengthen value proposition', 'Modernize brand voice'],
@@ -206,13 +124,7 @@ async function generateBrandEvolution(currentBrand: string) {
   }
 
   try {
-    const model = getModel(true); // Use Flash Pro for brand strategy
-    const result = await model.generateContent([
-      `Analyze this brand and provide evolution recommendations: ${currentBrand}`
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    return (await callTask('brand_evolution', `Analyze this brand and provide evolution recommendations: ${currentBrand}`)).data;
   } catch (error) {
     console.error('Brand evolution generation failed:', error);
     throw error;
@@ -220,7 +132,7 @@ async function generateBrandEvolution(currentBrand: string) {
 }
 
 async function generateBrandingConcepts(prompt: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       brandEssence: {
         values: ['Innovation', 'Trust', 'Excellence'],
@@ -251,13 +163,7 @@ async function generateBrandingConcepts(prompt: string) {
   }
 
   try {
-    const model = getModel(true); // Use Flash Pro for creative generation
-    const result = await model.generateContent([
-      `Generate branding concepts for: ${prompt}`
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    return (await callTask('branding_concepts', `Generate branding concepts for: ${prompt}`)).data;
   } catch (error) {
     console.error('Branding concepts generation failed:', error);
     throw error;
@@ -270,7 +176,7 @@ async function analyzeMultimodal(content: {
   imageUrl?: string;
   videoUrl?: string;
 }) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       textAnalysis: {
         clarity: 0.8,
@@ -301,22 +207,9 @@ async function analyzeMultimodal(content: {
   }
 
   try {
-    const model = getModel(true); // Use Flash Pro for complex multimodal analysis
-    
-    const result = await model.generateContent([
-      {
-        text: `Analyze this content across multiple modalities: ${JSON.stringify(content)}`,
-        inlineData: {
-          text: content.text,
-          audio: content.voiceUrl,
-          image: content.imageUrl,
-          video: content.videoUrl
-        }
-      }
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    // Images are sent as vision input; audio/video are referenced by URL in the prompt text.
+    const imageUrls = isImageRef(content.imageUrl) ? [content.imageUrl] : undefined;
+    return (await callTask('multimodal_analysis', `Analyze this content across multiple modalities: ${JSON.stringify(content)}`, { imageUrls })).data;
   } catch (error) {
     console.error('Multimodal analysis failed:', error);
     throw error;
@@ -329,7 +222,7 @@ async function analyzeRealtime(content: {
   image?: Blob;
   video?: Blob;
 }) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       visualAnalysis: {
         brandElements: ['Logo', 'Color scheme', 'Typography'],
@@ -363,31 +256,10 @@ async function analyzeRealtime(content: {
   }
 
   try {
-    const model = getModel(false); // Use Flash Lite for real-time analysis
-    
-    // Convert blobs to base64 if present
-    const processedContent = await Promise.all([
-      content.audio ? blobToBase64(content.audio) : null,
-      content.image ? blobToBase64(content.image) : null,
-      content.video ? blobToBase64(content.video) : null
-    ]);
-
-    const [audioBase64, imageBase64, videoBase64] = processedContent;
-
-    const result = await model.generateContent([
-      {
-        text: `Analyze this content in real-time: ${content.text || ''}`,
-        inlineData: {
-          text: content.text,
-          audio: audioBase64,
-          image: imageBase64,
-          video: videoBase64
-        }
-      }
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    // Only the image blob is sent as vision input; audio/video blobs are not supported by this path.
+    const image = content.image ? await blobToBase64(content.image) : null;
+    const imageUrls = isImageRef(image) ? [image] : undefined;
+    return (await callTask('realtime_analysis', `Analyze this content in real-time: ${content.text || ''}`, { imageUrls })).data;
   } catch (error) {
     console.error('Real-time analysis failed:', error);
     throw error;
@@ -403,9 +275,9 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-// Add missing exports that were reported in the build errors
+/** Top brands for an industry, researched with live web search (citations are returned alongside). */
 async function getTopBrandsInIndustry(industry: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       industry,
       topBrands: [
@@ -419,16 +291,11 @@ async function getTopBrandsInIndustry(industry: string) {
   }
 
   try {
-    const model = getModel(false); // Use Flash Lite for simple query
-    const result = await model.generateContent([
-      `List the top 5 brands in the ${industry} industry, including their estimated market share and key strengths. Format as JSON.`
-    ]);
-    
-    const response = await result.response;
-    return JSON.parse(response.text());
+    const { data, citations } = await callTask('top_brands', `List the top 5 brands in the ${industry} industry, including their estimated market share and key strengths.`);
+    return { ...data, citations };
   } catch (error) {
     console.error('Failed to get top brands:', error);
-    // Return demo data on error
+    // Fall back to demo data on error
     return {
       industry,
       topBrands: [
@@ -443,7 +310,7 @@ async function getTopBrandsInIndustry(industry: string) {
 }
 
 async function performEnhancedAnalysis(text: string) {
-  if (isDemoMode) {
+  if (await isDemoMode()) {
     return {
       enhancedContent: text + "\n\nThis content has been optimized for clarity, impact, and brand alignment.",
       improvements: [
@@ -465,33 +332,7 @@ async function performEnhancedAnalysis(text: string) {
   }
 
   try {
-    const model = getModel(true);
-    const result = await model.generateContent([
-      `Analyze and enhance this text content for improved clarity, engagement, and brand impact:
-      
-      ${text}
-      
-      Provide the enhanced content, specific improvements made, metrics, and additional recommendations.`
-    ]);
-    
-    const response = await result.response;
-    try {
-      return JSON.parse(response.text());
-    } catch (e) {
-      // If JSON parsing fails, return a structured object with the raw text
-      return {
-        enhancedContent: response.text(),
-        improvements: [
-          { type: 'general', description: 'Content enhanced by AI' }
-        ],
-        metrics: {
-          readability: 80,
-          engagement: 85,
-          brandAlignment: 85
-        },
-        recommendations: ['Review the enhanced content']
-      };
-    }
+    return (await callTask('enhanced_text_analysis', `Analyze and enhance this text content for improved clarity, engagement, and brand impact:\n\n${text}\n\nProvide the enhanced content, specific improvements made, metrics, and additional recommendations.`)).data;
   } catch (error) {
     console.error('Enhanced analysis failed:', error);
     return {
@@ -514,6 +355,6 @@ export {
   generateBrandingConcepts,
   analyzeMultimodal,
   analyzeRealtime,
-  getTopBrandsInIndustry,   // Added missing export
-  performEnhancedAnalysis   // Added missing export
+  getTopBrandsInIndustry,
+  performEnhancedAnalysis
 };

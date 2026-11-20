@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai";
-import { getEdgeSecret } from '../../lib/edge-secrets.ts';
+import { researchStructured, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
 
-const GEMINI_API_KEY = getEdgeSecret('GEMINI_API_KEY');
+const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,7 +138,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Return demo data if API key is missing
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo-mode') {
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
       const demoResult: MarketAnalysis = {
         industry,
         analysisDate: new Date().toISOString(),
@@ -406,46 +405,30 @@ Deno.serve(async (req: Request) => {
 
     console.log('Starting market analysis for:', industry);
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-lite',
-      safetySettings: [
-        {
-          category: HarmCategory.HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        }
-      ]
-    });
 
     const prompt = MARKET_ANALYSIS_PROMPT
       .replace('{industry}', industry)
       .replace('{brandDescription}', brandDescription || 'Our brand in this industry');
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const analysisText = response.text();
+    const { data: analysisJson, citations } = await researchStructured<any>('market_analysis', {
+      question: prompt,
+      developer: BRAND_DEVELOPER_PROMPT,
+      effort: 'medium',
+      feature: 'market-analysis'
+    });
+    analysisJson.citations = citations; // web sources: show them wherever this data is displayed
 
-    try {
-      const analysisJson = JSON.parse(analysisText);
-      console.log('Market analysis completed successfully');
+    console.log('Market analysis completed successfully');
 
-      return new Response(
-        JSON.stringify(analysisJson),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
+    return new Response(
+      JSON.stringify(analysisJson),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         }
-      );
-    } catch (parseError) {
-      console.error('Failed to parse market analysis result:', parseError);
-      throw new Error('Invalid analysis format returned');
-    }
+      }
+    );
   } catch (error) {
     console.error('Market analysis error:', error);
 

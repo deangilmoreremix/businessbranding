@@ -1,5 +1,6 @@
+// AI text/image generation uses OpenAI and is configured server-side only (OPENAI_API_KEY);
+// see lib/openai.ts and /api/ai/*.
 export const API_KEYS = {
-  GEMINI: process.env.NEXT_PUBLIC_GEMINI_API_KEY || 'demo-mode',
   ELEVEN_LABS: process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || 'demo-mode',
   BLACK_FOREST: process.env.NEXT_PUBLIC_BLACK_FOREST_API_KEY || 'demo-mode',
   RECRAFT: process.env.NEXT_PUBLIC_RECRAFT_API_KEY || 'demo-mode'
@@ -16,7 +17,6 @@ const validateKey = (key: string, name: string): void => {
 
 // Only in client
 if (typeof window !== 'undefined') {
-  validateKey(API_KEYS.GEMINI, 'Gemini');
   validateKey(API_KEYS.ELEVEN_LABS, 'ElevenLabs');
   validateKey(API_KEYS.RECRAFT, 'Recraft');
 }

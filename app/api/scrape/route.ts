@@ -102,7 +102,7 @@ export async function GET(request: Request) {
             const dataAttrs = Object.keys($(el).data());
             for (const attr of dataAttrs) {
               if (attr.toLowerCase().includes('href') || attr.toLowerCase().includes('url')) {
-                href = $(el).data(attr);
+                href = $(el).data(attr) as string | undefined;
                 break;
               }
             }

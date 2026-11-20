@@ -1,4 +1,4 @@
-import { generateBrandingConcepts } from './gemini';
+import { generateBrandingConcepts } from './ai';
 
 export interface CaseStudy {
   id: string;

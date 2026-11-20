@@ -87,7 +87,7 @@ const IMAGE_SELECTORS = {
   ]
 };
 
-export async function scrapeWebsite(url: string) {
+async function scrapeWebsiteRaw(url: string) {
   try {
     // Ensure URL has protocol
     if (!url.startsWith('http')) {
@@ -204,6 +204,17 @@ export async function scrapeWebsite(url: string) {
   }
 }
 
+export type ScrapeData = Awaited<ReturnType<typeof scrapeWebsiteRaw>> & { headings?: { text: string }[] };
+
+/**
+ * Scrapes a website. The scraped fields are exposed at the top level and also under `static`
+ * (callers read `data.static.*`).
+ */
+export async function scrapeWebsite(url: string): Promise<ScrapeData & { static: ScrapeData }> {
+  const data: ScrapeData = await scrapeWebsiteRaw(url);
+  return { ...data, static: data };
+}
+
 function extractSocialLinksFromPage($: cheerio.CheerioAPI, baseUrl: string): Record<string, string> {
   const socialLinks: Record<string, string> = {};
   
@@ -223,7 +234,7 @@ function extractSocialLinksFromPage($: cheerio.CheerioAPI, baseUrl: string): Rec
           const dataAttrs = Object.keys($(el).data());
           for (const attr of dataAttrs) {
             if (attr.toLowerCase().includes('href') || attr.toLowerCase().includes('url')) {
-              href = $(el).data(attr);
+              href = $(el).data(attr) as string | undefined;
               break;
             }
           }

@@ -1,6 +1,5 @@
-import { API_KEYS } from '../api-config';
 
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || API_KEYS.GEMINI === 'demo-mode';
+const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 export interface RealTimeMetrics {
   timestamp: string;

@@ -45,7 +45,7 @@ const docLinks: Record<DocumentationLinksProps['component'], DocLink[]> = {
     {
       title: 'API Reference',
       description: 'Explore the Brand Analysis API',
-      href: '/docs/api/gemini',
+      href: '/docs/api/openai',
       icon: Code,
       category: 'API'
     },

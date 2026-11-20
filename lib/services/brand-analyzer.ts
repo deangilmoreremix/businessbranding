@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { API_KEYS } from '@/lib/api-config';
+
+import { callTask, isDemoMode } from './ai';
 
 export interface BrandAnalysis {
   // Core Brand Metrics
@@ -166,40 +166,8 @@ export const BRAND_PILLARS = [
 ];
 
 export class BrandAnalyzer {
-  private genAI: GoogleGenerativeAI | null = null;
-  private model: any;
-  private initialized: boolean = false;
-  private demoMode: boolean = API_KEYS.GEMINI === 'demo-mode';
-
-  constructor() {
-    this.initialize();
-  }
-
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-
-    if (this.demoMode) {
-      console.warn('Running in demo mode - Gemini API key is not set');
-      this.initialized = true;
-      return;
-    }
-
-    try {
-      this.genAI = new GoogleGenerativeAI(API_KEYS.GEMINI);
-      this.model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro',
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95
-      });
-      this.initialized = true;
-    } catch (error) {
-      console.error('Failed to initialize Gemini API:', error);
-      this.initialized = false;
-      this.demoMode = true; // Fall back to demo mode
-      throw error;
-    }
-  }
+  /** Kept for API compatibility; nothing to initialize client-side. */
+  async initialize(): Promise<void> {}
 
   async analyzeBrandConcept(businessIdea: string): Promise<BrandAnalysis> {
     // Try to use the Supabase Edge Function first for better reliability
@@ -225,24 +193,15 @@ export class BrandAnalyzer {
       console.warn("Enhanced edge function unavailable, falling back to client-side analysis:", error);
     }
 
-    // Return demo data if in demo mode or if API initialization failed
-    if (this.demoMode || !this.model) {
+    // No OpenAI key configured on the server -> demo data
+    if (await isDemoMode()) {
       return this.getDemoAnalysis();
     }
 
     try {
-      const prompt = this.getAnalysisPrompt(businessIdea);
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const analysisText = response.text();
-      
-      try {
-        const analysis = JSON.parse(analysisText);
-        return this.validateAndCleanAnalysis(analysis);
-      } catch (parseError) {
-        console.error('Failed to parse analysis result:', parseError);
-        throw new Error('Invalid analysis format returned');
-      }
+      // Structured Outputs (strict schema) guarantees the shape; no JSON repair or regex parsing needed.
+      const { data } = await callTask<BrandAnalysis>('brand_analysis', this.getAnalysisPrompt(businessIdea));
+      return this.validateAndCleanAnalysis(data);
     } catch (error) {
       console.error('Brand analysis failed:', error);
       return this.getDemoAnalysis();

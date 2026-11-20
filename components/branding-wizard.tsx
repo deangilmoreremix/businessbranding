@@ -26,7 +26,14 @@ import {
   TrendingUp,
   Zap,
   Building,
-  Brain
+  Brain,
+  Globe,
+  Wand2,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Share2
 } from 'lucide-react';
 import { ResponsiveLine } from '@nivo/line';
 import { ResponsivePie } from '@nivo/pie';

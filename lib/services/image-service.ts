@@ -1,4 +1,4 @@
-import { transformImage } from '@/lib/services/recraft';
+import { transformImage } from '@/lib/services/openai-images';
 import html2canvas from 'html2canvas';
 
 // Define ImageAsset interface locally to avoid Supabase import issues
@@ -17,7 +17,7 @@ interface ImageAsset {
 }
 
 /**
- * Transforms an image using the Recraft API and saves it to the database
+ * Transforms an image using the OpenAI Images API and saves it to the database
  */
 export async function transformAndSaveImage(
   imageUrl: string, 
@@ -34,7 +34,7 @@ export async function transformAndSaveImage(
   }
 
   try {
-    // Transform the image using Recraft
+    // Transform the image (OpenAI Images API; Recraft only when OpenAI is not configured)
     const transformResult = await transformImage(
       imageUrl,
       prompt,
@@ -57,7 +57,7 @@ export async function transformAndSaveImage(
         url: generatedUrl,
         prompt,
         style: options.style,
-        source: 'recraft',
+        source: 'other',
         tags: options.tags || ['ai-generated'],
         metadata: {
           width: 1024,

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Brain, Code, FileText, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import GeminiFeaturesMDX from '@/app/docs/gemini-features.mdx';
+import AIFeaturesMDX from '@/app/docs/ai-features.mdx';
 
 const components = {
   h1: (props: any) => <h1 className="scroll-m-20 text-4xl font-bold tracking-tight lg:text-5xl mb-4" {...props} />,
@@ -25,7 +25,7 @@ const components = {
   ol: (props: any) => <ol className="my-6 ml-6 list-decimal [&>li]:mt-2" {...props} />,
 };
 
-export default function GeminiFeaturesPage() {
+export default function AIFeaturesPage() {
   return (
     <div className="max-w-4xl mx-auto py-12">
       <motion.div
@@ -39,7 +39,7 @@ export default function GeminiFeaturesPage() {
         </div>
         
         <MDXProvider components={components}>
-          <GeminiFeaturesMDX />
+          <AIFeaturesMDX />
         </MDXProvider>
 
         <div className="mt-12 flex justify-between items-center">
@@ -49,7 +49,7 @@ export default function GeminiFeaturesPage() {
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/docs/api/gemini">
+            <Link href="/docs/api/openai">
               View API Reference
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

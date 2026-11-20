@@ -21,7 +21,7 @@ Configure your environment variables in `.env`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key   # server-side only
 NEXT_PUBLIC_ELEVEN_LABS_API_KEY=your_eleven_labs_key
 NEXT_PUBLIC_RECRAFT_API_KEY=your_recraft_key
 ```
@@ -135,14 +135,18 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 ## AI Integration
 
-### Gemini Setup
+### OpenAI Setup
+
+The key stays on the server. Use the shared helpers (Responses API for text, Images API for images):
 
 ```tsx
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createResponse, generateImage } from '@/lib/openai';
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+const text = await createResponse({ input: 'Analyze this brand', json: true });
+const [image] = await generateImage({ prompt: 'Logo concept' });
 ```
+
+From the browser, call `POST /api/ai/generate` or `POST /api/ai/image`.
 
 ### Voice Generation
 

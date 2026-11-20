@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI } from "npm:@google/generative-ai";
+import { createStructured, createResponse, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyBZ5NQ3dF5sdMBSjfkD6Oejw9VRhPTSUdc';
+const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
     const { content, type } = await req.json();
 
     // Return dummy data if no API key or in demo mode
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo-mode') {
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
       const demoAnalysis = getDemoAnalysis(type);
       return new Response(
         JSON.stringify(demoAnalysis),
@@ -35,10 +35,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ 
-      model: type === 'visual' ? 'gemini-pro-vision' : 'gemini-pro'
-    });
 
     let prompt = '';
     switch (type) {
@@ -80,10 +76,12 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log('Processing prompt:', prompt.substring(0, 100) + '...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    console.log('Gemini Response:', text.substring(0, 100) + '...');
+    // brand / visual / voice have strict schemas; any other type is a free-form prompt.
+    const text =
+      type === 'brand' || type === 'visual' || type === 'voice'
+        ? JSON.stringify((await createStructured(`analysis_${type}` as 'analysis_brand', { input: prompt, developer: BRAND_DEVELOPER_PROMPT, effort: 'medium', feature: 'ai-analysis' })).data)
+        : (await createResponse({ input: prompt, developer: BRAND_DEVELOPER_PROMPT, effort: 'low', feature: 'ai-analysis' })).text;
+    console.log('OpenAI response:', text.substring(0, 100) + '...');
 
     return new Response(
       JSON.stringify({ text }),
@@ -188,5 +186,5 @@ function getDemoAnalysis(type: string) {
     }
   };
 
-  return { text: demoResponses[type]?.text || "{}" };
+  return { text: demoResponses[type as keyof typeof demoResponses]?.text || "{}" };
 }

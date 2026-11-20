@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTopBrandsInIndustry } from '@/lib/services/gemini';
+import { getTopBrandsInIndustry } from '@/lib/services/ai';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Use Gemini to generate top brands in the industry
+    // Use OpenAI to generate top brands in the industry
     const brands = await getTopBrandsInIndustry(industry);
     
     return NextResponse.json(brands);

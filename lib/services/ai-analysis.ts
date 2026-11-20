@@ -1,8 +1,7 @@
-import { API_KEYS } from '../api-config';
 
 export async function analyzeContent(content: string, type: 'brand' | 'visual' | 'voice') {
   try {
-    const response = await fetch('/api/gemini/analyze', {
+    const response = await fetch('/api/ai/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
