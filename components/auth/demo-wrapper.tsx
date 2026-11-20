@@ -33,7 +33,7 @@ export function DemoWrapper({ children, feature }: DemoWrapperProps) {
           You&apos;ve reached the demo limit for this feature. Sign up for full access.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/login">
+          <Link href="/sign-up">
             <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
               Sign Up Now
               <ArrowRight className="ml-2 h-4 w-4" />

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { loginUrl } from '@/lib/auth-redirect';
 import { KeyRound, X } from 'lucide-react';
 import { AUTH_REQUIRED_EVENT, KEY_REQUIRED_EVENT } from '@/lib/client/auth-fetch';
 
@@ -13,6 +15,7 @@ type Reason = 'key' | 'auth';
  */
 export function OpenAIKeyNotice() {
   const [reason, setReason] = useState<Reason | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const onKey = () => setReason('key');
@@ -41,6 +44,7 @@ export function OpenAIKeyNotice() {
             <>
               <p className="font-medium">Sign in to use AI features</p>
               <p className="text-muted-foreground">Your session is needed to use your OpenAI key.</p>
+              <Link href={loginUrl(pathname)} className="mt-2 inline-block font-medium underline">Sign in</Link>
             </>
           )}
         </div>

@@ -11,7 +11,9 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  /** Resolves with `needsConfirmation: true` when Supabase requires the user to confirm their email before signing in. */
+  signUp: (email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -21,7 +23,8 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   signIn: async () => {},
-  signUp: async () => {},
+  signUp: async () => ({ needsConfirmation: true }),
+  updatePassword: async () => {},
   signOut: async () => {},
   resetPassword: async () => {}
 });
@@ -85,23 +88,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     } catch (error) {
-      console.error('Sign in error:', error);
+      console.error('Sign in error:', (error as Error)?.message);
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/login` }
       });
 
       if (error) {
         throw error;
       }
+      return { needsConfirmation: !data.session };
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('Sign up error:', (error as Error)?.message);
       throw error;
     }
   };
@@ -118,9 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  };
+
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password/update` });
       if (error) {
         throw error;
       }
@@ -135,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

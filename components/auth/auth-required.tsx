@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { loginUrl } from '@/lib/auth-redirect';
 import { useAuth } from './auth-provider';
 import { LoadingSpinner } from '@/components/loading-spinner';
 
@@ -13,12 +14,13 @@ interface AuthRequiredProps {
 export function AuthRequired({ children, fallback }: AuthRequiredProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.push(loginUrl(pathname)); // come back here after signing in
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading) {
     return <LoadingSpinner message="Checking authentication..." />;

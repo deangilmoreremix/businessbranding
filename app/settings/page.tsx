@@ -23,14 +23,24 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import Link from 'next/link';
+import { safeNextPath } from '@/lib/auth-redirect';
 import { OpenAIKeySettings } from '@/components/settings/openai-key-settings';
 
 export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   // Controlled so a /settings#ai link (from the "Add your OpenAI key" notice) opens the OpenAI tab without a hydration mismatch.
   const [tab, setTab] = useState('profile');
+  const [welcome, setWelcome] = useState<{ next: string } | null>(null);
+  const [hasKey, setHasKey] = useState(false);
   useEffect(() => {
     if (window.location.hash === '#ai') setTab('ai');
+    // first sign-in: /settings?welcome=1&next=<where the user was going>#ai
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('welcome') === '1') {
+      setTab('ai');
+      setWelcome({ next: safeNextPath(q.get('next')) });
+    }
   }, []);
 
   const handleSave = () => {
@@ -225,7 +235,16 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="ai">
-            <OpenAIKeySettings />
+            {welcome && (
+              <div role="status" data-testid="welcome-key-prompt" className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
+                <p className="font-medium">Welcome! Add your OpenAI key to turn on AI features.</p>
+                <p className="text-muted-foreground mt-1">This app uses your own OpenAI API key, stored encrypted. You can also do this later in Settings.</p>
+                <Link href={welcome.next} data-testid="welcome-continue" className="mt-2 inline-block font-medium underline">
+                  {hasKey ? 'Continue' : 'Skip for now'}
+                </Link>
+              </div>
+            )}
+            <OpenAIKeySettings onStatus={setHasKey} />
           </TabsContent>
 
           <TabsContent value="billing">

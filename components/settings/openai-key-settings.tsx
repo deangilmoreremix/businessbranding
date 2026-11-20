@@ -27,7 +27,7 @@ const SLOT_LABELS: Record<string, string> = {
  * encrypted. The browser only ever sees "sk-…••••1234" (last four). The input is cleared after saving and the key is never
  * written to localStorage, cookies or URLs.
  */
-export function OpenAIKeySettings() {
+export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolean) => void } = {}) {
   const [status, setStatus] = useState<KeyStatus | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState<'save' | 'test' | 'remove' | null>(null);
@@ -53,6 +53,7 @@ export function OpenAIKeySettings() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (status) onStatus?.(status.configured); }, [status, onStatus]);
 
   const save = async () => {
     setBusy('save');

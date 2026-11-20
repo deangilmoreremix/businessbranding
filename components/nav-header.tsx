@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/components/auth/auth-provider';
 import {
   Brain,
   LayoutDashboard,
@@ -80,6 +81,7 @@ const resources = [
 ];
 
 export function NavHeader() {
+  const { user, signOut } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -243,9 +245,13 @@ export function NavHeader() {
 
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/dashboard">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
+            {user ? (
+              <Button variant="ghost" onClick={() => { signOut().then(() => router.push('/')).catch(() => {}); }}>Sign Out</Button>
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+            )}
             <Button 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90"
               onClick={handleStartAnalysis}
@@ -346,11 +352,17 @@ export function NavHeader() {
             </div>
 
             <div className="mt-6 px-3 space-y-3">
-              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full">
-                  Sign In
+              {user ? (
+                <Button variant="outline" className="w-full" onClick={() => { setMobileMenuOpen(false); signOut().then(() => router.push('/')).catch(() => {}); }}>
+                  Sign Out
                 </Button>
-              </Link>
+              ) : (
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
               <Button 
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
                 onClick={handleStartAnalysis}

@@ -6,6 +6,9 @@
  *   /rest/v1/user_settings, ai_usage_log, ai_jobs
  *   POST /rest/v1/rpc/consume_rate_limit    fixed-window counter
  *   GET|DELETE /__state                     inspect / reset the in-memory tables (tests only)
+ *   POST /auth/v1/token?grant_type=password|refresh_token, POST /auth/v1/signup, POST /auth/v1/recover, PUT /auth/v1/user, POST /auth/v1/logout
+ *     (email+password accounts; alice@example.test / bob@example.test with password 'correct-horse-battery'; CORS enabled for the browser client;
+ *      access tokens are JWT-shaped like real ones, as the auth-helpers cookie storage decodes them; POST /__config {confirm:true} makes sign-up require email confirmation)
  *   node scripts/mock-supabase-server.mjs [port]
  */
 import http from 'node:http';
@@ -17,11 +20,40 @@ const USERS = {
   'tok-bob': { id: '22222222-2222-4222-8222-222222222222', email: 'bob@example.test' }
 };
 
+// ---- email+password accounts (browser sign-in flow) ----
+const ALICE_ID = '11111111-1111-4111-8111-111111111111';
+const BOB_ID = '22222222-2222-4222-8222-222222222222';
+const accounts = new Map([
+  ['alice@example.test', { id: ALICE_ID, email: 'alice@example.test', password: 'correct-horse-battery' }],
+  ['bob@example.test', { id: BOB_ID, email: 'bob@example.test', password: 'correct-horse-battery' }]
+]);
+const recoveries = [];
+let requireConfirm = false;
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+const issueSession = (acct) => {
+  const exp = Math.floor(Date.now() / 1000) + 3600;
+  const access_token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: acct.id, email: acct.email, aud: 'authenticated', role: 'authenticated', exp })}.mock-signature`;
+  return { access_token, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'refresh-' + acct.id, user: userObj(acct) };
+};
+const userObj = (a) => ({ id: a.id, email: a.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() });
+const userForBearer = (token) => {
+  if (USERS[token]) return USERS[token];
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const p = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    if (!p.exp || p.exp < Date.now() / 1000) return null;
+    const a = [...accounts.values()].find((x) => x.id === p.sub);
+    return a ? { id: a.id, email: a.email } : null;
+  } catch { return null; }
+};
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS', 'Access-Control-Expose-Headers': '*' };
+
 let failRpc = false; // test hook: make the rate-limit RPC fail (POST /__fail {rpc:true})
 const db = { user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], limits: new Map(), requests: [] };
 
 function send(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
   res.end(body === undefined ? '' : JSON.stringify(body));
 }
 
@@ -39,6 +71,48 @@ const server = http.createServer(async (req, res) => {
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   db.requests.push({ method: req.method, path: url.pathname });
 
+  if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
+  if (url.pathname === '/__config' && req.method === 'POST') { requireConfirm = !!JSON.parse(raw || '{}').confirm; return send(res, 200, { requireConfirm }); }
+  if (url.pathname === '/__recoveries') return send(res, 200, recoveries);
+
+  if (url.pathname === '/auth/v1/token' && req.method === 'POST') {
+    const body = JSON.parse(raw || '{}');
+    const grant = url.searchParams.get('grant_type');
+    if (grant === 'password') {
+      const a = accounts.get(String(body.email || '').toLowerCase());
+      if (!a || a.password !== body.password) return send(res, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials', message: 'Invalid login credentials' });
+      return send(res, 200, issueSession(a));
+    }
+    if (grant === 'refresh_token') {
+      const a = [...accounts.values()].find((x) => 'refresh-' + x.id === body.refresh_token);
+      return a ? send(res, 200, issueSession(a)) : send(res, 400, { message: 'Invalid Refresh Token' });
+    }
+    return send(res, 400, { message: 'unsupported grant' });
+  }
+  if (url.pathname === '/auth/v1/signup' && req.method === 'POST') {
+    const body = JSON.parse(raw || '{}');
+    const email = String(body.email || '').toLowerCase();
+    if (String(body.password || '').length < 12) return send(res, 422, { code: 422, error_code: 'weak_password', msg: 'Password should be at least 12 characters.', message: 'Password should be at least 12 characters.' });
+    if (accounts.has(email)) return send(res, 422, { code: 422, error_code: 'user_already_exists', msg: 'User already registered', message: 'User already registered' });
+    const a = { id: crypto.randomUUID(), email, password: body.password };
+    accounts.set(email, a);
+    return send(res, 200, requireConfirm ? userObj(a) : issueSession(a));
+  }
+  if (url.pathname === '/auth/v1/recover' && req.method === 'POST') {
+    const body = JSON.parse(raw || '{}');
+    recoveries.push({ email: body.email, redirect: url.searchParams.get('redirect_to') });
+    return send(res, 200, {});
+  }
+  if (url.pathname === '/auth/v1/logout') return send(res, 204);
+  if (url.pathname === '/auth/v1/user' && req.method === 'PUT') {
+    const u = userForBearer(bearer);
+    if (!u) return send(res, 401, { message: 'invalid JWT' });
+    const a = [...accounts.values()].find((x) => x.id === u.id);
+    const body = JSON.parse(raw || '{}');
+    if (a && body.password) { if (String(body.password).length < 12) return send(res, 422, { message: 'Password should be at least 12 characters.' }); a.password = body.password; }
+    return send(res, 200, userObj(a ?? { ...u }));
+  }
+
   if (url.pathname === '/__fail' && req.method === 'POST') { failRpc = !!JSON.parse(raw || '{}').rpc; return send(res, 200, { failRpc }); }
   if (url.pathname === '/__state') {
     if (req.method === 'DELETE') { for (const k of ['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
@@ -46,8 +120,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/auth/v1/user') {
-    const user = USERS[bearer];
-    if (!user || req.headers.apikey !== SERVICE_KEY) return send(res, 401, { message: 'invalid JWT' });
+    const user = userForBearer(bearer);
+    if (!user || !req.headers.apikey) return send(res, 401, { message: 'invalid JWT' });
     return send(res, 200, user);
   }
 

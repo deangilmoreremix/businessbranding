@@ -20,14 +20,16 @@ export async function isDemoMode(): Promise<boolean> {
   }
   if (Date.now() - configuredAt < 30_000) return false;
   let configured = false;
+  let signedIn = false;
   try {
-    const res = await authFetch('/api/ai/task');
+    const res = await authFetch('/api/ai/task'); // 401 (signed out) already raises the "sign in" notice via authFetch
+    signedIn = res.ok;
     configured = res.ok ? !!(await res.json()).configured : false;
   } catch {
     configured = false;
   }
   if (configured) configuredAt = Date.now();
-  else window.dispatchEvent(new CustomEvent(KEY_REQUIRED_EVENT));
+  else if (signedIn) window.dispatchEvent(new CustomEvent(KEY_REQUIRED_EVENT));
   return !configured;
 }
 
