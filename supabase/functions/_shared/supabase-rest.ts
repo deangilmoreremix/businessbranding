@@ -119,3 +119,42 @@ export async function insertContact(row: { name: string; email: string; subject:
 }
 
 export const supabaseConfigured = (): boolean => !!(baseUrl() && serviceKey());
+
+// ---- public content (published rows) and the newsletter list -------------------------------------
+/** Published rows of a public-content table (`blog_posts`, `case_studies`), newest first. Empty when nothing is published. */
+export async function listPublished(table: 'blog_posts' | 'case_studies', limit = 50): Promise<Record<string, any>[]> {
+  const rows = await rest(`${table}?select=*&published=eq.true&order=${table === 'blog_posts' ? 'published_at' : 'created_at'}.desc&limit=${Math.min(Math.max(limit, 1), 100)}`);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function countRecentNewsletter(clientHash: string, sinceIso: string): Promise<number> {
+  const rows = await rest(`newsletter_subscriptions?select=id&client_hash=eq.${q(clientHash)}&created_at=gte.${q(sinceIso)}`);
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
+/** Saves an address; resolves false when it was already on the list (unique index). */
+export async function insertNewsletter(row: { email: string; client_hash: string }): Promise<boolean> {
+  const { url, key } = config();
+  const res = await fetch(`${url}/rest/v1/newsletter_subscriptions`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+  if (res.status === 409) return false;
+  if (!res.ok) throw new Error(`Supabase request failed (${res.status}) for newsletter_subscriptions`);
+  return true;
+}
+
+// ---- usage summary (the caller's own ai_usage_log rows) -------------------------------------------
+export interface UsageSummary { requests: number; failed: number; inputTokens: number; outputTokens: number; byFeature: Record<string, number>; since: string }
+
+/** Aggregates one user's key-free usage rows since `sinceIso` (at most the latest 2000 rows are read). */
+export async function getUsageSummary(userId: string, sinceIso: string): Promise<UsageSummary> {
+  const rows = await rest(`ai_usage_log?select=feature,status,input_tokens,output_tokens&user_id=eq.${q(userId)}&created_at=gte.${q(sinceIso)}&limit=2000`);
+  const list: any[] = Array.isArray(rows) ? rows : [];
+  const out: UsageSummary = { requests: list.length, failed: 0, inputTokens: 0, outputTokens: 0, byFeature: {}, since: sinceIso };
+  for (const r of list) {
+    if (!/^2/.test(String(r.status))) out.failed++;
+    out.inputTokens += Number(r.input_tokens) || 0;
+    out.outputTokens += Number(r.output_tokens) || 0;
+    const f = String(r.feature || 'other').split(':')[0];
+    out.byFeature[f] = (out.byFeature[f] || 0) + 1;
+  }
+  return out;
+}

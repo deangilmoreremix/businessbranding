@@ -135,16 +135,11 @@ export default function SettingsPage() {
         >
           <h2 className="text-3xl font-bold mb-4">Need Help?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Our support team is here to help you with any questions
+            Questions about your account or the app? Send us a message.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-              Contact Support
-            </Button>
-            <Button size="lg" variant="outline">
-              View Documentation
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/contact"><Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">Contact us</Button></Link>
+            <Link href="/docs"><Button size="lg" variant="outline">View documentation<ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
           </div>
         </motion.div>
       </div>

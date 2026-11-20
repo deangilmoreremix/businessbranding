@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadVoicePrefs } from '@/lib/local/voice-prefs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,8 @@ export function AudiobookCreator() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [narrator, setNarrator] = useState('');
+  const [defaultVoice, setDefaultVoice] = useState('marin');
+  useEffect(() => { loadVoicePrefs().then((p) => { setDefaultVoice(p.voiceId); setNarrator((n) => n || p.voiceId); }); }, []);
   const [chapters, setChapters] = useState<Chapter[]>([
     { id: '1', title: 'Chapter 1', text: '', voiceId: 'marin' }
   ]);
@@ -55,7 +58,7 @@ export function AudiobookCreator() {
         id: String(chapters.length + 1), 
         title: `Chapter ${chapters.length + 1}`, 
         text: '', 
-        voiceId: 'marin' 
+        voiceId: defaultVoice 
       }
     ]);
   };

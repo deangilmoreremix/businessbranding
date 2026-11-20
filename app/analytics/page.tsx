@@ -1,305 +1,84 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  BarChart, 
-  LineChart as LineChartIcon,
-  PieChart,
-  TrendingUp,
-  Users,
-  Globe,
-  Share2,
-  ArrowUpRight,
-  ArrowRight,
-  Download
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ResponsiveLine } from '@nivo/line';
-import { ResponsivePie } from '@nivo/pie';
+import { Activity, BarChart, Brain, Cpu } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { LibraryStatTiles } from '@/components/library-stat-tiles';
+import { getBusinessAnalyses, type BusinessAnalysis } from '@/lib/services/business-analyzer';
+import { loadUsage, type Usage } from '@/lib/client/usage';
+import { toPercent, formatDate } from '@/lib/format';
 
-const data = {
-  engagement: [
-    { id: 'engagement', data: [
-      { x: 'Jan', y: 65 },
-      { x: 'Feb', y: 75 },
-      { x: 'Mar', y: 85 },
-      { x: 'Apr', y: 90 },
-      { x: 'May', y: 95 },
-      { x: 'Jun', y: 88 }
-    ]}
-  ],
-  channels: [
-    { id: 'Website', value: 45 },
-    { id: 'Social', value: 30 },
-    { id: 'Email', value: 15 },
-    { id: 'Other', value: 10 }
-  ],
-  growth: [
-    { id: 'followers', data: [
-      { x: 'Jan', y: 1200 },
-      { x: 'Feb', y: 1800 },
-      { x: 'Mar', y: 2200 },
-      { x: 'Apr', y: 2800 },
-      { x: 'May', y: 3500 },
-      { x: 'Jun', y: 4200 }
-    ]},
-    { id: 'engagement', data: [
-      { x: 'Jan', y: 800 },
-      { x: 'Feb', y: 1100 },
-      { x: 'Mar', y: 1400 },
-      { x: 'Apr', y: 1800 },
-      { x: 'May', y: 2200 },
-      { x: 'Jun', y: 2800 }
-    ]}
-  ]
-};
-
-const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#10B981'];
-
+/**
+ * Analytics of YOUR work: the brand-health scores of the analyses you saved (kept in this browser) and your own AI usage (from the
+ * key-free usage log). There is no website/social traffic data source, so none is shown.
+ */
 export default function AnalyticsPage() {
+  const [analyses, setAnalyses] = useState<BusinessAnalysis[] | null>(null);
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [usageLoaded, setUsageLoaded] = useState(false);
+
+  useEffect(() => {
+    getBusinessAnalyses().then(setAnalyses).catch(() => setAnalyses([]));
+    loadUsage().then((u) => { setUsage(u); setUsageLoaded(true); });
+  }, []);
+
+  const points = (analyses ?? [])
+    .slice()
+    .reverse()
+    .map((a) => ({ a, health: toPercent(a.analysisResults?.healthScore) }))
+    .filter((p): p is { a: BusinessAnalysis; health: number } => p.health !== null);
+  const latest = points.length ? points[points.length - 1] : null;
+  const chart = [{ id: 'Brand health', data: points.map((p) => ({ x: formatDate(p.a.createdAt), y: Math.round(p.health) })) }];
+
   return (
     <div className="container mx-auto px-4 py-16 relative z-10">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-block mb-2"
-          >
-            <Badge className="text-sm px-3">ANALYTICS</Badge>
-          </motion.div>
-          <motion.h1 
-            className="text-4xl md:text-5xl font-bold gradient-text mb-4"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            Brand Performance Analytics
-          </motion.h1>
-          <motion.p 
-            className="text-lg text-muted-foreground max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            Track and analyze your brand&apos;s performance across all channels
-          </motion.p>
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <Badge className="text-sm px-3 mb-2">ANALYTICS</Badge>
+          <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">Your analytics</h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Brand-health scores from your saved analyses and your own AI usage.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
-            { title: 'Brand Score', value: '85/100', icon: BarChart, change: '+12%' },
-            { title: 'Total Reach', value: '125.8K', icon: Globe, change: '+28%' },
-            { title: 'Engagement', value: '64.2K', icon: Users, change: '+18%' },
-            { title: 'Share of Voice', value: '34%', icon: Share2, change: '+8%' }
-          ].map((stat, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-            >
-              <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <stat.icon className="h-6 w-6 text-blue-400" />
-                  </div>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    {stat.change}
-                  </Badge>
-                </div>
-                <h3 className="text-sm text-muted-foreground">{stat.title}</h3>
-                <p className="text-2xl font-bold">{stat.value}</p>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+        <LibraryStatTiles
+          loading={analyses === null || !usageLoaded}
+          tiles={[
+            { title: 'Saved analyses', value: analyses?.length ?? 0, icon: BarChart, hint: analyses && analyses.length === 0 ? 'None yet' : 'In this browser' },
+            { title: 'Latest brand health', value: latest ? `${Math.round(latest.health)}%` : '—', icon: Brain, hint: latest ? formatDate(latest.a.createdAt) : 'Run an analysis' },
+            { title: 'AI requests (30 days)', value: usage ? usage.requests : '—', icon: Activity, hint: usage ? (usage.failed ? `${usage.failed} failed` : 'None failed') : 'Sign in to see usage' },
+            { title: 'Tokens (30 days)', value: usage ? (usage.inputTokens + usage.outputTokens).toLocaleString() : '—', icon: Cpu, hint: usage ? `${usage.inputTokens.toLocaleString()} in / ${usage.outputTokens.toLocaleString()} out` : undefined }
+          ]}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Brand Growth</h3>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+        <Card className="p-6 mb-8" data-testid="health-trend">
+          <h2 className="text-xl font-semibold mb-4">Brand health over time</h2>
+          {points.length === 0 ? (
+            <div className="text-center py-10" data-testid="analytics-empty">
+              <p className="text-muted-foreground mb-4">No saved analyses yet. Run one on Brand Strategy and its score will appear here.</p>
+              <Link href="/brand-strategy"><Button>Run an analysis</Button></Link>
             </div>
+          ) : points.length === 1 ? (
+            <p className="text-muted-foreground">One analysis so far ({formatDate(points[0].a.createdAt)}: {Math.round(points[0].health)}%). A trend line appears after a second analysis.</p>
+          ) : (
             <div className="h-[300px]">
-              <ResponsiveLine
-                data={data.growth}
-                margin={{ top: 50, right: 110, bottom: 50, left: 60 }}
-                xScale={{ type: 'point' }}
-                yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false, reverse: false }}
-                axisTop={null}
-                axisRight={null}
-                axisBottom={{
-                  tickSize: 5,
-                  tickPadding: 5,
-                  tickRotation: 0,
-                  legend: 'Month',
-                  legendOffset: 36,
-                  legendPosition: 'middle'
-                }}
-                axisLeft={{
-                  tickSize: 5,
-                  tickPadding: 5,
-                  tickRotation: 0,
-                  legend: 'Count',
-                  legendOffset: -40,
-                  legendPosition: 'middle'
-                }}
-                pointSize={10}
-                pointColor={{ theme: 'background' }}
-                pointBorderWidth={2}
-                pointBorderColor={{ from: 'serieColor' }}
-                pointLabelYOffset={-12}
-                useMesh={true}
-                legends={[
-                  {
-                    anchor: 'bottom-right',
-                    direction: 'column',
-                    justify: false,
-                    translateX: 100,
-                    translateY: 0,
-                    itemsSpacing: 0,
-                    itemDirection: 'left-to-right',
-                    itemWidth: 80,
-                    itemHeight: 20,
-                    itemOpacity: 0.75,
-                    symbolSize: 12,
-                    symbolShape: 'circle',
-                    symbolBorderColor: 'rgba(0, 0, 0, .5)',
-                    effects: [
-                      {
-                        on: 'hover',
-                        style: {
-                          itemBackground: 'rgba(0, 0, 0, .03)',
-                          itemOpacity: 1
-                        }
-                      }
-                    ]
-                  }
-                ]}
-              />
+              <ResponsiveLine data={chart} margin={{ top: 20, right: 30, bottom: 50, left: 50 }} xScale={{ type: 'point' }} yScale={{ type: 'linear', min: 0, max: 100 }} pointSize={8} useMesh axisBottom={{ tickRotation: -30 }} />
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Channel Distribution</h3>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
-            <div className="h-[300px]">
-              <ResponsivePie
-                data={data.channels}
-                margin={{ top: 40, right: 80, bottom: 80, left: 80 }}
-                innerRadius={0.5}
-                padAngle={0.7}
-                cornerRadius={3}
-                activeOuterRadiusOffset={8}
-                borderWidth={1}
-                borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
-                arcLinkLabelsSkipAngle={10}
-                arcLinkLabelsTextColor={{ from: 'color', modifiers: [['darker', 2]] }}
-                arcLinkLabelsThickness={2}
-                arcLinkLabelsColor={{ from: 'color' }}
-                arcLabelsSkipAngle={10}
-                arcLabelsTextColor={{ from: 'color', modifiers: [['darker', 2]] }}
-                colors={COLORS}
-                legends={[
-                  {
-                    anchor: 'bottom',
-                    direction: 'row',
-                    justify: false,
-                    translateX: 0,
-                    translateY: 56,
-                    itemsSpacing: 0,
-                    itemWidth: 100,
-                    itemHeight: 18,
-                    itemTextColor: '#999',
-                    itemDirection: 'left-to-right',
-                    itemOpacity: 1,
-                    symbolSize: 18,
-                    symbolShape: 'circle'
-                  }
-                ]}
-              />
-            </div>
-          </Card>
-        </div>
-
-        <Card className="p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Engagement Trends</h3>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-          <div className="h-[400px]">
-            <ResponsiveLine
-              data={data.engagement}
-              margin={{ top: 50, right: 110, bottom: 50, left: 60 }}
-              xScale={{ type: 'point' }}
-              yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false, reverse: false }}
-              axisTop={null}
-              axisRight={null}
-              axisBottom={{
-                tickSize: 5,
-                tickPadding: 5,
-                tickRotation: 0,
-                legend: 'Month',
-                legendOffset: 36,
-                legendPosition: 'middle'
-              }}
-              axisLeft={{
-                tickSize: 5,
-                tickPadding: 5,
-                tickRotation: 0,
-                legend: 'Value',
-                legendOffset: -40,
-                legendPosition: 'middle'
-              }}
-              pointSize={10}
-              pointColor={{ theme: 'background' }}
-              pointBorderWidth={2}
-              pointBorderColor={{ from: 'serieColor' }}
-              pointLabelYOffset={-12}
-              useMesh={true}
-              colors={['#3B82F6']}
-            />
-          </div>
+          )}
         </Card>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
-          className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-12"
-        >
-          <h2 className="text-3xl font-bold mb-4">Need More Insights?</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Get detailed reports and custom analytics for your brand
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-              Generate Custom Report
-            </Button>
-            <Button size="lg" variant="outline">
-              Schedule Demo
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </motion.div>
+        {usage && Object.keys(usage.byFeature).length > 0 && (
+          <Card className="p-6" data-testid="usage-by-feature">
+            <h2 className="text-xl font-semibold mb-4">AI requests by feature (30 days)</h2>
+            <ul className="divide-y">
+              {Object.entries(usage.byFeature).sort((a, b) => b[1] - a[1]).map(([feature, n]) => (
+                <li key={feature} className="py-2 flex justify-between text-sm"><span className="capitalize">{feature.replace(/[-_]/g, ' ')}</span><span className="font-medium">{n}</span></li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </div>
   );

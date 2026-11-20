@@ -108,7 +108,7 @@ export function NavHeader() {
 
   const handleStartAnalysis = () => {
     if (mounted) {
-      router.push('/brand-strategy');
+      router.push(user ? '/dashboard' : '/brand-strategy');
       setMobileMenuOpen(false);
     }
   };
@@ -256,7 +256,7 @@ export function NavHeader() {
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90"
               onClick={handleStartAnalysis}
             >
-              Start Free Brand Analysis
+              {user ? 'Open dashboard' : 'Analyze your brand'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -367,7 +367,7 @@ export function NavHeader() {
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
                 onClick={handleStartAnalysis}
               >
-                Start Free Brand Analysis
+                {user ? 'Open dashboard' : 'Analyze your brand'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

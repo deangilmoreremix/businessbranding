@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { clientAddress, validateContact } from '@/lib/contact';
-import '@/lib/openai'; // binds the runtime env reader used by the shared server modules
+import { validateContact } from '@/lib/contact';
 import { countRecentContacts, insertContact, supabaseConfigured } from '@/lib/server/user';
+import { clientHash, notifyOwner } from '@/lib/server/public-forms';
 
 export const runtime = 'nodejs';
 
@@ -9,17 +9,10 @@ const HOURLY_LIMIT = 5;
 const MAX_BODY = 20_000;
 const json = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
-async function clientHash(request: Request): Promise<string> {
-  const ip = clientAddress(request.headers);
-  const salt = process.env.KEY_ENCRYPTION_SECRET || 'contact';
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}|${ip}`));
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
- * Public contact form. Stores the message in `contact_submissions` using the service role (no client has table access).
- * Public on purpose, so it is defended instead of authenticated: strict validation, 20 KB body cap, a honeypot field, and
- * 5 messages per hour per client (salted hash of the address; the raw address is never stored).
+ * Public contact form. Stores the message in `contact_submissions` using the service role (no client has table access), and, when
+ * CONTACT_NOTIFY_WEBHOOK_URL is set, posts a short note to that HTTPS webhook so a person actually sees it. Nothing is answered
+ * automatically. Defended instead of authenticated: strict validation, 20 KB cap, honeypot, 5 per hour per client identity.
  */
 export async function POST(request: Request) {
   if (!supabaseConfigured()) return json({ error: 'Messages cannot be received right now: this site has no database configured.', code: 'CONTACT_UNAVAILABLE' }, 503);
@@ -28,9 +21,7 @@ export async function POST(request: Request) {
   let body: any;
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid request.', code: 'BAD_REQUEST' }, 400); }
   if (!body || typeof body !== 'object') return json({ error: 'Invalid request.', code: 'BAD_REQUEST' }, 400);
-
-  // honeypot: real visitors never fill the hidden "website" field; pretend success to bots
-  if (typeof body.website === 'string' && body.website.trim()) return json({ ok: true }, 200);
+  if (typeof body.website === 'string' && body.website.trim()) return json({ ok: true }, 200); // honeypot
 
   const form = { name: String(body.name ?? ''), email: String(body.email ?? ''), message: String(body.message ?? '') };
   const errors = validateContact(form);
@@ -39,10 +30,10 @@ export async function POST(request: Request) {
 
   try {
     const hash = await clientHash(request);
-    const recent = await countRecentContacts(hash, new Date(Date.now() - 3600_000).toISOString());
-    if (recent >= HOURLY_LIMIT) return json({ error: 'You have sent several messages recently. Please try again later.', code: 'RATE_LIMITED' }, 429);
+    if ((await countRecentContacts(hash, new Date(Date.now() - 3600_000).toISOString())) >= HOURLY_LIMIT) return json({ error: 'You have sent several messages recently. Please try again later.', code: 'RATE_LIMITED' }, 429);
     await insertContact({ name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), subject, message: form.message.trim(), client_hash: hash });
-    return json({ ok: true }, 200);
+    const notified = await notifyOwner('contact', { name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), message: form.message.trim().slice(0, 500) });
+    return json({ ok: true, notified }, 200);
   } catch {
     console.error('contact submission failed');
     return json({ error: 'Your message could not be saved. Please try again later.', code: 'CONTACT_FAILED' }, 502);

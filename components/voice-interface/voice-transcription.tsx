@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadVoicePrefs } from '@/lib/local/voice-prefs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'),
 export function VoiceTranscription() {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('en');
+  useEffect(() => { loadVoicePrefs().then((p) => setLanguage(p.language)); }, []);
   const [context, setContext] = useState('');
   const [onDevice, setOnDevice] = useState(false);
   const [modelStatus, setModelStatus] = useState('');

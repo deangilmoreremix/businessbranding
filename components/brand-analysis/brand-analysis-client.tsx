@@ -1,5 +1,6 @@
 'use client';
 
+import { REPORT_SECTIONS, buildReportModel, exportReport, type ReportSection } from '@/lib/report-export';
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,8 @@ export default function BrandAnalysisClient({
   const [generating, setGenerating] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'word'>('pdf');
   const [isExporting, setIsExporting] = useState(false);
+  const [exportSections, setExportSections] = useState<ReportSection[]>(REPORT_SECTIONS.map((x) => x.id));
+  const [exportError, setExportError] = useState<string | null>(null);
   const analyzerRef = useRef<BrandAnalyzer | null>(null);
 
   // Initialize analyzer only once after component is mounted
@@ -1747,45 +1750,26 @@ export default function BrandAnalysisClient({
               <div>
                 <h3 className="font-medium mb-4">Report Sections</h3>
                 <div className="space-y-3">
-                  {[
-                    { id: 'overview', label: 'Executive Overview', checked: true },
-                    { id: 'analysis', label: 'Brand Pillars Analysis', checked: true },
-                    { id: 'market', label: 'Market Analysis', checked: true },
-                    { id: 'competitors', label: 'Competitor Intelligence', checked: true },
-                    { id: 'digital', label: 'Digital Presence', checked: true },
-                    { id: 'recommendations', label: 'Strategic Recommendations', checked: true }
-                  ].map((section) => (
+                  {REPORT_SECTIONS.map((section) => (
                     <div key={section.id} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        id={section.id}
-                        defaultChecked={section.checked}
+                        id={`export-${section.id}`}
+                        checked={exportSections.includes(section.id)}
+                        onChange={(e) =>
+                          setExportSections((cur) =>
+                            e.target.checked ? [...cur, section.id] : cur.filter((x) => x !== section.id)
+                          )
+                        }
                         className="rounded"
                       />
-                      <label htmlFor={section.id} className="text-sm">
+                      <label htmlFor={`export-${section.id}`} className="text-sm">
                         {section.label}
                       </label>
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium mb-4">Branding Options</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="logo" className="rounded" />
-                    <label htmlFor="logo" className="text-sm">Include company logo</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="colors" className="rounded" />
-                    <label htmlFor="colors" className="text-sm">Use brand colors</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="charts" defaultChecked className="rounded" />
-                    <label htmlFor="charts" className="text-sm">Include interactive charts</label>
-                  </div>
-                </div>
+                {exportError && <p role="alert" className="text-sm text-red-600 mt-3">{exportError}</p>}
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -1793,15 +1777,32 @@ export default function BrandAnalysisClient({
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (!results || exportSections.length === 0) {
+                      setExportError('Select at least one section to export.');
+                      return;
+                    }
                     setIsExporting(true);
-                    // Simulate export process
-                    setTimeout(() => {
-                      setIsExporting(false);
+                    setExportError(null);
+                    try {
+                      const { blob, filename } = await exportReport(
+                        exportFormat,
+                        buildReportModel(results, businessIdea, exportSections)
+                      );
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = filename;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
                       setShowExportPanel(false);
-                      // In a real implementation, this would trigger the actual export
-                      alert(`Report exported as ${exportFormat.toUpperCase()}!`);
-                    }, 2000);
+                    } catch (e) {
+                      setExportError(`Export failed: ${e instanceof Error ? e.message : 'unknown error'}`);
+                    } finally {
+                      setIsExporting(false);
+                    }
                   }}
                   disabled={isExporting}
                 >

@@ -222,9 +222,6 @@ export default function CookiesPage() {
             Last updated: April 1, 2025
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-              Manage Cookie Preferences
-            </Button>
             <Link href="/privacy">
               <Button variant="outline">
                 Privacy Policy

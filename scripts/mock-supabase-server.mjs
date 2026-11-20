@@ -50,7 +50,7 @@ const userForBearer = (token) => {
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS', 'Access-Control-Expose-Headers': '*' };
 
 let failRpc = false; // test hook: make the rate-limit RPC fail (POST /__fail {rpc:true})
-const db = { content_items: [], voice_profiles: [], image_assets: [], user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], contact_submissions: [], limits: new Map(), requests: [] };
+const db = { content_items: [], voice_profiles: [], image_assets: [], user_api_keys: [], user_settings: [], ai_usage_log: [], ai_jobs: [], contact_submissions: [], newsletter_subscriptions: [], blog_posts: [], case_studies: [], limits: new Map(), requests: [] };
 
 function send(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
@@ -118,7 +118,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/__fail' && req.method === 'POST') { failRpc = !!JSON.parse(raw || '{}').rpc; return send(res, 200, { failRpc }); }
   if (url.pathname === '/__state') {
-    if (req.method === 'DELETE') { for (const k of ['content_items', 'voice_profiles', 'image_assets', 'user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
+    if (req.method === 'DELETE') { for (const k of ['content_items', 'voice_profiles', 'image_assets', 'user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions', 'newsletter_subscriptions', 'blog_posts', 'case_studies']) db[k] = []; db.limits.clear(); db.requests = []; return send(res, 200, {}); }
     return send(res, 200, { ...db, limits: [...db.limits.entries()] });
   }
 
@@ -159,7 +159,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, n <= p_limit);
     }
 
-    if (!['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions'].includes(table)) return send(res, 404, { message: 'unknown table' });
+    if (!['user_api_keys', 'user_settings', 'ai_usage_log', 'ai_jobs', 'contact_submissions', 'newsletter_subscriptions', 'blog_posts', 'case_studies'].includes(table)) return send(res, 404, { message: 'unknown table' });
     const rows = db[table];
     const f = parseFilters(url);
 
@@ -173,6 +173,7 @@ const server = http.createServer(async (req, res) => {
         const existing = conflict ? rows.find((r) => conflict.every((c) => r[c] === row[c])) : null;
         if (existing) Object.assign(existing, row);
         else if (table === 'ai_jobs' && rows.some((r) => r.id === row.id)) return send(res, 409, { message: 'duplicate' });
+        else if (table === 'newsletter_subscriptions' && rows.some((r) => String(r.email).toLowerCase() === String(row.email).toLowerCase())) return send(res, 409, { message: 'duplicate' });
         else rows.push({ created_at: new Date().toISOString(), ...row });
       }
       return send(res, 201);

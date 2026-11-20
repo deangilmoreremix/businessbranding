@@ -152,8 +152,18 @@ select _check('privileges: no client role has TRUNCATE, REFERENCES or TRIGGER on
   not exists (select 1 from pg_tables x, unnest(array['anon','authenticated']) r, unnest(array['TRUNCATE','REFERENCES','TRIGGER']) p where x.schemaname='public' and x.tablename not like '\_%' and has_table_privilege(r, 'public.'||x.tablename, p)));
 select _check('privileges: case_studies is SELECT-only for anon (no insert/update/delete/truncate)',
   has_table_privilege('anon','public.case_studies','SELECT') and not exists (select 1 from unnest(array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p where has_table_privilege('anon','public.case_studies',p)));
+select _check('privileges: case_studies is SELECT-only for authenticated too (no insert/update/delete/truncate)',
+  has_table_privilege('authenticated','public.case_studies','SELECT') and not exists (select 1 from unnest(array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p where has_table_privilege('authenticated','public.case_studies',p)));
+-- public content: blog_posts readable only when published; newsletter list server-only
+insert into blog_posts (slug, title, published, published_at) values ('draft-post','Draft',false,null),('live-post','Live',true,now());
+select _check('blog_posts: anon and authenticated see only published rows', _try('anon', null, 'select 1 from blog_posts') = 1 and _try('authenticated','11111111-1111-4111-8111-111111111111','select 1 from blog_posts') = 1);
+select _check('blog_posts: clients cannot write', _try('anon', null, 'insert into blog_posts (slug,title,published) values (''x'',''x'',true)') = -1 and _try('authenticated','11111111-1111-4111-8111-111111111111','delete from blog_posts') = -1);
+select _check('newsletter_subscriptions: no client access; unique per lower(email); service_role can insert',
+  _try('anon', null, 'select 1 from newsletter_subscriptions') = -1 and _try('authenticated','11111111-1111-4111-8111-111111111111','select 1 from newsletter_subscriptions') = -1
+  and _try('service_role', null, 'insert into newsletter_subscriptions (email) values (''A@x.test'')') = 1
+  and _try('service_role', null, 'insert into newsletter_subscriptions (email) values (''a@X.test'')') = -1);
 select _check('privileges: anon has no privilege at all on any other public table',
-  not exists (select 1 from pg_tables x, unnest(array['SELECT','INSERT','UPDATE','DELETE']) p where x.schemaname='public' and x.tablename not in ('case_studies','_results','_future_table') and has_table_privilege('anon','public.'||x.tablename,p)));
+  not exists (select 1 from pg_tables x, unnest(array['SELECT','INSERT','UPDATE','DELETE']) p where x.schemaname='public' and x.tablename not in ('case_studies','blog_posts','_results','_future_table') and has_table_privilege('anon','public.'||x.tablename,p)));
 select _check('privileges: no public function is executable by anon or authenticated (consume_rate_limit is service_role only)',
   not exists (select 1 from pg_proc f join pg_namespace n on n.oid=f.pronamespace, unnest(array['anon','authenticated']) r where n.nspname='public' and f.proname not like '\_%' and has_function_privilege(r, f.oid, 'EXECUTE'))
   and has_function_privilege('service_role', 'public.consume_rate_limit(uuid,text,integer,integer)', 'EXECUTE'));

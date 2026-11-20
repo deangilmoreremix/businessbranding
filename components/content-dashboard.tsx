@@ -7,7 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { ExportDialog } from '@/components/export-dialog';
-import { getContentItems, getVoiceProfiles, getImageAssets, type ContentItem, type VoiceProfile, type ImageAsset } from '@/lib/supabase';
+import Link from 'next/link';
+import { getContentItems, getVoiceProfiles, getImageAssets, deleteContentItem, deleteImageAsset, type ContentItem, type VoiceProfile, type ImageAsset } from '@/lib/supabase';
+import { deleteAsset, getAsset } from '@/lib/local/store';
 import { formatDate } from '@/lib/utils';
 import { 
   FileAudio, 
@@ -44,6 +46,46 @@ export function ContentDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Audio itself lives on the device that created it (IndexedDB); the account row only holds metadata.
+  const localAudio = async (item: ContentItem): Promise<Blob | null> => {
+    const id = item.metadata?.localAssetId;
+    return id ? (await getAsset(String(id)))?.blob ?? null : null;
+  };
+  const playItem = async (item: ContentItem) => {
+    const blob = await localAudio(item);
+    if (!blob) return setNotice('This audio is stored on the device that created it, so it cannot be played here.');
+    setNotice(null);
+    const url = URL.createObjectURL(blob);
+    const a = new Audio(url);
+    a.onended = () => URL.revokeObjectURL(url);
+    a.play().catch(() => setNotice('Playback was blocked by the browser.'));
+  };
+  const downloadItem = async (item: ContentItem) => {
+    const blob = await localAudio(item);
+    if (!blob) return setNotice('This audio is stored on the device that created it, so it cannot be downloaded here.');
+    setNotice(null);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${item.title || 'audio'}.wav`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const removeItem = async (item: ContentItem) => {
+    try {
+      await deleteContentItem(item.id);
+      if (item.metadata?.localAssetId) await deleteAsset(String(item.metadata.localAssetId));
+      setNotice(null);
+      await loadContent();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : 'Could not delete this item.');
+    }
+  };
+  const removeImage = async (asset: ImageAsset) => {
+    try { await deleteImageAsset(asset.id); setNotice(null); await loadContent(); } catch (e) { setNotice(e instanceof Error ? e.message : 'Could not delete this image.'); }
+  };
 
   useEffect(() => {
     loadContent();
@@ -196,14 +238,7 @@ export function ContentDashboard() {
               'You haven\'t created any voice content yet. Get started by creating a podcast, audiobook, or voice over.'}
           </p>
           <div className="flex gap-3">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Content
-            </Button>
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Audio
-            </Button>
+            <Link href="/dashboard/voice-content"><Button><Plus className="h-4 w-4 mr-2" />Create new content</Button></Link>
           </div>
         </div>
       );
@@ -219,7 +254,7 @@ export function ContentDashboard() {
                   <div>
                     {getVoiceTypeBadge(item.type)}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Play ${item.title}`} onClick={() => playItem(item)}>
                     <Play className="h-4 w-4" />
                   </Button>
                 </div>
@@ -228,10 +263,10 @@ export function ContentDashboard() {
                   Created: {formatDate(item.created_at)}
                 </p>
                 <div className="flex justify-between mt-4 pt-2 border-t">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" aria-label={`Download ${item.title}`} onClick={() => downloadItem(item)}>
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" aria-label={`Delete ${item.title}`} onClick={() => removeItem(item)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -257,13 +292,13 @@ export function ContentDashboard() {
               </p>
             </div>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label={`Play ${item.title}`} onClick={() => playItem(item)}>
                 <Play className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label={`Download ${item.title}`} onClick={() => downloadItem(item)}>
                 <Download className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label={`Delete ${item.title}`} onClick={() => removeItem(item)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -306,17 +341,10 @@ export function ContentDashboard() {
           <p className="text-sm text-muted-foreground mb-4 max-w-md">
             {searchTerm || selectedType !== 'all' ? 
               'No images match your current filters. Try different search terms or filters.' : 
-              'You haven\'t created any image assets yet. Generate new images or upload existing ones.'}
+              'You haven\'t saved any image assets to your account yet. Create or upload images in the visual studio.'}
           </p>
           <div className="flex gap-3">
-            <Button>
-              <Camera className="h-4 w-4 mr-2" />
-              Generate Image
-            </Button>
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Image
-            </Button>
+            <Link href="/dashboard/visual-identity"><Button><Camera className="h-4 w-4 mr-2" />Open the visual studio</Button></Link>
           </div>
         </div>
       );
@@ -335,8 +363,8 @@ export function ContentDashboard() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end justify-between p-3">
                   <h3 className="font-medium text-white truncate max-w-[80%]">{asset.title}</h3>
-                  <Button variant="secondary" size="icon" className="h-8 w-8">
-                    <Download className="h-4 w-4" />
+                  <Button variant="secondary" size="icon" className="h-8 w-8" aria-label={`Download ${asset.title}`} asChild>
+                    <a href={asset.url} download={asset.title}><Download className="h-4 w-4" /></a>
                   </Button>
                 </div>
               </div>
@@ -354,7 +382,7 @@ export function ContentDashboard() {
                       </Badge>
                     )}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Delete ${asset.title}`} onClick={() => removeImage(asset)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -392,10 +420,10 @@ export function ContentDashboard() {
               </div>
             </div>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon">
-                <Download className="h-4 w-4" />
+              <Button variant="ghost" size="icon" aria-label={`Download ${asset.title}`} asChild>
+                <a href={asset.url} download={asset.title}><Download className="h-4 w-4" /></a>
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label={`Delete ${asset.title}`} onClick={() => removeImage(asset)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -407,6 +435,7 @@ export function ContentDashboard() {
 
   return (
     <div className="space-y-6">
+      {notice && <p role="status" data-testid="content-notice" className="text-sm text-amber-600">{notice}</p>}
       <Tabs defaultValue="voice" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4 items-start sm:items-center">
           <TabsList>

@@ -1,190 +1,83 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { 
-  Database,
-  Cloud,
-  Link as LinkIcon,
-  ArrowRight,
-  CheckCircle,
-  Settings,
-  Shield,
-  Lock,
-  RefreshCw,
-  Zap
-} from 'lucide-react';
+import { ArrowRight, CheckCircle, Database, KeyRound, Lock, Shield, XCircle, Zap, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useAuth } from '@/components/auth/auth-provider';
+import { authFetch } from '@/lib/client/auth-fetch';
 
-const integrations = [
-  {
-    title: 'Supabase',
-    description: 'Secure database and authentication',
-    icon: Database,
-    status: 'Connected',
-    color: 'emerald'
-  },
-  {
-    title: 'OpenAI Voice',
-    description: 'Text-to-speech, transcription and live voice (Realtime API)',
-    icon: Cloud,
-    status: 'Connected',
-    color: 'blue'
-  },
-  {
-    title: 'OpenAI',
-    description: 'AI content generation (Responses API)',
-    icon: Zap,
-    status: 'Connected',
-    color: 'purple'
-  },
-  {
-    title: 'OpenAI Images',
-    description: 'Image generation and editing (gpt-image-2.6)',
-    icon: Settings,
-    status: 'Connected',
-    color: 'indigo'
-  }
-];
+type Status = { label: string; ok: boolean };
 
-const securityFeatures = [
-  {
-    title: 'End-to-End Encryption',
-    description: 'All data is encrypted in transit and at rest',
-    icon: Lock
-  },
-  {
-    title: 'Regular Backups',
-    description: 'Automated daily backups of all your data',
-    icon: RefreshCw
-  },
-  {
-    title: 'Access Control',
-    description: 'Fine-grained permissions and role-based access',
-    icon: Shield
-  }
-];
-
+/** Status badges are computed from real state (signed in? key saved? database configured?), never hard-coded. */
 export default function IntegrationsPage() {
+  const { user } = useAuth();
+  const [key, setKey] = useState<Status>({ label: 'Checking…', ok: false });
+
+  useEffect(() => {
+    if (!user) { setKey({ label: 'Sign in to check', ok: false }); return; }
+    authFetch('/api/settings/openai-key')
+      .then(async (r) => { if (!r.ok) throw new Error(); const d = await r.json(); setKey(d.configured ? { label: `Key added (…${d.last4})`, ok: true } : { label: 'No key added', ok: false }); })
+      .catch(() => setKey({ label: 'Could not check', ok: false }));
+  }, [user]);
+
+  const dbConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !/your_supabase_url/.test(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const cards: { title: string; description: string; icon: LucideIcon; status: Status; href: string; action: string }[] = [
+    { title: 'OpenAI', description: 'Text and analysis (Responses API), images (Images API), speech and transcription, live voice. All use the one key you add in Settings.', icon: Zap, status: key, href: '/settings#ai', action: key.ok ? 'Manage key' : 'Add key' },
+    { title: 'Supabase', description: 'Accounts, your saved items and the encrypted key store.', icon: Database, status: !dbConfigured ? { label: 'Not configured on this site', ok: false } : user ? { label: 'Signed in', ok: true } : { label: 'Signed out', ok: false }, href: user ? '/settings' : '/login', action: user ? 'Open settings' : 'Sign in' }
+  ];
+
   return (
     <div className="container mx-auto px-4 py-16 relative z-10">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-16">
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-block mb-2"
-          >
-            <Badge className="text-sm px-3">INTEGRATIONS</Badge>
-          </motion.div>
-          <motion.h1 
-            className="text-4xl md:text-5xl font-bold gradient-text mb-4"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            Connected Services
-          </motion.h1>
-          <motion.p 
-            className="text-lg text-muted-foreground max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            Manage your integrations and connected services
-          </motion.p>
+        <div className="text-center mb-14">
+          <Badge className="text-sm px-3 mb-2">INTEGRATIONS</Badge>
+          <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">Integrations</h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">The two services this app connects to, and whether each is set up for you right now.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-          {integrations.map((integration, index) => (
-            <motion.div
-              key={integration.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 + (index * 0.1) }}
-            >
-              <Card className={`p-6 bg-${integration.color}-500/5 border-${integration.color}-500/20`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`h-12 w-12 rounded-lg bg-${integration.color}-500/20 flex items-center justify-center`}>
-                      <integration.icon className={`h-6 w-6 text-${integration.color}-400`} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold">{integration.title}</h3>
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+          {cards.map((c) => (
+            <Card key={c.title} className="p-6" data-testid={`integration-${c.title.toLowerCase()}`}>
+              <div className="flex items-start justify-between mb-4 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center"><c.icon className="h-6 w-6 text-blue-400" aria-hidden /></div>
+                  <div>
+                    <h2 className="text-xl font-semibold">{c.title}</h2>
+                    <p className="text-sm text-muted-foreground">{c.description}</p>
                   </div>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    {integration.status}
-                  </Badge>
                 </div>
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm">
-                    Configure
-                    <Settings className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            </motion.div>
+                <Badge variant="outline" className={c.status.ok ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}>
+                  {c.status.ok ? <CheckCircle className="h-3 w-3 mr-1" aria-hidden /> : <XCircle className="h-3 w-3 mr-1" aria-hidden />}{c.status.label}
+                </Badge>
+              </div>
+              <div className="flex justify-end"><Link href={c.href}><Button variant="outline" size="sm">{c.action}</Button></Link></div>
+            </Card>
           ))}
         </div>
 
         <div className="mb-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Security & Privacy</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Your data is protected with enterprise-grade security
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {securityFeatures.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.6 + (index * 0.1) }}
-              >
-                <Card className="p-6 bg-accent/5 border-accent/20">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
-                      <feature.icon className="h-6 w-6 text-blue-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground">{feature.description}</p>
-                  </div>
-                </Card>
-              </motion.div>
+          <h2 className="text-3xl font-bold mb-8 text-center">How your data is handled</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { icon: KeyRound, title: 'Encrypted API key', text: 'Your OpenAI key is stored encrypted (AES-256-GCM) and is never returned to the browser; only its last four characters are shown.' },
+              { icon: Lock, title: 'Row-level security', text: 'Rows saved to your account are readable and writable only by you; the key table has no client access at all.' },
+              { icon: Shield, title: 'Local by default', text: 'Images, audio, drafts and saved analyses live in your browser unless you choose to save to your account.' }
+            ].map((f) => (
+              <Card key={f.title} className="p-6 bg-accent/5 border-accent/20 text-center">
+                <f.icon className="h-8 w-8 mx-auto text-blue-400 mb-3" aria-hidden />
+                <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
+                <p className="text-sm text-muted-foreground">{f.text}</p>
+              </Card>
             ))}
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
-          className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-12"
-        >
-          <h2 className="text-3xl font-bold mb-4">Need Help?</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Our support team is here to help you with integration setup and configuration
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-              Contact Support
-            </Button>
-            <Link href="/docs">
-              <Button size="lg" variant="outline">
-                View Documentation
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
+        <div className="text-center">
+          <Link href="/docs"><Button size="lg" variant="outline">Read the documentation<ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
+        </div>
       </div>
     </div>
   );

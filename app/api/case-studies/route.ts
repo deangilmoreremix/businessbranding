@@ -1,31 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getCaseStudies, getCaseStudyBySlug, getFeaturedCaseStudies, getCaseStudiesByIndustry } from '@/lib/services/case-studies';
+import { getPublishedCaseStudies } from '@/lib/services/case-studies';
 
-export async function GET(request: Request) {
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/** GET -> published rows of `case_studies` only ([] when none are published or no database is configured). */
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const slug = searchParams.get('slug');
-    const industry = searchParams.get('industry');
-    const featured = searchParams.get('featured');
-
-    let data;
-
-    if (slug) {
-      data = await getCaseStudyBySlug(slug);
-    } else if (industry) {
-      data = await getCaseStudiesByIndustry(industry);
-    } else if (featured === 'true') {
-      data = await getFeaturedCaseStudies();
-    } else {
-      data = await getCaseStudies();
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error fetching case studies:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch case studies' },
-      { status: 500 }
-    );
+    return NextResponse.json(await getPublishedCaseStudies());
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch case studies' }, { status: 502 });
   }
 }

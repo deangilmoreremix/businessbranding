@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadVoicePrefs } from '@/lib/local/voice-prefs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,8 @@ interface PodcastSegment {
 
 export function PodcastStudio() {
   const [saved, setSaved] = useState<SavedAudio | null>(null);
+  const [defaultVoice, setDefaultVoice] = useState('marin');
+  useEffect(() => { loadVoicePrefs().then((p) => { setDefaultVoice(p.voiceId); setSegments((s) => s.map((x) => (x.text ? x : { ...x, voiceId: p.voiceId }))); }); }, []);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [segments, setSegments] = useState<PodcastSegment[]>([
@@ -51,7 +54,7 @@ export function PodcastStudio() {
       { 
         id: String(segments.length + 1), 
         text: '', 
-        voiceId: 'marin' 
+        voiceId: defaultVoice 
       }
     ]);
   };

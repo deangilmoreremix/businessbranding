@@ -87,3 +87,7 @@ GRANT EXECUTE ON FUNCTION public.consume_rate_limit(uuid, text, integer, integer
 
 -- 9. voice_profiles had an updated_at trigger but no updated_at column, so EVERY update failed ("record new has no field updated_at").
 ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+-- 10. case_studies: authenticated users may only READ (published rows, via RLS); the original migrations left them write grants.
+REVOKE ALL ON case_studies FROM authenticated;
+GRANT SELECT ON case_studies TO authenticated;

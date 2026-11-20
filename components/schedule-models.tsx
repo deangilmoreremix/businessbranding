@@ -24,7 +24,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { generateSmartSchedule, optimizeSchedule, type SmartScheduleOptions, type CalendarEvent } from '@/lib/services/calendar-service';
+import { downloadICalendar, generateSmartSchedule, optimizeSchedule, type SmartScheduleOptions, type CalendarEvent } from '@/lib/services/calendar-service';
 
 interface ScheduleModelsProps {
   /** Called whenever the generated or optimized schedule changes (e.g. to show it in the calendar). */
@@ -348,9 +348,9 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
                 )}
                 <span className="ml-2">Optimize</span>
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" disabled={schedule.length === 0} onClick={() => downloadICalendar(schedule, 'smart-schedule.ics')}>
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                Export (.ics)
               </Button>
             </div>
           </div>

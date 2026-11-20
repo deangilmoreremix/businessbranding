@@ -148,9 +148,6 @@ export default function AgencyPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline">
-                Partner Program
-              </Button>
             </motion.div>
 
             <motion.div
@@ -229,10 +226,10 @@ export default function AgencyPage() {
           <div className="text-center mb-16">
             <Badge className="mb-4">AGENCY SUCCESS</Badge>
             <h2 className="text-4xl font-bold gradient-text mb-4">
-              Partner Success Stories
+              What agencies use it for
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              See how agencies are transforming their business with our platform
+              Three ways the tools help an agency work faster
             </p>
           </div>
 
@@ -271,18 +268,18 @@ export default function AgencyPage() {
           >
             <h2 className="text-3xl font-bold mb-4">Ready to Grow Your Agency?</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              Join our partner program and start offering AI-powered branding services today
+              Try the analysis on a client brief, or tell us what your agency needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/brand-strategy">
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-                  Become a Partner
+                  Analyze a client brand
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline">
-                Partner Success Stories
-              </Button>
+              <Link href="/contact">
+                <Button size="lg" variant="outline">Contact us</Button>
+              </Link>
             </div>
           </motion.div>
         </div>
