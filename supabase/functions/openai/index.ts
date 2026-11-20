@@ -24,7 +24,7 @@ Deno.serve(edgeHandler(async (req: Request) => {
 
   try {
     if (!isConfigured()) {
-      return json({ text: "This is a demo response. Please configure OPENAI_API_KEY in your Supabase project secrets.", demo: true });
+      return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     }
 
     const { prompt, type = 'text', effort, size, quality } = await req.json();
@@ -44,7 +44,7 @@ Deno.serve(edgeHandler(async (req: Request) => {
     });
     return json({ text: result.text, citations: result.citations });
   } catch (error) {
-    if (error instanceof NotConfiguredError) return json({ demo: true, error: error.message }, 503);
+    if (error instanceof NotConfiguredError) return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
 }, { bucket: 'openai' }));

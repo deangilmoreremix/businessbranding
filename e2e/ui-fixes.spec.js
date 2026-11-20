@@ -37,8 +37,8 @@ const session = (token, id) => () => {};
   ok('header tiles show the empty placeholder', (await page.locator('h3:text-is("—")').count()) === 4);
   await page.fill('input[aria-label="Business description or website"]', 'Acme Coffee, small-batch roaster');
   await page.click('button:has-text("Analyze")');
-  await page.waitForSelector('[data-testid=sample-data-label]', { timeout: 40000 }).then(() => ok('no key: results are labelled "Sample data - add your OpenAI key"', true)).catch(() => ok('no key: results are labelled "Sample data - add your OpenAI key"', false));
-  ok('  the label links to Settings', !!(await page.$('[data-testid=sample-data-label] a[href="/settings#ai"]')));
+  await page.waitForSelector('[data-testid=error-state][data-error-kind=key]', { timeout: 40000 }).then(() => ok('no key: an error state says the OpenAI key is missing (no results, no sample data)', true)).catch(() => ok('no key: an error state says the OpenAI key is missing', false));
+  ok('  it links to Settings and tiles stay empty', !!(await page.$('[data-testid=error-state] a[href="/settings#ai"]')) && (await page.locator('h3:text-is("—")').count()) === 4);
   await page.context().close();
 
   // with a key: real results, no sample label, tiles filled from the analysis
@@ -48,7 +48,7 @@ const session = (token, id) => () => {};
   await page.fill('input[aria-label="Business description or website"]', 'Acme Coffee, small-batch roaster');
   await page.click('button:has-text("Analyze")');
   await page.waitForSelector('[data-testid=pillar-breakdown]', { timeout: 60000 });
-  ok('with a key: no sample-data label', (await page.locator('[data-testid=sample-data-label]').count()) === 0);
+  ok('with a key: no error state', (await page.locator('[data-testid=error-state]').count()) === 0);
   ok('with a key: tiles are filled from the analysis', (await page.locator('h3:text-is("—")').count()) < 4);
   await page.context().close();
 

@@ -60,10 +60,10 @@ export default function HeroSection() {
           <Badge className="px-3 py-1.5 text-base">BUSINESS REBRANDING</Badge>
           
           <div className="space-y-8">
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tighter">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tighter" data-testid="hero-headline">
               <div className="gradient-text mb-4">Reinvent</div>
               <div className="mb-4">Your Brand</div>
-              <div className="h-24">
+              <div className="min-h-[3.1em] md:min-h-[2.1em]" data-testid="hero-typewriter">
                 <TypeAnimation
                   sequence={[
                     'With Strategic Analysis',
@@ -83,7 +83,7 @@ export default function HeroSection() {
               </div>
             </h1>
             
-            <p className="text-xl text-blue-200/80 max-w-2xl leading-relaxed">
+            <p className="text-xl text-blue-200/80 max-w-2xl leading-relaxed" data-testid="hero-subtitle">
               Transform your business identity with AI-powered rebranding. Our platform helps you evolve your brand with data-driven insights, modern design, and strategic positioning.
             </p>
           </div>

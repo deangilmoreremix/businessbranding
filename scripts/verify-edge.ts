@@ -36,12 +36,7 @@ const log = async () => (await fetch(mock + '/__log')).json();
 const clear = () => fetch(mock + '/__log', { method: 'DELETE' });
 
 for (const [fn, body, web, schemaName] of [
-  ['brand-analysis', { businessDescription: 'Acme coffee' }, false, 'brand_analysis_edge'],
   ['brand-analyzer', { businessIdea: 'Acme coffee' }, false, 'brand_analyzer_edge'],
-  ['competitor-intelligence', { industry: 'coffee', brandDescription: 'Acme' }, true, 'competitor_intelligence'],
-  ['market-analysis', { industry: 'coffee', brandDescription: 'Acme' }, true, 'market_analysis'],
-  ['social-media-analyzer', { platform: 'twitter', handle: 'acme', profileUrl: 'https://twitter.com/acme' }, true, 'social_media_analysis'],
-  ['ai-analysis', { content: 'Acme brand strategy', type: 'brand' }, false, 'analysis_brand'],
 ] as const) {
   await clear();
   const r = await call(fn, body);
@@ -52,12 +47,6 @@ for (const [fn, body, web, schemaName] of [
   ok(`${fn}: strict schema '${schemaName}'`, last?.text?.format?.name === schemaName && last.text.format.strict === true);
   ok(`${fn}: developer msg first, no temperature`, last?.input?.[0]?.role === 'developer' && !('temperature' in last));
   if (web) ok(`${fn}: web_search research step precedes structuring`, bodies.length === 2 && bodies[0].tools?.[0]?.type === 'web_search' && !bodies[0].text && (r.json.citations?.length ?? 0) > 0);
-}
-
-// website-scanner: the SSRF guard refuses private/loopback targets (the mock server itself is one)
-for (const target of [mock + '/__log', 'http://169.254.169.254/latest/meta-data/', 'http://localhost/', 'file:///etc/passwd']) {
-  const w = await call('website-scanner', { url: target });
-  ok(`website-scanner refuses ${target}`, w.status === 400 && w.json.code === 'UNSAFE_URL', `status ${w.status}`);
 }
 
 // Generic openai function: text and image

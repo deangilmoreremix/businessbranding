@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { AudioVisualizer } from './audio-visualizer';
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromSegments } from '@/lib/local/captions';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
 
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
@@ -45,7 +45,7 @@ export function AudiobookCreator() {
     { id: '1', title: 'Chapter 1', text: '', voiceId: 'marin' }
   ]);
   const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [captionSource, setCaptionSource] = useState<{ text: string; durationMs: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
@@ -75,11 +75,7 @@ export function AudiobookCreator() {
 
   const generateAudiobook = async () => {
     setGenerating(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 95));
-    }, 500);
+    setError(null);
 
     try {
       const response = await authFetch('/api/voice/audiobook', {
@@ -93,7 +89,7 @@ export function AudiobookCreator() {
         })
       });
 
-      if (!response.ok) throw new Error('Audiobook generation failed');
+      if (!response.ok) throw await toApiError(response, 'Audiobook generation failed');
 
       const durations = (response.headers.get('X-Segment-Durations') || '').split(',').filter(Boolean).map(Number);
       // Narration reads each chapter title before its text; mirror that in the captions
@@ -101,11 +97,9 @@ export function AudiobookCreator() {
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      setProgress(100);
-    } catch (error) {
-      console.error('Failed to generate audiobook:', error);
+    } catch (e) {
+      setError(e instanceof Error ? `${e.message}. You can try again.` : 'Audiobook generation failed. You can try again.');
     } finally {
-      clearInterval(progressInterval);
       setGenerating(false);
     }
   };
@@ -248,14 +242,8 @@ export function AudiobookCreator() {
           )}
         </Button>
 
-        {generating && (
-          <div className="space-y-2">
-            <Progress value={progress} />
-            <p className="text-sm text-center text-muted-foreground">
-              Generating audiobook content...
-            </p>
-          </div>
-        )}
+        <ElapsedStatus active={generating} label="Generating audiobook…" />
+        {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
 
         {audioUrl && (
           <Card className="p-4">

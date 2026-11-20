@@ -55,7 +55,6 @@ export default function BrandAnalysisClient({
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<BrandAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [websiteData, setWebsiteData] = useState<any>(null);
@@ -83,10 +82,10 @@ export default function BrandAnalysisClient({
 
   // Only start analysis when component is mounted and we have a business idea
   useEffect(() => {
-    if (mounted && businessIdea && !results && !loading) {
+    if (mounted && businessIdea && !results && !loading && !error) {
       handleAnalysis();
     }
-  }, [mounted, businessIdea, results, loading]);
+  }, [mounted, businessIdea, results, loading, error]);
 
   // Animate scores when results are loaded
   useEffect(() => {
@@ -133,17 +132,9 @@ export default function BrandAnalysisClient({
 
     setLoading(true);
     setError(null);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 95));
-    }, 1000);
-
     try {
       const analysis = await analyzerRef.current.analyzeBrandConcept(businessIdea);
       setResults(analysis);
-      setProgress(100);
-      
       if (onAnalysisComplete) {
         onAnalysisComplete(analysis);
       }
@@ -155,7 +146,6 @@ export default function BrandAnalysisClient({
         err
       ));
     } finally {
-      clearInterval(progressInterval);
       setLoading(false);
     }
   };
@@ -253,7 +243,7 @@ export default function BrandAnalysisClient({
 
   // Show loading state
   if (loading) {
-    return <LoadingState progress={progress} />;
+    return <LoadingState />;
   }
 
   // Show error state
@@ -1163,7 +1153,7 @@ export default function BrandAnalysisClient({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Data Collection Best Practices
+                  Data Collection Best Practices <Badge variant="secondary" className="ml-2">General guidance</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1235,7 +1225,7 @@ export default function BrandAnalysisClient({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5" />
-                  Analysis Review Process
+                  Analysis Review Process <Badge variant="secondary" className="ml-2">General guidance</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1294,49 +1284,11 @@ export default function BrandAnalysisClient({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
-                  Performance Optimization
+                  Performance Optimization <Badge variant="secondary" className="ml-2">General guidance</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-medium mb-3">Resource Management</h4>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Efficient Processing</span>
-                          <Badge variant="outline">Optimized</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Data Organization</span>
-                          <Badge variant="outline">Structured</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Team Coordination</span>
-                          <Badge variant="outline">Synchronized</Badge>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-3">Continuous Improvement</h4>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Regular Updates</span>
-                          <Badge variant="outline">Automated</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Performance Monitoring</span>
-                          <Badge variant="outline">Real-time</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Strategy Refinement</span>
-                          <Badge variant="outline">Adaptive</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   {(results.bestPractices?.optimization.recommendations.length ?? 0) > 0 && (
                     <div>
                       <h4 className="font-medium mb-3">Optimization Recommendations</h4>
@@ -1610,9 +1562,9 @@ export default function BrandAnalysisClient({
                         <div className="flex items-start gap-3">
                           <Target className="h-5 w-5 text-purple-500 mt-0.5" />
                           <div>
-                            <h4 className="font-medium mb-1">Strategic Recommendation</h4>
+                            <h4 className="font-medium mb-1">Top Recommendation</h4>
                             <p className="text-sm text-muted-foreground">
-                              Focus on strengthening your digital presence to capture the growing online market segment.
+                              {(() => { const top = results?.recommendations?.find((r) => r?.recommendation); return top ? `${top.recommendation}${top.timeframe ? ` (${top.timeframe})` : ''}` : 'No recommendations were returned for this analysis.'; })()}
                             </p>
                           </div>
                         </div>

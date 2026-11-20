@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildLocalSchedule, foldLine, nextAllowedDay, normalizeSchedule, parseTimelineDays, resolveOverlaps, toICalendar, type CalendarEvent } from '@/lib/services/calendar-service';
-import { budgetTotals, getDemoImplementationPlan, planToEvents } from '@/lib/services/implementation-plan';
+import { foldLine, nextAllowedDay, normalizeSchedule, parseTimelineDays, resolveOverlaps, toICalendar, type CalendarEvent } from '@/lib/services/calendar-service';
+import { budgetTotals, planToEvents } from '@/lib/services/implementation-plan';
+import { testPlan as getDemoImplementationPlan } from './fixtures/plan';
 
 const ev = (over: Omit<Partial<CalendarEvent>, 'start' | 'end'> & { start: string; end: string }): CalendarEvent => ({
   id: over.id ?? 'e', title: 'T', description: 'D', priority: 'medium', category: 'c', ...over, start: new Date(over.start), end: new Date(over.end)
@@ -48,20 +49,6 @@ describe('resolveOverlaps', () => {
     const b = ev({ id: 'b', start: '2026-01-05T10:00:00Z', end: '2026-01-05T12:00:00Z', metadata: { resources: ['Design'] } });
     expect(resolveOverlaps([a, b]).find((e) => e.id === 'b')!.start.toISOString()).toBe('2026-01-05T10:00:00.000Z');
   });
-});
-
-describe('buildLocalSchedule', () => {
-  const opts = { businessGoals: ['Launch site', 'Grow email list'], teamSize: 3, timeline: '3 months', preferences: { workingHours: ['9:00', '17:00'], excludedDays: ['Saturday', 'Sunday'] } };
-  const events = buildLocalSchedule(opts, new Date('2026-01-05T00:00:00Z'));
-  it('creates kickoff/build/review per goal, within the timeline, on allowed days, without overlap', () => {
-    expect(events).toHaveLength(6);
-    expect(events.every((e) => ![0, 6].includes(e.start.getUTCDay()))).toBe(true);
-    expect(events.every((e) => e.start.getUTCHours() === 9)).toBe(true);
-    for (let i = 1; i < events.length; i++) expect(events[i].start.getTime()).toBeGreaterThanOrEqual(events[i - 1].end.getTime());
-    expect(events[0].title).toMatch(/Kickoff: Launch site/);
-    expect(events[0].priority).toBe('high');
-  });
-  it('works with no goals', () => expect(buildLocalSchedule({ businessGoals: [], teamSize: 1, timeline: '1 week' }).length).toBeGreaterThan(0));
 });
 
 describe('iCalendar export', () => {

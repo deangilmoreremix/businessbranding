@@ -6,7 +6,7 @@ import { useLocalDraft } from '@/lib/local/use-draft';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Badge } from '@/components/ui/badge';
 import { 
   Palette, 
@@ -57,7 +57,6 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
   const [transformPrompt, setTransformPrompt] = useLocalDraft('visual:prompt', '');
   const [transformStyle, setTransformStyle] = useState('');
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [transformedImages, setTransformedImages] = useState<string[]>([]);
   const [savedImages, setSavedImages] = useState<string[]>([]);
@@ -83,12 +82,6 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
 
     setLoading(true);
     setError('');
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90));
-    }, 1000);
-
     try {
       const extractedTags = extractTagsFromPrompt(transformPrompt);
       setTags(extractedTags);
@@ -101,9 +94,6 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
         transformStyle || undefined
       );
       
-      clearInterval(progressInterval);
-      setProgress(100);
-      
       if (result && result.images && result.images.length > 0) {
         setTransformedImages(prev => [...prev, ...result.images]);
         setShowSaveForm(true);
@@ -115,7 +105,6 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
       setError(error instanceof Error ? error.message : 'Failed to transform image');
     } finally {
       setLoading(false);
-      clearInterval(progressInterval);
     }
   };
 
@@ -260,12 +249,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
             )}
 
             {loading && (
-              <div className="space-y-2">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-center text-muted-foreground">
-                  Transforming image...
-                </p>
-              </div>
+              <ElapsedStatus active label="Generating images…" />
             )}
 
             {error && (

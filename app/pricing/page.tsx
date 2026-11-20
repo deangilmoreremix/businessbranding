@@ -11,7 +11,7 @@ const faq = [
   { q: 'Is there a subscription or a paid plan?', a: 'No. There are no plans or payments in this app. You use it with your own OpenAI API key.' },
   { q: 'What does it cost to use?', a: 'OpenAI bills your OpenAI account for the requests you make (text, images, speech). The cost depends on what you run and on OpenAI’s current prices; see OpenAI’s pricing page. This app does not add a fee or a markup.' },
   { q: 'Where is my key stored?', a: 'On the server, encrypted (AES-256-GCM). The browser only ever sees the last four characters. You can replace or remove it at any time in Settings.' },
-  { q: 'What happens if I have no key?', a: 'You can open the pages, but AI features ask you to add a key first, and any sample results are labelled as sample data.' },
+  { q: 'What happens if I have no key?', a: 'You can open the pages, but AI features ask you to add a key first. Nothing is generated or shown as a result without one.' },
   { q: 'Do you store my images and audio?', a: 'Images and audio you create are kept in your browser (IndexedDB). Saved analyses stay in your browser too. If you are signed in and use Save, metadata rows are stored in your account.' }
 ];
 

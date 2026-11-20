@@ -56,7 +56,7 @@ export function setModelResolver(fn: (slot: ModelSlot) => string | undefined) {
   modelResolver = fn;
 }
 
-const usable = (key: string | undefined) => (key && key !== 'demo-mode' && key !== 'your_api_key_here' ? key : undefined);
+const usable = (key: string | undefined) => (key && key !== 'your_api_key_here' ? key : undefined);
 
 /**
  * The caller's own OpenAI key. A shared server key (OPENAI_API_KEY) is used ONLY when ALLOW_SERVER_OPENAI_KEY=true

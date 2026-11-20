@@ -1,10 +1,6 @@
 
 /** Fired when a request fails because the signed-in user has not added an OpenAI key yet. */
 export const KEY_REQUIRED_EVENT = 'openai-key-required';
-/** Fired when built-in sample data was shown instead of a real AI result (no key). */
-export const SAMPLE_DATA_EVENT = 'sample-data-used';
-/** Fired when the user's key is confirmed, so any 'sample data' label can go away. */
-export const SAMPLE_CLEARED_EVENT = 'sample-data-cleared';
 /** Fired when a request fails because there is no (valid) session. */
 export const AUTH_REQUIRED_EVENT = 'auth-required';
 

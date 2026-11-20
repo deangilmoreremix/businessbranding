@@ -107,49 +107,8 @@ Deno.serve(edgeHandler(async (req: Request) => {
       throw new Error('Business idea is required');
     }
 
-    // Return demo data if API key is missing
     if (!isConfigured()) {
-      return new Response(
-        JSON.stringify({
-          healthScore: 85,
-          marketFit: 0.78,
-          uniquenessScore: 0.82,
-          brandFactors: BRAND_PILLARS.map((pillar, index) => ({
-            name: pillar,
-            score: 0.7 + ((index * 7) % 20) / 100, // deterministic sample value
-            insights: [
-              'Strong foundation with room for growth',
-              'Consider enhancing this aspect'
-            ]
-          })),
-          competitors: [
-            {
-              name: 'TechCorp Solutions',
-              marketShare: 25,
-              strengths: ['Market presence', 'Product range'],
-              weaknesses: ['Customer service', 'Pricing']
-            },
-            {
-              name: 'Digital Dynamics',
-              marketShare: 15,
-              strengths: ['Innovation', 'Customer focus'],
-              weaknesses: ['Limited reach', 'Resource constraints']
-            }
-          ],
-          recommendations: [
-            'Enhance visual brand identity with more distinctive elements',
-            'Develop comprehensive content strategy across channels',
-            'Implement customer feedback loop for continuous improvement'
-          ],
-          demo: true
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }), { status: 412, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     console.log('Starting brand analysis for:', businessIdea);

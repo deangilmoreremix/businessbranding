@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
@@ -46,33 +46,19 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
     }
   });
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const steps = [
-    { id: 'goals', name: 'Business Goals Analysis', icon: Target },
-    { id: 'team', name: 'Team Capacity Planning', icon: Users },
-    { id: 'schedule', name: 'Schedule Generation', icon: CalendarIcon },
-    { id: 'optimize', name: 'Schedule Optimization', icon: Brain }
-  ];
 
   const handleGenerateSchedule = async () => {
     setLoading(true);
-    setProgress(0);
-    setCurrentStep(0);
+    setError(null);
 
     try {
-      // Simulate step progress
-      for (let i = 0; i < steps.length; i++) {
-        setCurrentStep(i);
-        await simulateStepProgress();
-      }
-
       const generatedSchedule = await generateSmartSchedule(options);
       setSchedule(generatedSchedule);
       onScheduleChange?.(generatedSchedule);
-    } catch (error) {
-      console.error('Failed to generate schedule:', error);
+    } catch (e) {
+      setError(e instanceof Error ? `Could not generate the schedule: ${e.message}. You can try again.` : 'Could not generate the schedule. You can try again.');
     } finally {
       setLoading(false);
     }
@@ -80,30 +66,16 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
 
   const handleOptimizeSchedule = async () => {
     setOptimizing(true);
+    setError(null);
     try {
       const optimizedSchedule = await optimizeSchedule(schedule, options.preferences?.excludedDays);
       setSchedule(optimizedSchedule);
       onScheduleChange?.(optimizedSchedule);
-    } catch (error) {
-      console.error('Failed to optimize schedule:', error);
+    } catch (e) {
+      setError(e instanceof Error ? `Could not optimize the schedule: ${e.message}. You can try again.` : 'Could not optimize the schedule. You can try again.');
     } finally {
       setOptimizing(false);
     }
-  };
-
-  const simulateStepProgress = async () => {
-    return new Promise<void>(resolve => {
-      let stepProgress = 0;
-      const interval = setInterval(() => {
-        stepProgress += 10;
-        setProgress(stepProgress);
-        
-        if (stepProgress >= 100) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 300);
-    });
   };
 
   return (
@@ -298,36 +270,8 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
             )}
           </Button>
 
-          {loading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span>{steps[currentStep].name}</span>
-                <span>{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
-              <div className="grid grid-cols-4 gap-2">
-                {steps.map((step, index) => (
-                  <motion.div
-                    key={step.id}
-                    className={`flex flex-col items-center p-2 rounded-lg ${
-                      index === currentStep ? 'bg-accent/50' :
-                      index < currentStep ? 'bg-accent/20' : ''
-                    }`}
-                    animate={{
-                      scale: index === currentStep ? 1.05 : 1,
-                      opacity: index > currentStep ? 0.5 : 1
-                    }}
-                  >
-                    <step.icon className={`h-5 w-5 ${
-                      index === currentStep ? 'text-blue-400 animate-pulse' :
-                      index < currentStep ? 'text-green-400' : 'text-muted-foreground'
-                    }`} />
-                    <span className="text-xs mt-1">{step.name}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
+          <ElapsedStatus active={loading || optimizing} label={optimizing ? 'Optimizing…' : 'Generating schedule…'} />
+          {error && <p role="alert" data-testid="schedule-error" className="text-sm text-red-600">{error}</p>}
         </div>
       </Card>
 

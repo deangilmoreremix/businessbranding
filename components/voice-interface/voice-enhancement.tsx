@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,7 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
 
 interface VoiceEnhancementProps {
   onEnhancementComplete?: (enhancedAudio: Blob) => void;
@@ -28,7 +28,7 @@ interface VoiceEnhancementProps {
 export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProps) {
   const [inputText, setInputText] = useState('');
   const [enhancing, setEnhancing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [enhancedAudioUrl, setEnhancedAudioUrl] = useState<string | null>(null);
   const [settings, setSettings] = useState({
     clarity: 0.75,
@@ -42,11 +42,7 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
     if (!inputText) return;
 
     setEnhancing(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 95));
-    }, 500);
+    setError(null);
 
     try {
       const response = await authFetch('/api/voice/enhance', {
@@ -58,9 +54,7 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Enhancement failed');
-      }
+      if (!response.ok) throw await toApiError(response, 'Enhancement failed');
 
       const { audioUrl } = await response.json();
       setEnhancedAudioUrl(audioUrl);
@@ -71,11 +65,9 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
         onEnhancementComplete(audioBlob);
       }
 
-      setProgress(100);
-    } catch (error) {
-      console.error('Enhancement failed:', error);
+    } catch (e) {
+      setError(e instanceof Error ? `${e.message}. You can try again.` : 'Enhancement failed. You can try again.');
     } finally {
-      clearInterval(progressInterval);
       setEnhancing(false);
     }
   };
@@ -196,14 +188,8 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
           )}
         </Button>
 
-        {enhancing && (
-          <div className="space-y-2">
-            <Progress value={progress} />
-            <p className="text-sm text-center text-muted-foreground">
-              {progress < 100 ? 'Enhancing voice content...' : 'Done!'}
-            </p>
-          </div>
-        )}
+        <ElapsedStatus active={enhancing} label="Enhancing…" />
+        {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
 
         {enhancedAudioUrl && (
           <Card className="p-4">

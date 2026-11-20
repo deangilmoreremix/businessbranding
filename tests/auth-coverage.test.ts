@@ -14,9 +14,7 @@ const OPEN_ROUTES: Record<string, string> = {
   'app/api/newsletter/route.ts': 'public newsletter sign-up: validated, size-capped, honeypot, rate-limited per client hash; service-role write only',
   'app/api/contact/route.ts': 'public contact form: validated, size-capped and rate-limited per client; writes with the service role only'
 };
-const OPEN_EDGE: Record<string, string> = {
-  'supabase/functions/hello-world/index.ts': 'trivial health-check function without AI or data access'
-};
+const OPEN_EDGE: Record<string, string> = {};
 
 // every file Next.js treats as a route handler (route.ts / .tsx / .js / .jsx / .mjs)
 const isRoute = (f: string) => /^route\.(ts|tsx|js|jsx|mjs)$/.test(f);

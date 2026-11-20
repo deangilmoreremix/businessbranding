@@ -34,7 +34,7 @@ Deno.serve(edgeHandler(async (req: Request) => {
       return json(REALTIME_VOICES.map((v) => ({ voice_id: v, name: v[0].toUpperCase() + v.slice(1), category: 'builtin' })));
     }
     if (!isConfigured()) {
-      return json({ demo: true, error: 'OPENAI_API_KEY is not configured' }, 503);
+      return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     }
 
     switch (endpoint) {

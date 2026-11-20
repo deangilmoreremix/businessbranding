@@ -6,14 +6,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromText } from '@/lib/local/captions';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
 
 const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
@@ -28,7 +28,7 @@ export function VoiceTranscription() {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [durationMs, setDurationMs] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,7 +45,7 @@ export function VoiceTranscription() {
     if (!file) return;
 
     setTranscribing(true);
-    setProgress(0);
+    setError(null);
 
     if (onDevice) {
       // Optional on-device Whisper (opt-in): the model is downloaded once and then cached by the browser.
@@ -56,10 +56,9 @@ export function VoiceTranscription() {
           if (p.status === 'progress' && p.progress !== undefined) setModelStatus(`Downloading model… ${Math.round(p.progress)}%`);
         });
         setResult(text || 'No speech detected.');
-        setProgress(100);
       } catch (error) {
         console.error('On-device transcription failed:', error);
-        setResult('On-device transcription failed in this browser. Turn it off to use OpenAI transcription.');
+        setError('On-device transcription failed in this browser. Turn it off to use OpenAI transcription, or try again.');
       } finally {
         setModelStatus('');
         setTranscribing(false);
@@ -73,27 +72,17 @@ export function VoiceTranscription() {
     if (context.trim()) formData.append('prompt', context.trim());
 
     try {
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90));
-      }, 1000);
-
       const response = await authFetch('/api/voice/transcribe', {
         method: 'POST',
         body: formData
       });
 
-      clearInterval(progressInterval);
-
-      if (!response.ok) {
-        throw new Error('Transcription failed');
-      }
+      if (!response.ok) throw await toApiError(response, 'Transcription failed');
 
       const data = await response.json();
       setResult(data.text);
-      setProgress(100);
     } catch (error) {
-      console.error('Transcription failed:', error);
-      setResult('Transcription failed. Please try again.');
+      setError(error instanceof Error ? `${error.message}. You can try again.` : 'Transcription failed. You can try again.');
     } finally {
       setTranscribing(false);
     }
@@ -197,14 +186,8 @@ export function VoiceTranscription() {
               )}
             </Button>
 
-            {transcribing && (
-              <div className="space-y-2">
-                <Progress value={progress} />
-                <p className="text-sm text-center text-muted-foreground">
-                  {progress < 100 ? 'Processing audio...' : 'Done!'}
-                </p>
-              </div>
-            )}
+            <ElapsedStatus active={transcribing} label="Transcribing…" />
+            {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
           </div>
 
           <Card className="p-4">

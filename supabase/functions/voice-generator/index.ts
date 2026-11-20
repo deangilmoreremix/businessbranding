@@ -24,13 +24,13 @@ Deno.serve(edgeHandler(async (req: Request) => {
     }
 
     if (!isConfigured()) {
-      return json({ demo: true, error: 'OPENAI_API_KEY is not configured' }, 503);
+      return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     }
 
     const { audio } = await synthesizeSpeech({ text, voice: voiceId, instructions });
     return new Response(audio, { headers: { ...corsHeaders, 'Content-Type': 'audio/wav' } });
   } catch (error) {
-    if (error instanceof NotConfiguredError) return json({ demo: true, error: error.message }, 503);
+    if (error instanceof NotConfiguredError) return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
 }, { bucket: 'voice-generator' }));

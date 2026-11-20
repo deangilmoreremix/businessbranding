@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { ExportDialog } from '@/components/export-dialog';
+import { ReportExportMenu } from '@/components/report-export-menu';
+import { PLAN_SECTIONS, buildPlanReportModel } from '@/lib/report-export';
+import { toICalendar } from '@/lib/services/calendar-service';
 import { 
   Calendar,
   Target,
@@ -25,7 +27,7 @@ import {
   Building,
   Brain
 } from 'lucide-react';
-import type { ImplementationPlan as ImplementationPlanData, ImplementationPhase } from '@/lib/services/implementation-plan';
+import { planToEvents, type ImplementationPlan as ImplementationPlanData, type ImplementationPhase } from '@/lib/services/implementation-plan';
 import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveBar } from '@nivo/bar';
 
@@ -132,13 +134,12 @@ export function ImplementationPlan({ plan }: ImplementationPlanProps) {
           <h2 className="text-2xl font-bold">{plan.overview.title}</h2>
           <p className="text-muted-foreground">{plan.overview.description}</p>
         </div>
-        <ExportDialog
-          data={plan}
-          charts={[
-            { id: 'budget-chart', name: 'Budget Allocation', type: 'bar' },
-            { id: 'risk-chart', name: 'Risk Assessment', type: 'pie' }
-          ]}
-          reportId="implementation-plan-report"
+        <ReportExportMenu
+          sections={PLAN_SECTIONS}
+          buildModel={(ids) => buildPlanReportModel(plan, ids)}
+          formats={['pdf', 'excel', 'word', 'ics']}
+          buildIcs={() => toICalendar(planToEvents(plan), plan.overview.title)}
+          filenameBase="implementation-plan"
         />
       </div>
 

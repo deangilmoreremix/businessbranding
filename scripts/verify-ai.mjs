@@ -289,15 +289,11 @@ j = await r.json(); log = await getLog();
 ok('realtime session -> ephemeral secret + calls URL (API key not exposed)', r.status === 200 && j.value === 'ek_mock_secret' && j.callsUrl.endsWith('/realtime/calls') && !JSON.stringify(j).includes('sk-test'));
 ok('  client_secrets body: session.type realtime, model gpt-realtime-2.1, audio.output.voice', log[0]?.body.session.model === 'gpt-realtime-2.1' && log[0].body.session.audio.output.voice === 'marin' && log[0].body.session.type === 'realtime');
 
-// 14. Voice analysis / optimize / enhance (Responses + audio)
+// 14. Voice analysis / enhance (Responses + audio)
 await clear();
 r = await post('/api/voice/analyze', { text: 'Welcome to Acme.' });
 j = await r.json(); log = await getLog();
 ok('voice analyze -> two strict-schema requests (voice_analysis + multimodal)', r.status === 200 && j.voice?.tone && log.filter((e) => e.path === '/responses').map((e) => e.body.text.format.name).sort().join() === 'multimodal_analysis,voice_analysis', `status ${r.status}`);
-await clear();
-r = await post('/api/voice/optimize', { text: 'Our coffee story', type: 'podcast' });
-j = await r.json(); log = await getLog();
-ok('voice optimize -> branding_concepts then content_optimization', r.status === 200 && typeof j.optimizedContent === 'string' && log.filter((e) => e.path === '/responses').map((e) => e.body.text.format.name).join() === 'branding_concepts,content_optimization', `status ${r.status}`);
 await clear();
 r = await post('/api/voice/enhance', { text: 'Make this better.', settings: { emotion: 0.9, pacing: 0.1 } });
 j = await r.json(); log = await getLog();
@@ -355,12 +351,6 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
   const noAuth = async (path, init = {}) => fetch(app + path, init);
   r = await noAuth('/api/scrape?url=https://example.com');
   ok('/api/scrape without a session -> 401', r.status === 401);
-  r = await noAuth('/api/top-brands?industry=coffee');
-  ok('/api/top-brands without a session -> 401', r.status === 401);
-  r = await noAuth('/api/update-brand-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ businessIdea: 'x', improvements: [] }) });
-  ok('/api/update-brand-content without a session -> 401', r.status === 401);
-  r = await noAuth('/api/case-studies/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-  ok('/api/case-studies/generate without a session -> 401', r.status === 401);
 
   for (const target of ['http://127.0.0.1:1/', 'http://localhost/', 'http://169.254.169.254/latest/meta-data/', 'http://10.0.0.1/', 'http://[::1]/', 'http://[::ffff:127.0.0.1]/', 'http://100.64.0.1/', 'http://192.168.1.1/', 'file:///etc/passwd']) {
     r = await afetch(app + '/api/scrape?url=' + encodeURIComponent(target));

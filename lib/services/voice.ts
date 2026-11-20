@@ -1,4 +1,4 @@
-import { callTask, isDemoMode } from './ai';
+import { callTask } from './ai';
 import type {
   AudiobookOptions,
   ContentOptimizationOptions,
@@ -128,51 +128,5 @@ export async function getTranscriptionModels(): Promise<{ model_id: string; name
 
 /** Tone, sentiment and audience-fit analysis of a script (Structured Outputs). */
 export async function analyzeVoiceContent(text: string): Promise<VoiceAnalysisResult> {
-  if (await isDemoMode()) {
-    return {
-      tone: {
-        formal: 0.7,
-        casual: 0.3,
-        emotional: 0.5,
-        professional: 0.8
-      },
-      sentiment: {
-        positive: 0.6,
-        negative: 0.1,
-        neutral: 0.3
-      },
-      culturalSensitivity: {
-        issues: ['None found'],
-        score: 0.95
-      },
-      emotionalResonance: {
-        primary: 'trust',
-        secondary: ['confidence', 'reliability'],
-        intensity: 0.8
-      },
-      audienceAlignment: {
-        score: 0.85,
-        recommendations: [
-          'Consider more technical terminology for professional audience',
-          'Add industry-specific examples'
-        ]
-      }
-    };
-  }
   return (await callTask<VoiceAnalysisResult>('voice_analysis', `Analyze this voice script for tone, sentiment, cultural sensitivity, emotional resonance and audience alignment:\n\n${text}`)).data;
-}
-
-/** Rewrite a script for a platform (podcast, audiobook, advertisement, training). */
-export async function optimizeContent(text: string, options: ContentOptimizationOptions): Promise<string> {
-  if (await isDemoMode()) return `${text}\n\n[Optimized for ${options.platform}]`;
-  try {
-    const { data } = await callTask<{ optimizedText: string }>(
-      'content_optimization',
-      `Optimize this script for ${options.platform}.${options.targetLength ? ` Target about ${options.targetLength} words.` : ''}${options.seoKeywords?.length ? ` Work in these keywords naturally: ${options.seoKeywords.join(', ')}.` : ''}${options.preserveKeyMessages?.length ? ` Preserve these key messages: ${options.preserveKeyMessages.join('; ')}.` : ''}\n\nScript:\n${text}`
-    );
-    return data.optimizedText;
-  } catch (error) {
-    console.error('Content optimization failed:', error);
-    return text; // keep the original script if optimization fails
-  }
 }

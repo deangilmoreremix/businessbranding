@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { ExportDialog } from '@/components/export-dialog';
 import Link from 'next/link';
 import { getContentItems, getVoiceProfiles, getImageAssets, deleteContentItem, deleteImageAsset, type ContentItem, type VoiceProfile, type ImageAsset } from '@/lib/supabase';
 import { deleteAsset, getAsset } from '@/lib/local/store';

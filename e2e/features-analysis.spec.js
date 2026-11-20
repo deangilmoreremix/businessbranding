@@ -26,7 +26,7 @@ const save = async (dl, name) => { const p = out(`e2e-${name}`); await dl.saveAs
     await resp;
     await page.waitForSelector('[data-testid=pillar-breakdown]', { timeout: 60000 });
     ok('brand analysis: strict-schema analysis rendered with the user key (pillar breakdown, 20 pillars)', (await page.locator('[data-testid=pillar-breakdown] li').count()) >= 1);
-    ok('brand analysis: not labelled as sample data', (await page.locator('[data-testid=sample-data-label]').count()) === 0);
+    ok('brand analysis: no error state', (await page.locator('[data-testid=error-state]').count()) === 0);
     const tiles = await page.locator('h3').allInnerTexts();
     ok('brand analysis: header tiles filled from the analysis', tiles.some((t) => /^\d+%$/.test(t.trim())), tiles.slice(0, 6).join(' | '));
   });

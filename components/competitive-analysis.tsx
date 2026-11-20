@@ -1,181 +1,68 @@
 'use client';
 
-import { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ExportDialog } from '@/components/export-dialog';
-import {
-  BarChart,
-  Globe,
-  Users,
-  FileText,
-  Layers,
-  Target,
-  DollarSign,
-  Brain,
-  Heart,
-  Shield,
-  TrendingUp,
-  Settings,
-  UserCheck,
-  Scale,
-  MessageSquare,
-  ArrowUpRight,
-  Building,
-  HeadphonesIcon,
-  Star,
-  Zap,
-  Search,
-  Filter
-} from 'lucide-react';
-import { ResponsiveBar } from '@nivo/bar';
-import { ResponsivePie } from '@nivo/pie';
-import { ResponsiveRadar } from '@nivo/radar';
-import { Input } from '@/components/ui/input';
+import { ReportExportMenu } from '@/components/report-export-menu';
+import { COMPETITIVE_SECTIONS, buildCompetitiveReportModel } from '@/lib/report-export';
+import { formatFraction, formatPercent, toPercent } from '@/lib/format';
+import type { BrandAnalysis } from '@/lib/services/brand-analyzer';
 
-interface CompetitiveAnalysisProps {
-  analysis: any;
-}
-
-import { toPercent } from '@/lib/format';
-
-export function CompetitiveAnalysis({ analysis }: CompetitiveAnalysisProps) {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
-  // Only metrics that were actually measured are shown; nothing is filled in with stock numbers.
-  const metric = (name: string, key: string) => ({ name, value: toPercent(analysis?.[key]) });
-
-  const analysisCategories = [
-    {
-      title: 'Digital Footprint',
-      icon: Globe,
-      color: 'blue',
-      metrics: [
-        metric('Website Score', 'websiteScore'),
-        metric('Social Engagement', 'socialEngagement'),
-        metric('Online Visibility', 'onlineVisibility')
-      ]
-    },
-    {
-      title: 'Customer Experience',
-      icon: Users,
-      color: 'purple',
-      metrics: [
-        metric('Response Time', 'responseTime'),
-        metric('Service Quality', 'serviceQuality'),
-        metric('Customer Satisfaction', 'customerSatisfaction')
-      ]
-    },
-    {
-      title: 'Market Position',
-      icon: Target,
-      color: 'indigo',
-      metrics: [
-        metric('Market Share', 'marketShare'),
-        metric('Brand Strength', 'brandStrength'),
-        metric('Competitive Edge', 'competitiveEdge')
-      ]
-    },
-    {
-      title: 'Content Strategy',
-      icon: FileText,
-      color: 'green',
-      metrics: [
-        metric('Content Quality', 'qualityScore'),
-        metric('Engagement Rate', 'engagementRate'),
-        metric('Content Frequency', 'frequencyScore')
-      ]
-    },
-    {
-      title: 'Visual Branding',
-      icon: Layers,
-      color: 'rose',
-      metrics: [
-        metric('Consistency', 'consistencyScore'),
-        metric('Professionalism', 'professionalismScore'),
-        metric('Visual Impact', 'impactScore')
-      ]
-    }
+/**
+ * Competitive view of a finished brand analysis. Every number comes from that analysis and carries its TRUE name:
+ * brand health, market fit and uniqueness are not relabelled as market share / brand strength / competitive edge.
+ */
+export function CompetitiveAnalysis({ analysis }: { analysis: Pick<BrandAnalysis, 'healthScore' | 'marketFit' | 'uniquenessScore' | 'competitors'> }) {
+  const measures = [
+    { name: 'Brand health', value: toPercent(analysis.healthScore), text: formatPercent(analysis.healthScore, 'Not measured') },
+    { name: 'Market fit', value: toPercent(analysis.marketFit), text: formatFraction(analysis.marketFit, 0, 'Not measured') },
+    { name: 'Uniqueness', value: toPercent(analysis.uniquenessScore), text: formatFraction(analysis.uniquenessScore, 0, 'Not measured') }
   ];
-
-  const filteredCategories = analysisCategories.filter(category => {
-    if (selectedCategory !== 'all' && category.title.toLowerCase() !== selectedCategory.toLowerCase()) {
-      return false;
-    }
-    return category.title.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  const competitors = analysis.competitors ?? [];
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <Card className="p-6" data-testid="competitive-analysis">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold">Competitive Analysis</h2>
-          <p className="text-muted-foreground">
-            Comprehensive analysis across key business dimensions
-          </p>
+          <p className="text-muted-foreground">Scores and competitors from your brand analysis</p>
         </div>
-        <ExportDialog
-          data={analysis}
-          charts={[
-            { id: 'competitive-radar', name: 'Competitive Radar', type: 'radar' },
-            { id: 'market-share', name: 'Market Share', type: 'pie' },
-            { id: 'performance-metrics', name: 'Performance Metrics', type: 'bar' }
-          ]}
-          reportId="competitive-analysis"
+        <ReportExportMenu
+          sections={COMPETITIVE_SECTIONS}
+          buildModel={(ids) => buildCompetitiveReportModel(analysis, ids)}
+          filenameBase="competitive-analysis"
         />
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search analysis categories..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="outline"
-          className="flex items-center gap-2"
-          onClick={() => setSelectedCategory(selectedCategory === 'all' ? 'digital' : 'all')}
-        >
-          <Filter className="h-4 w-4" />
-          {selectedCategory === 'all' ? 'Filter' : 'Clear Filter'}
-        </Button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {measures.map((m) => (
+          <Card key={m.name} className="p-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-muted-foreground">{m.name}</span>
+              <span className="font-medium" data-testid={m.value === null ? 'metric-unmeasured' : 'metric-value'}>{m.text}</span>
+            </div>
+            <Progress value={m.value ?? 0} className="h-1" />
+          </Card>
+        ))}
       </div>
 
-      <ScrollArea className="h-[600px] pr-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCategories.map((category, index) => (
-            <Card key={index} className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`h-10 w-10 rounded-lg bg-${category.color}-500/20 flex items-center justify-center`}>
-                  <category.icon className={`h-5 w-5 text-${category.color}-500`} />
-                </div>
-                <h3 className="font-medium">{category.title}</h3>
+      <h3 className="font-medium mb-3">Competitors</h3>
+      {competitors.length === 0 ? (
+        <p className="text-sm text-muted-foreground" data-testid="no-competitors">No competitors were returned for this analysis.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {competitors.map((c) => (
+            <Card key={c.name} className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">{c.name}</span>
+                {c.marketPosition && <Badge variant="outline">{c.marketPosition}</Badge>}
               </div>
-              <div className="space-y-3">
-                {category.metrics.map((m, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">{m.name}</span>
-                      <span data-testid={m.value === null ? 'metric-unmeasured' : 'metric-value'}>{m.value === null ? 'Not measured' : `${Math.round(m.value)}%`}</span>
-                    </div>
-                    <Progress value={m.value ?? 0} className="h-1" />
-                  </div>
-                ))}
-              </div>
+              <p className="text-sm"><span className="text-muted-foreground">Strengths: </span>{c.strengths?.length ? c.strengths.join('; ') : 'Not measured'}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Weaknesses: </span>{c.weaknesses?.length ? c.weaknesses.join('; ') : 'Not measured'}</p>
             </Card>
           ))}
         </div>
-      </ScrollArea>
+      )}
     </Card>
   );
 }

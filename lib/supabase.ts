@@ -21,66 +21,34 @@ const isValidKey = (key: string | undefined): boolean => {
   return true;
 };
 
-// Initialize with demo mode if environment variables are missing or invalid
-const isDemoMode = !isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey);
+// Without a configured project every operation reports a clear error: nothing pretends to succeed and no data is invented.
+const notConfigured = !isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey);
+const NOT_CONFIGURED = { message: 'Supabase is not configured', code: 'NOT_CONFIGURED' };
 
-// Create a client with safeguards for demo mode
-let supabase: any;
-
-if (isDemoMode) {
-  // Create a mock client that returns demo data and never throws network errors
-  supabase = {
-    from: (table: string) => ({
-      select: () => ({
-        order: () => Promise.resolve({ data: [], error: null }),
-        limit: () => Promise.resolve({ data: [], error: null })
-      }),
-      insert: () => ({
-        select: () => ({
-          single: () => Promise.resolve({ data: null, error: null })
-        })
-      }),
-      delete: () => ({
-        eq: () => Promise.resolve({ error: null })
-      })
-    }),
-    rpc: (fnName: string, params: any) => Promise.resolve({ data: null, error: null })
+/** A client whose every call resolves with an error (never with fake rows). */
+function unavailableClient(): any {
+  const fail = () => Promise.resolve({ data: null, error: NOT_CONFIGURED });
+  const terminal: any = { select: () => terminal, order: fail, limit: fail, single: fail, eq: fail, insert: () => terminal, delete: () => terminal, update: () => terminal };
+  return {
+    from: () => terminal,
+    rpc: fail,
+    auth: { getSession: () => Promise.resolve({ data: { session: null }, error: NOT_CONFIGURED }) }
   };
+}
+
+let supabase: any;
+if (notConfigured) {
+  supabase = unavailableClient();
 } else {
-  // Create real client
   try {
     supabase = createClient(supabaseUrl!, supabaseAnonKey!);
   } catch (error) {
     console.error('Failed to create Supabase client:', error);
-    // Fallback to demo mode if client creation fails
-    supabase = {
-      from: () => ({
-        select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
-          limit: () => Promise.resolve({ data: [], error: null })
-        }),
-        insert: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: null, error: null })
-          })
-        }),
-        delete: () => ({
-          eq: () => Promise.resolve({ error: null })
-        })
-      }),
-      rpc: (fnName: string, params: any) => Promise.resolve({ data: null, error: null })
-    };
+    supabase = unavailableClient();
   }
 }
 
-export { supabase, isDemoMode };
-
-// Add demo mode warning
-if (isDemoMode) {
-  console.warn('Running in demo mode - Supabase connection not available');
-} else {
-  console.log('Supabase connection established successfully.');
-}
+export { supabase, notConfigured };
 
 export type ContentItem = {
   id: string;
@@ -137,7 +105,7 @@ async function sessionClient(): Promise<any> {
 }
 
 async function currentUser(): Promise<{ client: any; id: string }> {
-  if (isDemoMode) throw new DataError('Saving needs a connected Supabase project.', 'NOT_CONFIGURED');
+  if (notConfigured) throw new DataError('Saving needs a connected Supabase project.', 'NOT_CONFIGURED');
   const client = await sessionClient();
   const { data } = await client.auth.getUser().catch(() => ({ data: null as any }));
   const id = data?.user?.id;
@@ -146,7 +114,7 @@ async function currentUser(): Promise<{ client: any; id: string }> {
 }
 
 async function listRows<T>(table: Table): Promise<T[]> {
-  if (isDemoMode) return [];
+  if (notConfigured) return [];
   const client = await sessionClient();
   const { data: auth } = await client.auth.getUser().catch(() => ({ data: null as any }));
   if (!auth?.user) return []; // signed out: nothing is theirs to show
@@ -183,7 +151,7 @@ export const deleteImageAsset = (id: string) => deleteRow('image_assets', id);
 /** Check whether the required tables exist (admin/diagnostic use). */
 export async function checkRequiredTables() {
   const all = ['content_items', 'voice_profiles', 'image_assets'];
-  if (isDemoMode) return { exists: false, missingTables: all, error: 'Supabase is not configured' };
+  if (notConfigured) return { exists: false, missingTables: all, error: 'Supabase is not configured' };
   const checks = await Promise.all(all.map((t) => supabase.from(t).select('id').limit(1)));
   const missingTables = all.filter((_, i) => checks[i].error);
   return { exists: missingTables.length === 0, missingTables };

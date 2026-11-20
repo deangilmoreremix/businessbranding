@@ -56,17 +56,22 @@ describe('normalizeAnalysis handles odd model output', () => {
   });
 });
 
-describe('CompetitiveAnalysis shows only measured values', () => {
-  it('renders "Not measured" instead of stock numbers when data is missing', () => {
-    const html = renderToStaticMarkup(<CompetitiveAnalysis analysis={{ marketShare: 0.4, brandStrength: 'n/a' }} />);
-    expect(html).toContain('Not measured');
-    expect(html).toContain('40%'); // 0.4 -> 40%
-    for (const fake of ['85%', '78%', '82%', '90%', '88%', '25%', '80%', '75%', '92%']) expect(html).not.toContain(`>${fake}<`);
+describe('CompetitiveAnalysis shows only measured values under their TRUE names', () => {
+  it('shows brand health / market fit / uniqueness (not relabelled as market share, strength or edge)', () => {
+    const html = renderToStaticMarkup(<CompetitiveAnalysis analysis={{ healthScore: 72, marketFit: 0.4, uniquenessScore: null, competitors: [{ name: 'Rival', marketPosition: 'leader', strengths: ['Reach'], weaknesses: [], growthRate: 0 } as any] }} />);
+    expect(html).toContain('Brand health');
+    expect(html).toContain('Market fit');
+    expect(html).toContain('Uniqueness');
+    expect(html).toContain('>72%<');
+    expect(html).toContain('>40%<');
+    expect(html).toContain('Not measured'); // uniqueness is null
+    for (const wrong of ['Market Share', 'Brand Strength', 'Competitive Edge']) expect(html).not.toContain(wrong);
+    expect(html).toContain('Rival');
   });
-  it('renders without any analysis at all', () => {
-    const html = renderToStaticMarkup(<CompetitiveAnalysis analysis={undefined} />);
-    expect(html).not.toMatch(/\d+%</);
-    expect(html).toContain('Not measured');
+  it('shows nothing invented when there is no data', () => {
+    const html = renderToStaticMarkup(<CompetitiveAnalysis analysis={{ healthScore: null, marketFit: null, uniquenessScore: null, competitors: [] }} />);
+    expect(html).not.toMatch(/>\d+%</);
+    expect(html).toContain('No competitors were returned');
   });
 });
 

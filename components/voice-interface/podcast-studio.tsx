@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { 
@@ -42,7 +42,7 @@ export function PodcastStudio() {
     { id: '1', text: '', voiceId: 'marin' }
   ]);
   const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [captionSource, setCaptionSource] = useState<{ text: string; durationMs: number }[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -94,11 +94,7 @@ export function PodcastStudio() {
     if (!title || generating || segments.some(s => !s.text)) return;
 
     setGenerating(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 95));
-    }, 500);
+    setError(null);
 
     try {
       // Generate the podcast with OpenAI text-to-speech (one voice per segment)
@@ -135,11 +131,9 @@ export function PodcastStudio() {
         metadata: { description, segments: segments.map((x) => ({ text: x.text, voiceId: x.voiceId })) }
       }));
 
-      setProgress(100);
-    } catch (error) {
-      console.error('Failed to generate podcast:', error);
+    } catch (e) {
+      setError(e instanceof Error ? `Podcast generation failed: ${e.message}. You can try again.` : 'Podcast generation failed. You can try again.');
     } finally {
-      clearInterval(progressInterval);
       setGenerating(false);
     }
   };
@@ -258,14 +252,8 @@ export function PodcastStudio() {
           )}
         </Button>
 
-        {generating && (
-          <div className="space-y-2">
-            <Progress value={progress} />
-            <p className="text-sm text-center text-muted-foreground">
-              Generating podcast content...
-            </p>
-          </div>
-        )}
+        <ElapsedStatus active={generating} label="Generating podcast…" />
+        {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
 
         {audioUrl && !generating && (
           <Card className="p-4">

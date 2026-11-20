@@ -47,15 +47,9 @@ export default function BrandStrategyPage() {
           <BusinessAnalyzer onAnalysisComplete={setBusinessInfo} />
         </div>
 
-        {brandAnalysisResults && brandAnalysisResults.marketFit !== null && brandAnalysisResults.healthScore !== null && brandAnalysisResults.uniquenessScore !== null && (
+        {brandAnalysisResults && (
           <div className="mb-16">
-            <CompetitiveAnalysis 
-              analysis={{
-                marketShare: Math.round(brandAnalysisResults.marketFit * 100),
-                brandStrength: Math.round(brandAnalysisResults.healthScore),
-                competitiveEdge: Math.round(brandAnalysisResults.uniquenessScore * 100)
-              }}
-            />
+            <CompetitiveAnalysis analysis={brandAnalysisResults} />
           </div>
         )}
 

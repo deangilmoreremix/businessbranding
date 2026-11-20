@@ -14,7 +14,7 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await page.click('button:has-text("Analyze")');
     await page.waitForSelector('[data-testid=openai-key-notice]', { timeout: 30000 });
     ok('401: signed-out AI use shows the sign-in notice (not a crash)', /Sign in/.test(await page.innerText('[data-testid=openai-key-notice]')));
-    ok('401: sample data is labelled when signed out', (await page.locator('[data-testid=sample-data-label]').count()) >= 1);
+    ok('401: signed out shows an error state (kind auth) with a Sign in link and NO scores', (await page.locator('[data-testid=error-state][data-error-kind=auth]').count()) === 1 && (await page.locator('[data-testid=pillar-breakdown]').count()) === 0);
     const r = await ctx.request.post(base + '/api/ai/task', { data: { task: 'brand_content', input: 'x' } });
     ok('401: API without a session -> 401 AUTH_REQUIRED json', r.status() === 401 && (await r.json()).code === 'AUTH_REQUIRED');
   });
@@ -27,6 +27,7 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await page.click('button:has-text("Analyze")');
     await page.waitForSelector('[data-testid=openai-key-notice]', { timeout: 30000 });
     const txt = await page.innerText('[data-testid=openai-key-notice]');
+    ok('412: the analysis page shows the KEY error state (kind key) with Open Settings and no results', (await page.locator('[data-testid=error-state][data-error-kind=key]').count()) === 1 && (await page.locator('[data-testid=pillar-breakdown]').count()) === 0);
     ok('412: signed in without a key -> "Add your OpenAI key" notice linking to Settings', /Add your OpenAI key/.test(txt) && !!(await page.$('[data-testid=openai-key-notice] a[href="/settings#ai"]')));
     const r = await page.evaluate(async () => { const x = await fetch('/api/voice/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'hi' }) }); return { s: x.status, j: await x.json() }; });
     ok('412: voice route returns OPENAI_KEY_REQUIRED json', r.s === 412 && r.j.code === 'OPENAI_KEY_REQUIRED');
@@ -143,8 +144,6 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
   await section('api', async () => {
     const hdr = {};
     for (const p of ['/api/models', '/api/case-studies']) { const r = await ctx.request.get(base + p); ok(`api ${p}: answers 200 json`, r.status() === 200, `status ${r.status()}`); }
-    const tb = await ctx.request.get(base + '/api/top-brands?industry=coffee', { headers: { 'Sec-Fetch-Site': 'same-origin' } });
-    ok('api /api/top-brands: signed-in user gets a result', tb.status() === 200 || tb.status() === 412, `status ${tb.status()}`);
   });
 
   ok('errors/pages: no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));

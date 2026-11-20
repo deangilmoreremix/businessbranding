@@ -1,9 +1,8 @@
-import { callTask, isDemoMode } from './ai';
+import { callTask } from './ai';
 
 /**
  * Smart scheduling and iCalendar export.
- *  - generateSmartSchedule / optimizeSchedule: OpenAI (Responses API, strict schemas) with a deterministic local planner
- *    used for demo mode and whenever the AI call fails.
+ *  - generateSmartSchedule / optimizeSchedule: OpenAI (Responses API, strict schemas). There is no fallback schedule: failures are thrown.
  *  - toICalendar / downloadICalendar: RFC 5545 export that opens in Google Calendar, Outlook and Apple Calendar.
  */
 
@@ -137,45 +136,6 @@ function shareResource(a: CalendarEvent, b: CalendarEvent): boolean {
   return ra.some((r) => rb.includes(r));
 }
 
-/**
- * Deterministic planner (demo mode and AI fallback): goals are split into kickoff, build and review sessions spread
- * evenly across the timeline, one session per allowed working day, inside working hours.
- */
-export function buildLocalSchedule(options: SmartScheduleOptions, from: Date = new Date()): CalendarEvent[] {
-  const goals = options.businessGoals.length ? options.businessGoals : ['Implementation kickoff'];
-  const excluded = options.preferences?.excludedDays ?? [];
-  const [sh, sm] = parseTime(options.preferences?.workingHours?.[0], [9, 0]);
-  const [eh, em] = parseTime(options.preferences?.workingHours?.[1], [17, 0]);
-  const days = parseTimelineDays(options.timeline);
-  const phases: { name: string; category: string; priority: Priority }[] = [
-    { name: 'Kickoff', category: 'Planning', priority: 'high' },
-    { name: 'Build', category: 'Execution', priority: 'medium' },
-    { name: 'Review', category: 'Review', priority: 'low' }
-  ];
-  const slots = goals.length * phases.length;
-  const stepDays = Math.max(1, Math.floor(days / slots));
-  const sessionMinutes = Math.max(60, Math.min((eh * 60 + em - (sh * 60 + sm)) / 2, 240));
-  const base = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), sh, sm));
-  const events: CalendarEvent[] = [];
-  let n = 0;
-  goals.forEach((goal, gi) => {
-    phases.forEach((phase, pi) => {
-      const day = new Date(base.getTime() + (gi * phases.length + pi) * stepDays * DAY_MS);
-      const start = nextAllowedDay(day, excluded);
-      events.push({
-        id: `local-${++n}`,
-        title: `${phase.name}: ${goal}`,
-        description: `${phase.name} session for "${goal}" (${options.teamSize} team member${options.teamSize === 1 ? '' : 's'}).`,
-        start,
-        end: new Date(start.getTime() + sessionMinutes * 60_000),
-        priority: phase.priority,
-        category: phase.category,
-        metadata: { resources: [`Team of ${options.teamSize}`], objectives: [goal] }
-      });
-    });
-  });
-  return resolveOverlaps(events, excluded);
-}
 
 // ---------------------------------------------------------------------------------------------
 // iCalendar (RFC 5545)
@@ -244,53 +204,29 @@ export function downloadICalendar(events: CalendarEvent[], filename = 'implement
 // ---------------------------------------------------------------------------------------------
 // AI-backed generation with local fallback
 // ---------------------------------------------------------------------------------------------
-/** Example AI response; also the fixture the strict JSON schema is generated from (scripts/gen-ai-schemas.mjs). */
-export function getDemoSchedule(): { events: RawScheduleEvent[] } {
-  return {
-    events: [
-      {
-        id: 'evt-1',
-        title: 'Kickoff workshop',
-        description: 'Align the team on goals, owners and success metrics.',
-        start: '2026-01-05T09:00:00Z',
-        end: '2026-01-05T11:00:00Z',
-        priority: 'high',
-        category: 'Planning',
-        metadata: { resources: ['Project lead', 'Marketing'], objectives: ['Shared goals', 'Clear owners'] }
-      }
-    ]
-  };
-}
-
 export async function generateSmartSchedule(options: SmartScheduleOptions): Promise<CalendarEvent[]> {
-  if (await isDemoMode()) return buildLocalSchedule(options);
-  try {
+  {
     const today = new Date().toISOString().slice(0, 10);
     const { data } = await callTask<{ events: RawScheduleEvent[] }>(
       'smart_schedule',
       `Create an implementation schedule starting ${today} (UTC) over ${options.timeline}.\nBusiness goals: ${options.businessGoals.join('; ')}\nTeam size: ${options.teamSize}\nWorking hours: ${(options.preferences?.workingHours ?? ['09:00', '17:00']).join(' to ')} (${options.preferences?.timezone ?? 'UTC'})\nDo not schedule on: ${(options.preferences?.excludedDays ?? []).join(', ') || 'no excluded days'}\nUse ISO 8601 UTC timestamps. Priorities are high, medium or low.`
     );
     const events = normalizeSchedule(data.events, options);
-    return events.length ? resolveOverlaps(events, options.preferences?.excludedDays) : buildLocalSchedule(options);
-  } catch (error) {
-    console.error('AI scheduling failed, using the local planner:', error);
-    return buildLocalSchedule(options);
+    if (!events.length) throw new Error('The AI returned no schedule events. Try again.');
+    return resolveOverlaps(events, options.preferences?.excludedDays);
   }
 }
 
 export async function optimizeSchedule(events: CalendarEvent[], excludedDays: string[] = []): Promise<CalendarEvent[]> {
-  const local = () => resolveOverlaps(events, excludedDays);
-  if (!events.length || (await isDemoMode())) return local();
-  try {
+  if (!events.length) return [];
+  {
     const payload = events.map((e) => ({ id: e.id, title: e.title, description: e.description, start: new Date(e.start).toISOString(), end: new Date(e.end).toISOString(), priority: e.priority, category: e.category, metadata: { resources: e.metadata?.resources ?? [], objectives: e.metadata?.objectives ?? [] } }));
     const { data } = await callTask<{ events: RawScheduleEvent[] }>(
       'schedule_optimization',
       `Optimize this schedule: resolve conflicts, balance workload, put high-priority work first and keep dependencies in order. Keep every event (same ids) and only change times.\n${JSON.stringify(payload)}`
     );
     const optimized = normalizeSchedule(data.events, { preferences: { excludedDays } });
-    return optimized.length ? resolveOverlaps(optimized, excludedDays) : local();
-  } catch (error) {
-    console.error('AI optimization failed, using local conflict resolution:', error);
-    return local();
+    if (!optimized.length) throw new Error('The AI returned no schedule events. Try again.');
+    return resolveOverlaps(optimized, excludedDays);
   }
 }

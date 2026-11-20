@@ -1,5 +1,10 @@
 import type { BrandAnalysis } from '@/lib/services/brand-analyzer';
-import { formatFraction, formatPercent } from '@/lib/format';
+import { formatFraction as fmtFraction, formatPercent as fmtPercent } from '@/lib/format';
+import type { ImplementationPlan } from '@/lib/services/implementation-plan';
+
+const NM = 'Not measured';
+const formatFraction = (v: unknown, digits = 1) => fmtFraction(v, digits, NM);
+const formatPercent = (v: unknown) => fmtPercent(v, NM);
 
 /**
  * Real report exports of a brand analysis: PDF (jsPDF, MIT), Excel (SheetJS, write-only use) and Word (docx, MIT).
@@ -15,10 +20,10 @@ export const REPORT_SECTIONS: { id: ReportSection; label: string }[] = [
 ];
 
 export interface ReportBlock { kind: 'paragraph' | 'table'; text?: string; header?: string[]; rows?: string[][] }
-export interface ReportModel { title: string; subtitle: string; sections: { id: ReportSection; heading: string; blocks: ReportBlock[] }[] }
+export interface ReportModel { title: string; subtitle: string; sections: { id: string; heading: string; blocks: ReportBlock[] }[] }
 
-const cap = (s: unknown) => (typeof s === 'string' && s ? s[0].toUpperCase() + s.slice(1) : '—');
-const list = (xs: unknown): string => (Array.isArray(xs) && xs.length ? xs.join('; ') : '—');
+const cap = (s: unknown) => (typeof s === 'string' && s ? s[0].toUpperCase() + s.slice(1) : NM);
+const list = (xs: unknown): string => (Array.isArray(xs) && xs.length ? xs.join('; ') : NM);
 
 export function buildReportModel(analysis: BrandAnalysis, businessIdea: string, sections: ReportSection[], now = new Date()): ReportModel {
   const want = new Set(sections);
@@ -32,9 +37,8 @@ export function buildReportModel(analysis: BrandAnalysis, businessIdea: string, 
       ['Uniqueness', formatFraction(a.uniquenessScore, 0)],
       ['Growth now', formatFraction(a.growthTrajectory?.current)],
       ['Growth projected', `${formatFraction(a.growthTrajectory?.projected)}${a.growthTrajectory?.timeframe ? ` (${a.growthTrajectory.timeframe})` : ''}`],
-      ['Implementation', a.implementationStatus ? `${a.implementationStatus.completed} done, ${a.implementationStatus.inProgress} in progress, ${a.implementationStatus.planned} planned` : '—']
+      ['Implementation', a.implementationStatus ? `${a.implementationStatus.completed} done, ${a.implementationStatus.inProgress} in progress, ${a.implementationStatus.planned} planned` : NM]
     ] }];
-    if (a.sample) blocks.unshift({ kind: 'paragraph', text: 'SAMPLE DATA: this report was built from built-in sample data because no OpenAI key was available.' });
     out.push({ id: 'overview', heading: 'Executive overview', blocks });
   }
   if (want.has('analysis')) {
@@ -62,6 +66,46 @@ export function buildReportModel(analysis: BrandAnalysis, businessIdea: string, 
     out.push({ id: 'recommendations', heading: 'Strategic recommendations', blocks });
   }
   return { title: 'Brand analysis report', subtitle: `${businessIdea ? businessIdea.split('\n')[0].slice(0, 120) + ' · ' : ''}${now.toISOString().slice(0, 10)}`, sections: out };
+}
+
+export const PLAN_SECTIONS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'phases', label: 'Phases, goals and tasks' },
+  { id: 'budget', label: 'Budget estimate' },
+  { id: 'risks', label: 'Risks' },
+  { id: 'milestones', label: 'Milestones' }
+] as const;
+
+/** Report model of a real implementation plan (what the user generated), for PDF / Excel / Word. */
+export function buildPlanReportModel(plan: ImplementationPlan, sections: string[], now = new Date()): ReportModel {
+  const want = new Set(sections);
+  const out: ReportModel['sections'] = [];
+  const money = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? n.toLocaleString('en-US') : NM);
+  if (want.has('overview')) out.push({ id: 'overview', heading: 'Overview', blocks: [
+    { kind: 'table', header: ['Field', 'Value'], rows: [['Title', plan.overview.title], ['Description', plan.overview.description], ['Estimated timeline', plan.overview.estimatedTimeline || NM], ['Objectives', list(plan.overview.objectives)], ['Required resources', list(plan.overview.requiredResources)]] }
+  ] });
+  if (want.has('phases')) out.push({ id: 'phases', heading: 'Phases, goals and tasks', blocks: [{ kind: 'table', header: ['Phase', 'Goal', 'Task', 'Timeline', 'Resources'], rows: plan.phases.flatMap((p) => p.goals.flatMap((g) => g.tasks.map((t) => [p.phase, g.title, t.task, t.timeline || NM, list(t.resources)]))) }] });
+  if (want.has('budget')) out.push({ id: 'budget', heading: 'Budget estimate', blocks: plan.budgetEstimate.length ? [{ kind: 'table', header: ['Category', 'Short term', 'Mid term', 'Long term'], rows: plan.budgetEstimate.map((b) => [b.category, money(b.shortTerm), money(b.midTerm), money(b.longTerm)]) }] : [{ kind: 'paragraph', text: 'No budget estimate in this plan.' }] });
+  if (want.has('risks')) out.push({ id: 'risks', heading: 'Risks', blocks: plan.risks.length ? [{ kind: 'table', header: ['Risk', 'Impact', 'Mitigation'], rows: plan.risks.map((r) => [r.risk, cap(r.impact), r.mitigation || NM]) }] : [{ kind: 'paragraph', text: 'No risks in this plan.' }] });
+  if (want.has('milestones')) out.push({ id: 'milestones', heading: 'Milestones', blocks: plan.milestones.length ? [{ kind: 'table', header: ['Milestone', 'Timeline', 'Description', 'Criteria'], rows: plan.milestones.map((m) => [m.title, m.timeline || NM, m.description || NM, list(m.criteria)]) }] : [{ kind: 'paragraph', text: 'No milestones in this plan.' }] });
+  return { title: 'Implementation plan', subtitle: `${plan.overview.title} · ${now.toISOString().slice(0, 10)}`, sections: out };
+}
+
+export const COMPETITIVE_SECTIONS = [
+  { id: 'position', label: 'Brand position (from the analysis)' },
+  { id: 'competitors', label: 'Competitors' }
+] as const;
+
+/** Report model of the competitive view: the three measured scores under their TRUE names, plus the analysed competitors. */
+export function buildCompetitiveReportModel(analysis: any, sections: string[], now = new Date()): ReportModel {
+  const want = new Set(sections);
+  const out: ReportModel['sections'] = [];
+  if (want.has('position')) out.push({ id: 'position', heading: 'Brand position', blocks: [{ kind: 'table', header: ['Measure', 'Value'], rows: [['Brand health', formatPercent(analysis?.healthScore)], ['Market fit', formatFraction(analysis?.marketFit, 0)], ['Uniqueness', formatFraction(analysis?.uniquenessScore, 0)]] }] });
+  if (want.has('competitors')) {
+    const rows = (analysis?.competitors ?? []).map((c: any) => [String(c.name), cap(c.marketPosition), typeof c.marketShare === 'number' ? `${c.marketShare > 1 ? c.marketShare : Math.round(c.marketShare * 100)}%` : NM, list(c.strengths), list(c.weaknesses)]);
+    out.push({ id: 'competitors', heading: 'Competitors', blocks: rows.length ? [{ kind: 'table', header: ['Competitor', 'Position', 'Market share', 'Strengths', 'Weaknesses'], rows }] : [{ kind: 'paragraph', text: 'No competitors were returned for this analysis.' }] });
+  }
+  return { title: 'Competitive analysis', subtitle: now.toISOString().slice(0, 10), sections: out };
 }
 
 export const REPORT_FORMATS = {
@@ -136,7 +180,19 @@ export async function toDocx(model: ReportModel): Promise<Blob> {
   return d.Packer.toBlob(new d.Document({ sections: [{ children }] }));
 }
 
-export async function exportReport(format: ReportFormat, model: ReportModel): Promise<{ blob: Blob; filename: string }> {
+export async function exportReport(format: ReportFormat, model: ReportModel, base = 'brand-analysis-report'): Promise<{ blob: Blob; filename: string }> {
   const blob = format === 'pdf' ? await toPdf(model) : format === 'excel' ? await toXlsx(model) : await toDocx(model);
-  return { blob, filename: `brand-analysis-report.${REPORT_FORMATS[format].ext}` };
+  return { blob, filename: `${base}.${REPORT_FORMATS[format].ext}` };
+}
+
+/** Save a blob through a temporary link (works in every browser; no pickers). */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -16,6 +16,7 @@ import { ScheduleModels } from '@/components/schedule-models';
 // Charts and the calendar are large; load them only when the plan or calendar is shown.
 const ImplementationPlan = dynamic(() => import('@/components/implementation-plan').then((m) => m.ImplementationPlan), { ssr: false, loading: () => null });
 const CalendarView = dynamic(() => import('@/components/calendar-view').then((m) => m.CalendarView), { ssr: false, loading: () => null });
+import { ErrorState } from '@/components/brand-analysis/error-state';
 import { generateImplementationPlan, planToEvents, type ImplementationPlan as Plan } from '@/lib/services/implementation-plan';
 import type { CalendarEvent } from '@/lib/services/calendar-service';
 import { useLocalDraft } from '@/lib/local/use-draft';
@@ -33,17 +34,16 @@ export default function PlanningPage() {
   const [plan, setPlan] = useLocalDraft<Plan | null>('planning:plan', null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<unknown>(null);
 
   const generate = async () => {
     if (!description.trim()) return;
     setLoading(true);
-    setError('');
+    setError(null);
     try {
       setPlan(await generateImplementationPlan({ businessDescription: description, goals: goals.split('\n').map((g) => g.trim()).filter(Boolean), budget, timeline }));
     } catch (e) {
-      console.error('Plan generation failed:', e);
-      setError('Could not generate the plan right now. Please try again.');
+      setError(e);
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function PlanningPage() {
                 )}
               </div>
               {plan && events.length > 0 && <p className="text-sm text-muted-foreground" data-testid="plan-on-calendar">{events.length} plan events were added to the Calendar tab, where you can export them as an .ics file.</p>}
-              {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+              {error != null && <ErrorState error={error} onRetry={generate} title="Could not generate the plan" />}
             </Card>
             {plan && <ImplementationPlan plan={plan} />}
           </TabsContent>

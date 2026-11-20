@@ -10,7 +10,6 @@ import { BrandAnalysis } from '@/components/brand-analysis';
 import { BrandPillarBreakdown } from '@/components/brand-pillar-breakdown';
 import { Brain, BarChart, Target, Activity, Sparkles } from 'lucide-react';
 import { headerTiles } from '@/lib/brand-metrics';
-import { SampleDataLabel } from '@/components/sample-data-badge';
 import type { BrandAnalysis as BrandAnalysisResult } from '@/lib/services/brand-analyzer';
 
 export default function BrandAnalysisPage() {
@@ -75,8 +74,6 @@ export default function BrandAnalysisPage() {
             </motion.div>
           ))}
         </div>
-
-        {brandAnalysisResults?.sample && <SampleDataLabel className="mb-4" />}
 
         <form onSubmit={startAnalysis} className="mb-8 flex gap-3" aria-label="Start a brand analysis">
           <Input
