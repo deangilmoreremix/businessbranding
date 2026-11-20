@@ -25,14 +25,14 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 | Playwright `features-voice` | 17 | 0 |
 | Playwright `features-assistant` | 14 | 0 |
 | Playwright `features-analysis` | 18 | 0 |
-| Playwright `features-errors-pages` | 62 | 0 |
+| Playwright `features-errors-pages` | 61 | 0 |
 | Playwright `features-local-ai` (real MediaPipe + Whisper downloads, SRI tamper test) | 5 | 0 |
 | Playwright `features-dashboard` (real data, analysis display, planning, **competitive .xlsx and plan .ics/.docx parsed**) | 25 | 0 |
 | Playwright `features-settings` | 15 | 0 |
 | Playwright `public-pages` (empty states, seeded rows, newsletter, footer, contact, pricing/integrations/analytics, **brand-analysis PDF/XLSX/DOCX downloads are valid files**) | 37 | 0 |
 | Playwright `failures` (**5xx + edge down, signed-in-without-key, on /dashboard/brand-analysis, /brand-strategy, planning and voice: real cause + Retry, no scores/plan/audio, no retry loop**) | 9 | 0 |
 | Playwright `viewports` (30 routes x 3 widths, signed out and in; hero headline vs subtitle geometry; workflow steps) | 185 | 0 |
-| **Total automated assertions** | **1038** | **0** |
+| **Total automated assertions** | **1042** | **0** |
 
 NOT TESTABLE: exactly **1** is reported by the specs at run time: *live voice, the WebRTC SDP exchange and microphone audio with the Realtime model*
 (needs a real OpenAI Realtime peer; the ephemeral-secret route is tested). `features-local-ai` prints "see NOT TESTABLE lines" in its footer and only
