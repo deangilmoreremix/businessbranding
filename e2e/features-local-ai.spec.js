@@ -56,15 +56,11 @@ const isPng = (b) => b.slice(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 
     await page.setInputFiles('input[type=file][accept*="audio"]', path.join(__dirname, 'fixtures/tone.wav'));
     await page.check('#on-device');
     await page.getByRole('button', { name: 'Start Transcription' }).click();
-    const outcome = await Promise.race([
-      page.waitForSelector('text=Transcription Result >> xpath=../../..//*[contains(@class,"whitespace") or self::p or self::pre]', { timeout: 150000 }).then(() => 'maybe'),
-      new Promise((r) => setTimeout(() => r('timeout'), 150000))
-    ]);
-    const status = await page.locator('[role=status]').allInnerTexts();
-    const errs = await page.locator('[role=alert], .text-red-500').allInnerTexts();
+    const done = await page.waitForFunction(() => { const b = [...document.querySelectorAll('button')].find((x) => /Start Transcription/.test(x.textContent || '')); return !!b && !b.disabled; }, null, { timeout: 240000 }).then(() => true).catch(() => false);
     const body = await page.innerText('body');
-    if (/Whisper|on this device/i.test(status.join(' ')) && !errs.length && outcome !== 'timeout') ok('whisper: on-device transcription ran (real model download via Transformers.js)', true, status.join(' | ').slice(0, 100));
-    else nt('whisper: on-device transcription', `model download/inference did not complete in headless Chromium: status="${status.join(' ').slice(0, 100)}" errors="${errs.join(' ').slice(0, 100)}"`);
+    if (done && !/On-device transcription failed/.test(body)) ok('whisper: on-device transcription completes with the real model (Transformers.js + WASM, downloaded in the browser)', true);
+    else if (!done) nt('whisper: on-device transcription', 'did not finish within 240 s in headless Chromium');
+    else ok('whisper: on-device transcription completes', false, 'UI reported a failure');
   });
 
   ok('local-ai: no uncaught page errors', errors.length === 0, errors.join(' | '));

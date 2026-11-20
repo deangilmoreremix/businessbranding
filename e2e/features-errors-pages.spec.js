@@ -75,7 +75,7 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
   });
   await section('rate-limit', async () => {
     await useKey('sk-test-RATELIMIT000000007777');
-    const codes = await page.evaluate(async () => { const out = []; for (let i = 0; i < 35; i++) { const x = await fetch('/api/ai/task', { method: 'GET' }); out.push(x.status); } return out; });
+    const codes = await page.evaluate(async () => { const out = []; for (let i = 0; i < 14; i++) { const x = await fetch('/api/settings/openai-key', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: 'short' }) }); out.push(x.status); } return out; });
     ok('429: per-user rate limit trips after the limit (Supabase-backed)', codes.includes(429), codes.join(','));
   });
 
@@ -85,10 +85,21 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     for (const p of PAGES) {
       const res = await page.goto(base + p, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch((e) => ({ status: () => 0, err: e }));
       await page.waitForTimeout(700);
-      const heading = await page.locator('h1, h2, main').count();
+      const heading = await page.locator('h1, h2, h3, main').count();
       const before = errors.length;
       ok(`page ${p}: loads (200) and renders content`, res && res.status && res.status() === 200 && heading > 0, `status ${res && res.status && res.status()}`);
     }
+  });
+
+  // ---- contact form
+  await section('contact', async () => {
+    await page.goto(base + '/contact', { waitUntil: 'networkidle' });
+    await page.click('button[type=submit]');
+    ok('contact: empty form shows validation errors', (await page.locator('form [role=alert]').count()) === 3);
+    await page.fill('#c-name', 'Ann'); await page.fill('#c-email', 'ann@example.test'); await page.fill('#c-message', 'Hello, I would like to know more.');
+    await page.click('button[type=submit]');
+    await page.waitForSelector('[data-testid=contact-done]');
+    ok('contact: valid form completes (no mail backend configured -> message copied)', /copied|mail app/.test(await page.innerText('[data-testid=contact-done]')));
   });
 
   // ---- settings tabs

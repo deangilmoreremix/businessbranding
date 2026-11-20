@@ -149,7 +149,8 @@ export default function ImageEditor({ src, onClose, onApply }: ImageEditorProps)
     setError('');
     try {
       setWorking((await removeBackgroundAI(img)).toDataURL('image/png'));
-    } catch {
+    } catch (e) {
+      console.warn('AI background removal failed:', (e as Error)?.message);
       setError('On-device background removal could not start (model download blocked or unsupported browser). Try the solid-colour option.');
     } finally {
       setBusy('');
@@ -160,6 +161,7 @@ export default function ImageEditor({ src, onClose, onApply }: ImageEditorProps)
     setSelected(null);
     trRef.current?.nodes([]);
     const ratio = img ? img.naturalWidth / size.width : pixelRatio;
+    if (!stageRef.current) throw new Error('The editor is not ready yet');
     return stageRef.current.toDataURL({ pixelRatio: ratio, mimeType: 'image/png' });
   };
 
@@ -189,7 +191,8 @@ export default function ImageEditor({ src, onClose, onApply }: ImageEditorProps)
             <TabsTrigger value="background"><Wand2 className="h-4 w-4 mr-1" />Background</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="layers" className="space-y-3">
+          {/* forceMount: the Konva stage must stay mounted on the other tabs, or "Download PNG"/"Save"/"Use this image" would read a null stage */}
+          <TabsContent value="layers" forceMount className="space-y-3 data-[state=inactive]:hidden">
             <div className="flex flex-wrap items-end gap-2">
               <Input className="w-48" value={textInput} onChange={(e) => setTextInput(e.target.value)} aria-label="Text" />
               <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Colour" className="h-9 w-10" />

@@ -12,7 +12,7 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
   await page.goto(base + '/dashboard/voice-content', { waitUntil: 'networkidle', timeout: 120000 });
   const tab = (name) => page.getByRole('tab', { name });
   // dev server compiles each lazily-loaded tab on first use: visit every tab once so the later steps never race a compile
-  for (const t of ['Podcast', 'Audiobook', 'Transcription', 'Voice Over']) { await tab(t).click(); await page.waitForTimeout(9000); }
+  for (const t of ['Podcast', 'Audiobook', 'Transcription', 'Voice Over']) { await tab(t).click(); await page.waitForTimeout(1200); }
 
   await section('recorder', async () => {
     await tab('Voice Over').click();
@@ -58,12 +58,13 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
     const w = await save(dl, 'podcast.wav');
     ok('podcast: downloaded file is a valid WAV', isWav(w), `${w.length} bytes`);
     // captions
-    const vtt = await page.getByRole('button', { name: /Download \.vtt/ }).first();
+    await page.waitForSelector('text=Captions (.vtt)', { timeout: 20000 }).catch(() => {});
+    const vtt = page.getByRole('button', { name: /Captions \(\.vtt\)/ }).first();
     if (await vtt.count()) {
       const [dv] = await Promise.all([page.waitForEvent('download'), vtt.click()]);
       const v = (await save(dv, 'podcast.vtt')).toString();
       ok('captions: podcast .vtt is valid WebVTT with the segment text', v.startsWith('WEBVTT') && v.includes('-->') && v.includes('Welcome to the show.'), v.slice(0, 80).replace(/\n/g, ' | '));
-      const [ds] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download \.srt/ }).first().click()]);
+      const [ds] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Subtitles \(\.srt\)/ }).first().click()]);
       const s = (await save(ds, 'podcast.srt')).toString();
       ok('captions: podcast .srt has numbered cues with SRT timestamps', /^1\n\d\d:\d\d:\d\d,\d{3} --> \d\d:\d\d:\d\d,\d{3}\n/.test(s.replace(/\r/g, '')) && s.includes('Thanks for listening.'), s.slice(0, 80).replace(/\n/g, ' | '));
     } else ok('captions: caption player with .vtt/.srt downloads is shown for the podcast', false);
@@ -72,6 +73,9 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
   await section('audiobook', async () => {
     await tab('Audiobook').click();
     await page.fill('input[placeholder="Enter book title"]', 'My Book');
+    await page.fill('input[placeholder="Enter author name"]', 'Jane Author');
+    await page.getByRole('combobox').filter({ hasText: /Select narrator voice/ }).click();
+    await page.getByRole('option').first().click();
     await page.locator('textarea[placeholder="Enter chapter text"]').first().fill('Chapter one text. It begins.');
     const resp = page.waitForResponse((r) => r.url().includes('/api/voice/audiobook'), { timeout: 60000 });
     await page.getByRole('button', { name: 'Generate Audiobook' }).click();
@@ -97,9 +101,10 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
     // Live voice (Realtime WebRTC) lives in the support assistant's Voice tab: the ephemeral secret route is exercised for real;
     // the SDP/media negotiation needs a real OpenAI Realtime peer and cannot be completed against a mock.
     await page.getByRole('button', { name: 'Open support assistant' }).click();
-    await page.getByRole('tab', { name: 'Voice' }).click();
+    await page.getByRole('tab', { name: 'Voice', exact: true }).click();
     const secret = page.waitForResponse((r) => r.url().includes('/api/voice/realtime'), { timeout: 20000 });
-    await page.locator('button.w-full').first().click();
+    secret.catch(() => {});
+    await page.getByRole('button', { name: 'Start voice conversation' }).click();
     const r = await secret;
     ok('live voice: ephemeral client secret minted with the user key (/api/voice/realtime 200)', r.status() === 200 && !!(await r.json()).value || r.status() === 200, `status ${r.status()}`);
     results.push({ name: 'live voice: WebRTC SDP exchange + microphone audio to the Realtime model', ok: true, extra: 'NOT TESTABLE: needs a real OpenAI Realtime peer; a mock cannot answer the WebRTC handshake' });

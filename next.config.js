@@ -22,7 +22,10 @@ const nextConfig = {
     serverComponentsExternalPackages: ['ws']
   },
   async redirects() {
-    return [{ source: '/docs/gemini-features', destination: '/docs/ai-features', permanent: true }];
+    return [
+      { source: '/docs/gemini-features', destination: '/docs/ai-features', permanent: true },
+      { source: '/docs/api', destination: '/docs/api/openai', permanent: false }
+    ];
   },
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   typescript: {

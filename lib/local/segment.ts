@@ -6,6 +6,9 @@
  * For logos and flat graphics prefer removeSolidBackground() in image-utils.ts, which needs no model at all.
  */
 
+// The library is loaded from the pinned CDN build at runtime (not bundled): the bundled copy threw "Super constructor null of oE is not a constructor"
+// once minified by webpack, while the official ESM bundle works (verified in headless Chromium).
+const MEDIAPIPE_URL = process.env.NEXT_PUBLIC_MEDIAPIPE_URL || 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/vision_bundle.mjs';
 const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm';
 const DEFAULT_MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
 
@@ -16,7 +19,7 @@ let segmenterPromise: Promise<any> | null = null;
 async function getSegmenter() {
   if (!segmenterPromise) {
     segmenterPromise = (async () => {
-      const { FilesetResolver, ImageSegmenter } = await import('@mediapipe/tasks-vision');
+      const { FilesetResolver, ImageSegmenter } = await import(/* webpackIgnore: true */ MEDIAPIPE_URL);
       const fileset = await FilesetResolver.forVisionTasks(WASM_BASE);
       const modelAssetPath = process.env.NEXT_PUBLIC_SEGMENTER_MODEL_URL || DEFAULT_MODEL;
       const make = (delegate: 'GPU' | 'CPU') =>

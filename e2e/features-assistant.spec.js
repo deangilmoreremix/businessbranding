@@ -70,9 +70,11 @@ const save = async (dl, name) => { const p = `/tmp/claude-0/e2e-${name}`; await 
     ok('workflows: results show the generated copy, a sandboxed email preview and an audio player', (await res.locator('iframe[title="Email preview"][sandbox=""]').count()) === 1 && (await res.locator('audio').count()) === 1 && (await res.locator('p.whitespace-pre-wrap').count()) >= 2);
     const html = await res.locator('iframe').getAttribute('srcdoc');
     ok('workflows: email output is full HTML', /<html/i.test(html) && html.length > 500, `${html.length} chars`);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(500);
-    ok('workflows: save to IndexedDB (load list appears)', (await page.getByLabel('Load saved workflow').count()) === 1);
+    // autosave: the edited brief survives a reload (IndexedDB)
+    await page.waitForTimeout(1500);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('.react-flow__node');
+    ok('workflows: graph autosaved to IndexedDB and restored after a reload', (await page.locator('.react-flow__node').first().innerText()).includes('Our coffee is good.'));
     const [dj] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.getByRole('button', { name: 'Export' }).click()]);
     const json = JSON.parse((await save(dj, 'wf.json')).toString());
     ok('workflows: Export produces valid JSON with nodes and edges', Array.isArray(json.nodes) && Array.isArray(json.edges) && json.nodes.length >= 4);

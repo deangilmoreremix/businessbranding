@@ -10,6 +10,18 @@ export const WHISPER_MODEL = process.env.NEXT_PUBLIC_WHISPER_MODEL || 'onnx-comm
 export const WHISPER_SAMPLE_RATE = 16000;
 export const TRANSFORMERS_URL = process.env.NEXT_PUBLIC_TRANSFORMERS_URL || 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
+/** True only when WebGPU has a usable adapter (a bare `navigator.gpu` is not enough). */
+export async function webgpuAdapterAvailable(): Promise<boolean> {
+  try {
+    const gpu = (navigator as any)?.gpu;
+    if (!gpu) return false;
+    const adapter = await Promise.race([gpu.requestAdapter(), new Promise((r) => setTimeout(() => r(null), 3000))]);
+    return !!adapter;
+  } catch {
+    return false;
+  }
+}
+
 export const onDeviceWhisperSupported = () => typeof WebAssembly === 'object' && typeof AudioContext !== 'undefined';
 
 /** Average all channels into one. */
@@ -59,8 +71,18 @@ export async function transcribeOnDevice(blob: Blob, onProgress?: (p: WhisperPro
   if (!pipelinePromise) {
     pipelinePromise = (async () => {
       const { pipeline } = await import(/* webpackIgnore: true */ TRANSFORMERS_URL);
-      const device = typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm';
-      return pipeline('automatic-speech-recognition', WHISPER_MODEL, { device, progress_callback: onProgress } as any);
+      // `navigator.gpu` can exist with no usable adapter (headless/VM browsers): only choose WebGPU when an adapter is really available,
+      // and fall back to WASM if the WebGPU pipeline cannot start.
+      const hasAdapter = await webgpuAdapterAvailable();
+      const make = (device: 'webgpu' | 'wasm') => pipeline('automatic-speech-recognition', WHISPER_MODEL, { device, progress_callback: onProgress } as any);
+      if (hasAdapter) {
+        try {
+          return await make('webgpu');
+        } catch {
+          /* fall through to WASM */
+        }
+      }
+      return make('wasm');
     })().catch((e) => {
       pipelinePromise = null;
       throw e;

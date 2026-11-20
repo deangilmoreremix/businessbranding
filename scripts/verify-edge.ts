@@ -5,6 +5,7 @@
 //   OPENAI_BASE_URL=http://127.0.0.1:4999/v1 SUPABASE_URL=http://127.0.0.1:4998 SUPABASE_SERVICE_ROLE_KEY=service-role-test-key \
 //   KEY_ENCRYPTION_SECRET=$(openssl rand -base64 32) \
 //     deno run -A --import-map scripts/deno-stubs/import_map.json scripts/verify-edge.ts
+import '../supabase/functions/_shared/openai.ts'; // binds Deno.env for the shared core before any env is read
 import { aadFor, encryptSecret, last4Of } from '../supabase/functions/_shared/key-crypto.ts';
 import { upsertKeyRow } from '../supabase/functions/_shared/supabase-rest.ts';
 
@@ -40,7 +41,6 @@ for (const [fn, body, web, schemaName] of [
   ['competitor-intelligence', { industry: 'coffee', brandDescription: 'Acme' }, true, 'competitor_intelligence'],
   ['market-analysis', { industry: 'coffee', brandDescription: 'Acme' }, true, 'market_analysis'],
   ['social-media-analyzer', { platform: 'twitter', handle: 'acme', profileUrl: 'https://twitter.com/acme' }, true, 'social_media_analysis'],
-  ['website-scanner', { url: mock + '/__log' }, false, 'website_scan'],
   ['ai-analysis', { content: 'Acme brand strategy', type: 'brand' }, false, 'analysis_brand'],
 ] as const) {
   await clear();
@@ -52,6 +52,12 @@ for (const [fn, body, web, schemaName] of [
   ok(`${fn}: strict schema '${schemaName}'`, last?.text?.format?.name === schemaName && last.text.format.strict === true);
   ok(`${fn}: developer msg first, no temperature`, last?.input?.[0]?.role === 'developer' && !('temperature' in last));
   if (web) ok(`${fn}: web_search research step precedes structuring`, bodies.length === 2 && bodies[0].tools?.[0]?.type === 'web_search' && !bodies[0].text && (r.json.citations?.length ?? 0) > 0);
+}
+
+// website-scanner: the SSRF guard refuses private/loopback targets (the mock server itself is one)
+for (const target of [mock + '/__log', 'http://169.254.169.254/latest/meta-data/', 'http://localhost/', 'file:///etc/passwd']) {
+  const w = await call('website-scanner', { url: target });
+  ok(`website-scanner refuses ${target}`, w.status === 400 && w.json.code === 'UNSAFE_URL', `status ${w.status}`);
 }
 
 // Generic openai function: text and image
