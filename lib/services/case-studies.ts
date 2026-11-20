@@ -75,30 +75,12 @@ export async function generateCaseStudyContent(caseStudy: Partial<CaseStudy>) {
       Solution: ${caseStudy.solution}
     `);
 
-    // Extract key insights and metrics
+    // Only what the AI actually produced is returned: no invented metrics, no placeholder client or testimonial.
     const results = {
-      metrics: {
-        brandRecognition: Math.round(Math.random() * 30 + 70), // 70-100%
-        engagement: Math.round(Math.random() * 40 + 60), // 60-100%
-        conversion: Math.round(Math.random() * 25 + 25), // 25-50%
-        growth: Math.round(Math.random() * 50 + 50) // 50-100%
-      },
-      testimonial: {
-        quote: brandingConcepts.testimonial || 'Their innovative approach completely transformed our brand positioning.',
-        author: 'Client Name',
-        role: 'CEO',
-        company: 'Company Name'
-      },
-      beforeAfter: {
-        visual: [],
-        voice: [],
-        metrics: {
-          'Brand Recognition': [45, 85],
-          'Customer Engagement': [30, 75],
-          'Market Share': [15, 35],
-          'Customer Satisfaction': [60, 90]
-        }
-      }
+      concepts: brandingConcepts,
+      ...(brandingConcepts && typeof (brandingConcepts as any).testimonial === 'string' && (brandingConcepts as any).testimonial
+        ? { testimonialDraft: (brandingConcepts as any).testimonial } // an AI-written DRAFT, not a real client quote
+        : {})
     };
 
     return {

@@ -26,9 +26,9 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { safeNextPath } from '@/lib/auth-redirect';
 import { OpenAIKeySettings } from '@/components/settings/openai-key-settings';
+import { BillingNote, NotificationsCard, ProfileCard, SecurityCard } from '@/components/settings/account-settings';
 
 export default function SettingsPage() {
-  const [saving, setSaving] = useState(false);
   // Controlled so a /settings#ai link (from the "Add your OpenAI key" notice) opens the OpenAI tab without a hydration mismatch.
   const [tab, setTab] = useState('profile');
   const [welcome, setWelcome] = useState<{ next: string } | null>(null);
@@ -42,11 +42,6 @@ export default function SettingsPage() {
       setWelcome({ next: safeNextPath(q.get('next')) });
     }
   }, []);
-
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => setSaving(false), 1500);
-  };
 
   return (
     <div className="container mx-auto px-4 py-16 relative z-10">
@@ -103,135 +98,15 @@ export default function SettingsPage() {
           </TabsList>
 
           <TabsContent value="profile">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>First Name</Label>
-                    <Input placeholder="John" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Last Name</Label>
-                    <Input placeholder="Doe" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" placeholder="john@example.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Company</Label>
-                  <Input placeholder="Company Name" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Website</Label>
-                  <Input type="url" placeholder="https://example.com" />
-                </div>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <ProfileCard />
           </TabsContent>
 
           <TabsContent value="notifications">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Notification Preferences</h2>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Email Notifications</h3>
-                    <p className="text-sm text-muted-foreground">Receive updates via email</p>
-                  </div>
-                  <Switch />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Brand Updates</h3>
-                    <p className="text-sm text-muted-foreground">Get notified about brand changes</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Security Alerts</h3>
-                    <p className="text-sm text-muted-foreground">Important security notifications</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Marketing Updates</h3>
-                    <p className="text-sm text-muted-foreground">Receive marketing communications</p>
-                  </div>
-                  <Switch />
-                </div>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Preferences
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <NotificationsCard />
           </TabsContent>
 
           <TabsContent value="security">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Security Settings</h2>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Current Password</Label>
-                  <Input type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label>New Password</Label>
-                  <Input type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Confirm New Password</Label>
-                  <Input type="password" />
-                </div>
-                <div className="flex items-center justify-between pt-4">
-                  <div>
-                    <h3 className="font-medium">Two-Factor Authentication</h3>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                  </div>
-                  <Switch />
-                </div>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Update Security
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <SecurityCard />
           </TabsContent>
 
           <TabsContent value="ai">
@@ -248,44 +123,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="billing">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Billing Information</h2>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Card Number</Label>
-                    <Input placeholder="**** **** **** ****" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Expiration Date</Label>
-                    <Input placeholder="MM/YY" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>CVV</Label>
-                    <Input placeholder="***" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Zip Code</Label>
-                    <Input placeholder="12345" />
-                  </div>
-                </div>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Update Billing
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <BillingNote />
           </TabsContent>
         </Tabs>
 

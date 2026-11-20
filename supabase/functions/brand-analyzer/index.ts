@@ -116,7 +116,7 @@ Deno.serve(edgeHandler(async (req: Request) => {
           uniquenessScore: 0.82,
           brandFactors: BRAND_PILLARS.map((pillar, index) => ({
             name: pillar,
-            score: 0.7 + (Math.random() * 0.2),
+            score: 0.7 + ((index * 7) % 20) / 100, // deterministic sample value
             insights: [
               'Strong foundation with room for growth',
               'Consider enhancing this aspect'

@@ -27,6 +27,18 @@ import { extractTagsFromPrompt } from '@/lib/services/image-service';
 import { createImageAsset } from '@/lib/supabase';
 import { BrandPresenceAnalyzer } from '@/components/brand-presence-analyzer';
 
+/** Natural size and format of an image URL (data:, blob: or http). Missing values are omitted, never guessed. */
+async function measureImage(url: string): Promise<{ width?: number; height?: number; format?: string }> {
+  const format = /^data:image\/([a-z0-9.+-]+)/i.exec(url)?.[1];
+  const size = await new Promise<{ width: number; height: number } | null>((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  return { ...(size ?? {}), ...(format ? { format } : {}) };
+}
+
 interface VisualIdentityAnalyzerProps {
   onAnalysisComplete: (info: {
     assets: string[];
@@ -114,6 +126,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
         return;
       }
       
+      const dims = await measureImage(imageUrl);
       const imageAsset = {
         title: imageTitle,
         url: imageUrl,
@@ -121,14 +134,10 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
         style: transformStyle || undefined,
         source: 'other' as const,
         tags,
-        metadata: {
-          width: 1024,
-          height: 1024,
-          format: 'png',
-          generated: true
-        }
+        // real values read from the image itself (nothing assumed)
+        metadata: { ...dims, generated: true }
       };
-      
+
       await createImageAsset(imageAsset);
       setSavedImages(prev => [...prev, imageUrl]);
       

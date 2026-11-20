@@ -54,188 +54,41 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
   const [expandedCompetitor, setExpandedCompetitor] = useState<string | null>(null);
   const [activeView, setActiveView] = useState('overview');
 
-  // Demo competitors data if none provided
-  const defaultCompetitors = [
-    {
-      name: 'Industry Leader Inc.',
-      marketShare: 28.5,
-      strengths: ['Brand recognition', 'Product quality', 'Marketing reach'],
-      weaknesses: ['Premium pricing', 'Slower innovation'],
-      digitalPresence: 92,
-      brandStrength: 94,
-      pricing: 'premium',
-      targetAudience: ['Enterprise', 'Upper mid-market'],
-      metrics: {
-        brandLoyalty: 89,
-        customerSatisfaction: 86,
-        innovation: 78,
-        marketReach: 94,
-        digitalPresence: 92,
-        socialEngagement: 88,
-        priceCompetitiveness: 62
-      }
-    },
-    {
-      name: 'Innovation Tech',
-      marketShare: 22.3,
-      strengths: ['Innovation speed', 'Customer service', 'Digital experience'],
-      weaknesses: ['Brand awareness', 'Limited product range'],
-      digitalPresence: 96,
-      brandStrength: 84,
-      pricing: 'mid',
-      targetAudience: ['Tech-savvy users', 'Early adopters'],
-      metrics: {
-        brandLoyalty: 82,
-        customerSatisfaction: 90,
-        innovation: 95,
-        marketReach: 76,
-        digitalPresence: 96,
-        socialEngagement: 91,
-        priceCompetitiveness: 76
-      }
-    },
-    {
-      name: 'ValueSoft Solutions',
-      marketShare: 18.7,
-      strengths: ['Competitive pricing', 'Large customer base', 'Reliable solutions'],
-      weaknesses: ['Less innovative', 'Customer support issues'],
-      digitalPresence: 78,
-      brandStrength: 72,
-      pricing: 'low',
-      targetAudience: ['Small business', 'Budget-conscious'],
-      metrics: {
-        brandLoyalty: 74,
-        customerSatisfaction: 72,
-        innovation: 68,
-        marketReach: 82,
-        digitalPresence: 78,
-        socialEngagement: 70,
-        priceCompetitiveness: 92
-      }
-    },
-    {
-      name: 'NextGen Systems',
-      marketShare: 14.2,
-      strengths: ['Cutting-edge technology', 'Strong developer community', 'Open ecosystem'],
-      weaknesses: ['Limited market presence', 'Complex products'],
-      digitalPresence: 88,
-      brandStrength: 76,
-      pricing: 'mid',
-      targetAudience: ['Developers', 'Tech companies'],
-      metrics: {
-        brandLoyalty: 79,
-        customerSatisfaction: 83,
-        innovation: 91,
-        marketReach: 68,
-        digitalPresence: 88,
-        socialEngagement: 85,
-        priceCompetitiveness: 75
-      }
-    },
-    {
-      name: 'Heritage Technologies',
-      marketShare: 9.5,
-      strengths: ['Established reputation', 'Enterprise relationships', 'Industry expertise'],
-      weaknesses: ['Aging infrastructure', 'Slow modernization'],
-      digitalPresence: 65,
-      brandStrength: 82,
-      pricing: 'high',
-      targetAudience: ['Enterprise', 'Government'],
-      metrics: {
-        brandLoyalty: 86,
-        customerSatisfaction: 78,
-        innovation: 59,
-        marketReach: 81,
-        digitalPresence: 65,
-        socialEngagement: 62,
-        priceCompetitiveness: 68
-      }
-    },
-    {
-      name: 'Agile Solutions',
-      marketShare: 5.8,
-      strengths: ['Flexibility', 'Quick implementation', 'Customer-centric'],
-      weaknesses: ['Scale limitations', 'Narrow product focus'],
-      digitalPresence: 82,
-      brandStrength: 68,
-      pricing: 'mid',
-      targetAudience: ['Mid-market', 'Growth-stage companies'],
-      metrics: {
-        brandLoyalty: 76,
-        customerSatisfaction: 88,
-        innovation: 84,
-        marketReach: 62,
-        digitalPresence: 82,
-        socialEngagement: 79,
-        priceCompetitiveness: 81
-      }
-    },
-    {
-      name: 'Emerging Technologies',
-      marketShare: 4.1,
-      strengths: ['Disruptive innovation', 'Fast growth', 'Modern architecture'],
-      weaknesses: ['Limited track record', 'Funding constraints'],
-      digitalPresence: 90,
-      brandStrength: 64,
-      pricing: 'low',
-      targetAudience: ['Startups', 'Digital-first businesses'],
-      metrics: {
-        brandLoyalty: 68,
-        customerSatisfaction: 85,
-        innovation: 93,
-        marketReach: 58,
-        digitalPresence: 90,
-        socialEngagement: 94,
-        priceCompetitiveness: 88
-      }
-    }
-  ];
-
-  const allCompetitors = competitors.length > 0 ? competitors : defaultCompetitors;
+  // Only competitors from the real analysis are shown (no stock competitor rows).
+  const allCompetitors = competitors;
   
   // Filter competitors based on search term
   const filteredCompetitors = allCompetitors.filter(competitor => 
     competitor.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Prepare data for radar chart
-  const radarData = allCompetitors.slice(0, 5).map(competitor => {
-    const metrics = competitor.metrics || {
-      brandLoyalty: Math.round(Math.random() * 30 + 60),
-      innovation: Math.round(Math.random() * 30 + 60),
-      marketReach: Math.round(Math.random() * 30 + 60),
-      digitalPresence: Math.round(Math.random() * 30 + 60),
-      customerSatisfaction: Math.round(Math.random() * 30 + 60),
-    };
+  // Chart data uses ONLY values present in the analysis; a missing value is left out (or null), never invented.
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  const radarData = allCompetitors.slice(0, 5).filter((c) => c.metrics && Object.values(c.metrics).some(isNum)).map((competitor) => ({
+    competitor: competitor.name || 'Unknown',
+    ...competitor.metrics
+  }));
 
-    return {
-      competitor: competitor.name || 'Unknown',
-      ...metrics
-    };
-  });
-  
-  // Prepare data for market share pie chart
-  const pieData = allCompetitors.map(competitor => ({
+  const pieData = allCompetitors.filter((c) => isNum(c.marketShare) && c.marketShare > 0).map((competitor) => ({
     id: competitor.name,
     label: competitor.name,
-    value: competitor.marketShare || Math.round(Math.random() * 20 + 5)
+    value: competitor.marketShare as number
   }));
-  
-  // Prepare data for strength/weakness heatmap
+
+  const heatRow = (id: string, pick: (c: any) => unknown) => ({ id, data: allCompetitors.slice(0, 7).map((c) => ({ x: c.name, y: isNum(pick(c)) ? (pick(c) as number) : null })) });
   const heatmapData = [
-    { id: 'Brand Strength', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.brandStrength || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Digital Presence', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.digitalPresence || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Innovation', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.metrics?.innovation || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Customer Satisfaction', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.metrics?.customerSatisfaction || Math.round(Math.random() * 30 + 60) })) }
-  ];
-  
-  // Bar chart data for strategic comparison
+    heatRow('Brand Strength', (c) => c.brandStrength ?? c.score),
+    heatRow('Digital Presence', (c) => c.digitalPresence),
+    heatRow('Innovation', (c) => c.metrics?.innovation),
+    heatRow('Customer Satisfaction', (c) => c.metrics?.customerSatisfaction)
+  ].filter((row) => row.data.some((d) => d.y !== null));
+
   const barData = allCompetitors.length > 0 && allCompetitors[0].metrics
-    ? Object.keys(allCompetitors[0].metrics).map(metric => {
+    ? Object.keys(allCompetitors[0].metrics).map((metric) => {
         const data: any = { metric: metric.replace(/([A-Z])/g, ' $1').trim() };
-        allCompetitors.slice(0, 5).forEach(competitor => {
+        allCompetitors.slice(0, 5).forEach((competitor) => {
           const metricValue = competitor.metrics?.[metric as keyof typeof competitor.metrics];
-          data[competitor.name || 'Unknown'] = typeof metricValue === 'number' ? metricValue : Math.round(Math.random() * 30 + 60);
+          if (isNum(metricValue)) data[competitor.name || 'Unknown'] = metricValue;
         });
         return data;
       })
@@ -371,7 +224,9 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 <CardTitle className="text-lg">Strengths & Weaknesses Heatmap</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="h-[250px]">
+                {heatmapData.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center" data-testid="heatmap-unmeasured">Not measured: the analysis has no per-competitor strength scores.</p>}
+                <div className="h-[250px]" hidden={heatmapData.length === 0}>
+                  {heatmapData.length > 0 && (
                   <ResponsiveHeatMap
                     data={heatmapData}
                     margin={{ top: 50, right: 60, bottom: 60, left: 90 }}
@@ -411,6 +266,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                       }
                     ]}
                   />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -712,265 +568,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
               ))}
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <Card>
-                <CardHeader className="py-4">
-                  <CardTitle className="text-lg">Market Segments</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="h-[300px]">
-                    <ResponsivePie
-                      data={[
-                        { id: 'Enterprise', value: 42 },
-                        { id: 'Mid-Market', value: 28 },
-                        { id: 'SMB', value: 21 },
-                        { id: 'Consumer', value: 9 },
-                      ]}
-                      margin={{ top: 20, right: 20, bottom: 80, left: 20 }}
-                      innerRadius={0.5}
-                      padAngle={0.7}
-                      cornerRadius={3}
-                      activeOuterRadiusOffset={8}
-                      colors={{ scheme: 'nivo' }}
-                      borderWidth={1}
-                      borderColor={{
-                        from: 'color',
-                        modifiers: [['darker', 0.2]],
-                      }}
-                      arcLinkLabelsSkipAngle={10}
-                      arcLinkLabelsTextColor="#333333"
-                      arcLinkLabelsThickness={2}
-                      arcLinkLabelsColor={{ from: 'color' }}
-                      arcLabelsSkipAngle={10}
-                      arcLabelsTextColor={{
-                        from: 'color',
-                        modifiers: [['darker', 2]],
-                      }}
-                      legends={[
-                        {
-                          anchor: 'bottom',
-                          direction: 'row',
-                          justify: false,
-                          translateX: 0,
-                          translateY: 56,
-                          itemsSpacing: 0,
-                          itemWidth: 100,
-                          itemHeight: 18,
-                          itemTextColor: '#999',
-                          itemDirection: 'left-to-right',
-                          itemOpacity: 1,
-                          symbolSize: 18,
-                          symbolShape: 'circle'
-                        }
-                      ]}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="py-4">
-                  <CardTitle className="text-lg">Competitor Growth Trends</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="h-[300px]">
-                    <ResponsiveBar
-                      data={[
-                        {
-                          year: '2023',
-                          'Industry Leader Inc.': 4.2,
-                          'Innovation Tech': 8.7,
-                          'ValueSoft Solutions': 3.1,
-                          'NextGen Systems': 12.5,
-                          'Emerging Technologies': 18.6,
-                        },
-                        {
-                          year: '2024',
-                          'Industry Leader Inc.': 3.8,
-                          'Innovation Tech': 10.3,
-                          'ValueSoft Solutions': 2.6,
-                          'NextGen Systems': 15.2,
-                          'Emerging Technologies': 16.9,
-                        },
-                        {
-                          year: '2025 (Projected)',
-                          'Industry Leader Inc.': 2.9,
-                          'Innovation Tech': 12.8,
-                          'ValueSoft Solutions': 1.8,
-                          'NextGen Systems': 18.5,
-                          'Emerging Technologies': 14.3,
-                        }
-                      ]}
-                      keys={['Industry Leader Inc.', 'Innovation Tech', 'ValueSoft Solutions', 'NextGen Systems', 'Emerging Technologies']}
-                      indexBy="year"
-                      margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
-                      padding={0.3}
-                      valueScale={{ type: 'linear' }}
-                      indexScale={{ type: 'band', round: true }}
-                      colors={{ scheme: 'nivo' }}
-                      borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-                      axisTop={null}
-                      axisRight={null}
-                      axisBottom={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 0,
-                        legend: 'Year',
-                        legendPosition: 'middle',
-                        legendOffset: 32,
-                      }}
-                      axisLeft={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 0,
-                        legend: 'Growth (%)',
-                        legendPosition: 'middle',
-                        legendOffset: -40,
-                      }}
-                      labelSkipWidth={12}
-                      labelSkipHeight={12}
-                      labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-                      legends={[
-                        {
-                          dataFrom: 'keys',
-                          anchor: 'bottom-right',
-                          direction: 'column',
-                          justify: false,
-                          translateX: 120,
-                          translateY: 0,
-                          itemsSpacing: 2,
-                          itemWidth: 100,
-                          itemHeight: 20,
-                          itemDirection: 'left-to-right',
-                          itemOpacity: 0.85,
-                          symbolSize: 20,
-                          effects: [
-                            {
-                              on: 'hover',
-                              style: {
-                                itemOpacity: 1,
-                              },
-                            },
-                          ],
-                        },
-                      ]}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
             
-            <Card>
-              <CardHeader className="py-4">
-                <CardTitle className="text-lg">Regional Market Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="h-[300px]">
-                  <ResponsiveHeatMap
-                    data={[
-                      {
-                        id: 'North America',
-                        data: [
-                          { x: 'Industry Leader', y: 38 },
-                          { x: 'Innovation Tech', y: 24 },
-                          { x: 'ValueSoft', y: 18 },
-                          { x: 'NextGen', y: 12 },
-                          { x: 'Heritage', y: 5 },
-                          { x: 'Agile', y: 2 },
-                          { x: 'Emerging', y: 1 },
-                        ]
-                      },
-                      {
-                        id: 'Europe',
-                        data: [
-                          { x: 'Industry Leader', y: 29 },
-                          { x: 'Innovation Tech', y: 21 },
-                          { x: 'ValueSoft', y: 22 },
-                          { x: 'NextGen', y: 15 },
-                          { x: 'Heritage', y: 8 },
-                          { x: 'Agile', y: 3 },
-                          { x: 'Emerging', y: 2 },
-                        ]
-                      },
-                      {
-                        id: 'Asia Pacific',
-                        data: [
-                          { x: 'Industry Leader', y: 25 },
-                          { x: 'Innovation Tech', y: 27 },
-                          { x: 'ValueSoft', y: 15 },
-                          { x: 'NextGen', y: 18 },
-                          { x: 'Heritage', y: 7 },
-                          { x: 'Agile', y: 4 },
-                          { x: 'Emerging', y: 4 },
-                        ]
-                      },
-                      {
-                        id: 'Latin America',
-                        data: [
-                          { x: 'Industry Leader', y: 19 },
-                          { x: 'Innovation Tech', y: 16 },
-                          { x: 'ValueSoft', y: 31 },
-                          { x: 'NextGen', y: 14 },
-                          { x: 'Heritage', y: 12 },
-                          { x: 'Agile', y: 6 },
-                          { x: 'Emerging', y: 2 },
-                        ]
-                      },
-                      {
-                        id: 'Middle East & Africa',
-                        data: [
-                          { x: 'Industry Leader', y: 22 },
-                          { x: 'Innovation Tech', y: 18 },
-                          { x: 'ValueSoft', y: 24 },
-                          { x: 'NextGen', y: 13 },
-                          { x: 'Heritage', y: 11 },
-                          { x: 'Agile', y: 8 },
-                          { x: 'Emerging', y: 4 },
-                        ]
-                      }
-                    ]}
-                    margin={{ top: 60, right: 90, bottom: 60, left: 90 }}
-                    valueFormat=">-.2s"
-                    axisTop={{
-                      tickSize: 5,
-                      tickPadding: 5,
-                      tickRotation: -45,
-                      legend: 'Competitors',
-                      legendOffset: 40
-                    }}
-                    axisLeft={{
-                      tickSize: 5,
-                      tickPadding: 5,
-                      tickRotation: 0,
-                      legend: 'Regions',
-                      legendPosition: 'middle',
-                      legendOffset: -72
-                    }}
-                    colors={{
-                      type: 'sequential',
-                      scheme: 'blues'
-                    }}
-                    legends={[
-                      {
-                        anchor: 'bottom',
-                        translateX: 0,
-                        translateY: 30,
-                        length: 400,
-                        thickness: 8,
-                        direction: 'row',
-                        tickPosition: 'after',
-                        tickSize: 3,
-                        tickSpacing: 4,
-                        tickOverlap: false,
-                        title: 'Market Share %',
-                        titleAlign: 'start',
-                        titleOffset: 4
-                      }
-                    ]}
-                  />
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
           
           <TabsContent value="profiles">

@@ -132,8 +132,7 @@ async function scrapeWebsite(url: string): Promise<string> {
       headings,
       socialLinks: Array.from(new Set(socialLinks.map(link => link.url))),
       wordCount: html.replace(/<[^>]+>/g, ' ').split(/\s+/).length,
-      hasSSL: url.startsWith('https://'),
-      loadTime: Math.random() * 3000 + 500 // Simulated load time
+      hasSSL: url.startsWith('https://')
     });
   } catch (error) {
     console.error('Website scraping failed:', error);
