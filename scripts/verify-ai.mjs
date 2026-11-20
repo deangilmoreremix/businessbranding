@@ -435,6 +435,35 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
   ok('contact: a spoofed X-Forwarded-For does not reset the limit (still 429)', r.status === 429);
   r = await fetch(supa + '/rest/v1/contact_submissions', { headers: { apikey: 'anon-key', Authorization: 'Bearer tok-alice' } });
   ok('contact: clients cannot read submissions (RLS)', r.status === 401);
+  // direct spoofing without a proxy: rotating X-Real-IP must not create new rate-limit buckets (it is ignored unless TRUST_PROXY_HEADERS=true)
+  const codes = [];
+  for (let i = 0; i < 7; i++) {
+    r = await fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Real-IP': `10.9.9.${i + 1}` }, body: JSON.stringify({ name: 'Eve', email: 'eve@example.test', message: `Rotating my apparent address ${i}.` }) });
+    codes.push(r.status);
+  }
+  ok(`contact: rotating X-Real-IP (direct, no proxy) shares ONE bucket: statuses ${codes.join(',')}`, codes.slice(0, 5).every((c) => c === 200) && codes.slice(5).every((c) => c === 429));
+  // a single forged X-Forwarded-For value IS the client address: a different forged value is a different client, a repeated one is the same
+  const xff = (ip, i) => fetch(app + '/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ name: 'Mal', email: 'mal@example.test', message: `Forged forwarded header ${i}.` }) });
+  const c2 = []; for (let i = 0; i < 6; i++) c2.push((await xff('8.8.4.4', i)).status);
+  ok(`contact: a single X-Forwarded-For value is limited per value, not per request: ${c2.join(',')}`, c2.slice(0, 5).every((c) => c === 200) && c2[5] === 429);
+
+  // ---- public content endpoints ------------------------------------------------------------------------------------------
+  r = await fetch(app + '/api/blog'); j = await r.json();
+  ok('GET /api/blog: no published posts -> { posts: [] }', r.status === 200 && Array.isArray(j.posts) && j.posts.length === 0);
+  r = await fetch(app + '/api/case-studies'); j = await r.json();
+  ok('GET /api/case-studies: nothing published -> empty list', r.status === 200 && JSON.stringify(j).includes('[]'));
+  const nl = (email, extra = {}) => fetch(app + '/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.77' }, body: JSON.stringify({ email, ...extra }) });
+  r = await nl('not-an-email'); ok('POST /api/newsletter: invalid address -> 400', r.status === 400);
+  r = await nl('bot@example.test', { website: 'http://spam' }); st = await supaState();
+  ok('POST /api/newsletter: honeypot answers ok but stores nothing', r.status === 200 && (st.newsletter_subscriptions ?? []).length === 0);
+  r = await nl('Reader@Example.test'); st = await supaState();
+  ok('POST /api/newsletter: address saved once (hashed client, no raw address)', r.status === 200 && st.newsletter_subscriptions.length === 1 && !JSON.stringify(st.newsletter_subscriptions).includes('198.51.100.77'));
+  r = await nl('reader@example.test'); st = await supaState();
+  ok('POST /api/newsletter: duplicate (case-insensitive) is not stored twice', r.status === 200 && st.newsletter_subscriptions.length === 1);
+  r = await fetch(supa + '/rest/v1/newsletter_subscriptions', { headers: { apikey: 'anon-key', Authorization: 'Bearer tok-alice' } });
+  ok('newsletter: clients cannot read subscriptions', r.status === 401);
+  r = await fetch(app + '/api/usage');
+  ok('GET /api/usage without a session -> 401', r.status === 401);
 }
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll checks passed');

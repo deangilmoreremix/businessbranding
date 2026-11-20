@@ -83,11 +83,6 @@ const sidebarNavItems = [
         title: 'Brand Pillar Breakdown',
         href: '/docs/components/brand-pillar-breakdown',
         icon: Star
-      },
-      {
-        title: 'Feature Discovery',
-        href: '/docs/components/feature-discovery',
-        icon: Wand2
       }
     ]
   },

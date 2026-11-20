@@ -74,12 +74,6 @@ const components = [
     href: '/docs/components/export-dialog'
   },
   {
-    name: 'Feature Discovery',
-    description: 'Interactive feature tour system',
-    icon: Globe,
-    href: '/docs/components/feature-discovery'
-  },
-  {
     name: 'Implementation Plan',
     description: 'Brand implementation planning',
     icon: Settings,

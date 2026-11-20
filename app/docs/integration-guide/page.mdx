@@ -300,11 +300,11 @@ function checkAccess(userId, resource) {
 
 - Documentation: `/docs`
 - API Reference: `/docs/api`
-- Community Support: Discord server
-- Email Support: support@aibrandcreator.com
+- Questions or problems: use the [contact form](/contact)
+
 ## Security: rotate keys that were committed earlier
 
-Git history still contains the original `.env` (commits `2ff6c7f` and `ba0d981`) with **live** credentials: Gemini, ElevenLabs and Recraft API
+Git history still contains the original `.env` (first committed in `a4f5488`, still present in `2ff6c7f` and `ba0d981`) with **live** credentials: Gemini, ElevenLabs and Recraft API
 keys and the Supabase anon JWT. Removing a file from the working tree does not remove it from history, so treat every one of those
 values as compromised:
 
