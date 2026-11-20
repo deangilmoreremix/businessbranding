@@ -13,7 +13,9 @@ import { WebSocketServer } from 'ws';
 
 const port = Number(process.argv[2] || 4999);
 const log = [];
-let bgPolls = 0;
+const authLog = []; // which key (prefix only) each request used; GET /__auth
+let bgCount = 0;
+const bgPolls = new Map();
 let retryHit = false;
 
 function fail(res, msg, status = 400) {
@@ -48,7 +50,7 @@ function sample(schema) {
 
 function validateResponsesBody(b) {
   if ('temperature' in b || 'top_p' in b || 'top_logprobs' in b) return 'temperature/top_p/top_logprobs are not supported on GPT-6.2';
-  if (!/^gpt-6\.2-(sol|astra)$/.test(b.model)) return `unexpected model ${b.model}`;
+  if (!ALL_MODELS.includes(b.model)) return `unexpected model ${b.model}`;
   if ('reasoning_effort' in b) return 'use reasoning.effort, not reasoning_effort';
   if (b.reasoning && !['low', 'medium', 'high', 'xhigh'].includes(b.reasoning.effort)) return 'bad reasoning.effort';
   if (Array.isArray(b.input)) {
@@ -102,20 +104,42 @@ function wavBytes(n) {
 }
 const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
 
+/** Per-key behaviour: sk-bad-* invalid (401), sk-forbidden-* (403), sk-quota-* (429 insufficient_quota),
+ *  sk-limited-* has no gpt-6.2-* / gpt-image-2.6-* access (model_not_found), everything else is fully entitled. */
+const keyOf = (req) => (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+const ALL_MODELS = ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-image-2.6-sunburst', 'gpt-image-2.6-flare', 'gpt-transcribe', 'gpt-realtime-2.1-mini', 'gpt-realtime-2.1', 'gpt-4.1'];
+const modelsFor = (key) => (key.startsWith('sk-limited-') ? ['gpt-4.1'] : ALL_MODELS);
+function keyProblem(key, model, forModelsList = false) {
+  if (!key.startsWith('sk-') || key.startsWith('sk-bad-')) return [401, { error: { message: 'Incorrect API key provided: ' + key.slice(0, 7) + '****' + key.slice(-4), type: 'invalid_request_error', code: 'invalid_api_key' } }];
+  if (key.startsWith('sk-forbidden-')) return [403, { error: { message: 'You are not allowed to use this resource', code: 'permission_denied' } }];
+  if (key.startsWith('sk-quota-') && !forModelsList) return [429, { error: { message: 'You exceeded your current quota', code: 'insufficient_quota' } }];
+  if (model && !modelsFor(key).includes(model)) return [404, { error: { message: 'The model `' + model + '` does not exist or you do not have access to it.', code: 'model_not_found' } }];
+  return null;
+}
+
 const server = http.createServer(async (req, res) => {
   const chunks = []; for await (const c of req) chunks.push(c);
   const raw = Buffer.concat(chunks);
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/__auth') { if (req.method === 'DELETE') authLog.length = 0; res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(authLog)); }
   if (url.pathname === '/__log') { if (req.method === 'DELETE') log.length = 0; res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(log)); }
-  if (req.headers.authorization !== 'Bearer sk-test') return fail(res, 'bad key', 401);
+  const key = keyOf(req);
+  if (url.pathname !== '/__log' && url.pathname !== '/__auth') authLog.push({ key: key.slice(0, 14), url: url.pathname, method: req.method });
+  if (url.pathname === '/v1/models' && req.method === 'GET') {
+    const p = keyProblem(key, undefined, true);
+    if (p) { res.writeHead(p[0], { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(p[1])); }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ object: 'list', data: modelsFor(key).map((id) => ({ id, object: 'model' })) }));
+  }
 
   if (url.pathname === '/v1/responses' && req.method === 'POST') {
     const b = JSON.parse(raw.toString());
     log.push({ path: '/responses', body: b });
     if (JSON.stringify(b.input).includes('RETRY429') && !retryHit) { retryHit = true; res.writeHead(429, { 'retry-after-ms': '20', 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'rate limited', code: 'rate_limit_exceeded' } })); }
+    const kp = keyProblem(key, b.model); if (kp) { res.writeHead(kp[0], { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(kp[1])); }
     const err = validateResponsesBody(b); if (err) return fail(res, err);
     if (JSON.stringify(b.input).includes('REFUSE')) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ id: 'resp_r', status: 'completed', output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }] })); }
-    if (b.background) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ id: 'resp_bg1', status: 'queued', model: b.model, output: [] })); }
+    if (b.background) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ id: 'resp_bg' + (++bgCount), status: 'queued', model: b.model, output: [] })); }
     const r = respond(b);
     if (b.stream) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'x-request-id': 'req_stream' });
@@ -128,15 +152,18 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'x-request-id': 'req_ok' });
     return res.end(JSON.stringify(r));
   }
-  if (url.pathname === '/v1/responses/resp_bg1' && req.method === 'GET') {
-    log.push({ path: '/responses/resp_bg1 (GET)' });
-    bgPolls++;
+  const bgMatch = /^\/v1\/responses\/(resp_bg\d+)$/.exec(url.pathname);
+  if (bgMatch && req.method === 'GET') {
+    const id = bgMatch[1];
+    log.push({ path: `/responses/${id} (GET)` });
+    bgPolls.set(id, (bgPolls.get(id) ?? 0) + 1);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (bgPolls < 2) return res.end(JSON.stringify({ id: 'resp_bg1', status: 'in_progress' }));
-    return res.end(JSON.stringify({ id: 'resp_bg1', status: 'completed', model: 'gpt-6.2-astra', output: [msg('Long report', [{ type: 'url_citation', url: 'https://example.com/b', title: 'B' }])], usage }));
+    if (bgPolls.get(id) < 2) return res.end(JSON.stringify({ id, status: 'in_progress' }));
+    return res.end(JSON.stringify({ id, status: 'completed', model: 'gpt-6.2-astra', output: [msg('Long report', [{ type: 'url_citation', url: 'https://example.com/b', title: 'B' }])], usage }));
   }
   if (url.pathname === '/v1/images/generations' && req.method === 'POST') {
     const b = JSON.parse(raw.toString()); log.push({ path: '/images/generations', body: b });
+    { const kp = keyProblem(key, b.model); if (kp) { res.writeHead(kp[0], { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(kp[1])); } }
     if (!/^gpt-image-2\.6-(sunburst|flare)$/.test(b.model)) return fail(res, `unexpected image model ${b.model}`);
     if (b.response_format) return fail(res, 'response_format is not used with GPT Image models');
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -191,7 +218,8 @@ server.on('upgrade', (req, socket, head) => {
     log.push({ path: 'ws connect', model, auth: req.headers.authorization, sub: !req.headers['openai-beta'] });
     const send = (e) => ws.send(JSON.stringify(e));
     const bad = (msg) => { log.push({ path: 'ws error', msg }); send({ type: 'error', error: { message: msg, code: 'mock_invalid' } }); };
-    if (req.headers.authorization !== 'Bearer sk-test') { bad('bad key'); return ws.close(); }
+    { const kp = keyProblem(keyOf(req)); if (kp) { bad('key rejected'); return ws.close(); } }
+    authLog.push({ key: keyOf(req).slice(0, 14), url: '/v1/realtime', method: 'WS' });
     if (!/^gpt-realtime/.test(model || '')) { bad('unexpected realtime model ' + model); return ws.close(); }
     send({ type: 'session.created', session: { id: 'sess_mock', model } });
     let updated = false;
