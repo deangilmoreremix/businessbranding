@@ -37,16 +37,43 @@ let readEnv: (name: string) => string | undefined = () => undefined;
 export function setEnvReader(fn: (name: string) => string | undefined) {
   readEnv = fn;
 }
+/** Read a (non-secret) environment value through the runtime binding. */
+export const getEnv = (name: string) => readEnv(name);
 
+// ---------------------------------------------------------------------------------------------
+// Bring-your-own-key: the key is resolved per request (see byok.ts), never from process-wide state.
+// ---------------------------------------------------------------------------------------------
+let keyResolver: () => string | undefined = () => undefined;
+/** Install the per-request key lookup (AsyncLocalStorage in byok.ts). */
+export function setKeyResolver(fn: () => string | undefined) {
+  keyResolver = fn;
+}
+
+export type ModelSlot = 'text' | 'reasoning' | 'image' | 'transcribe' | 'tts' | 'realtime';
+let modelResolver: (slot: ModelSlot) => string | undefined = () => undefined;
+/** Install per-user model overrides (Settings -> Models). Priority: user override > env > built-in default. */
+export function setModelResolver(fn: (slot: ModelSlot) => string | undefined) {
+  modelResolver = fn;
+}
+
+const usable = (key: string | undefined) => (key && key !== 'demo-mode' && key !== 'your_api_key_here' ? key : undefined);
+
+/**
+ * The caller's own OpenAI key. A shared server key (OPENAI_API_KEY) is used ONLY when ALLOW_SERVER_OPENAI_KEY=true
+ * (development convenience; off by default).
+ */
 export function getApiKey(): string | undefined {
-  const key = readEnv('OPENAI_API_KEY');
-  return key && key !== 'demo-mode' && key !== 'your_api_key_here' ? key : undefined;
+  const own = usable(keyResolver());
+  if (own) return own;
+  return readEnv('ALLOW_SERVER_OPENAI_KEY') === 'true' ? usable(readEnv('OPENAI_API_KEY')) : undefined;
 }
 export const isConfigured = () => !!getApiKey();
+/** True when the dev-only shared server key is enabled (ALLOW_SERVER_OPENAI_KEY=true) and set. */
+export const serverKeyFallbackAllowed = () => readEnv('ALLOW_SERVER_OPENAI_KEY') === 'true' && !!usable(readEnv('OPENAI_API_KEY'));
 
-export const textModel = () => readEnv('OPENAI_TEXT_MODEL') || MODELS.text;
-export const reasoningModel = () => readEnv('OPENAI_REASONING_MODEL') || MODELS.reasoning;
-export const imageModel = () => readEnv('OPENAI_IMAGE_MODEL') || MODELS.image;
+export const textModel = () => modelResolver('text') || readEnv('OPENAI_TEXT_MODEL') || MODELS.text;
+export const reasoningModel = () => modelResolver('reasoning') || readEnv('OPENAI_REASONING_MODEL') || MODELS.reasoning;
+export const imageModel = () => modelResolver('image') || readEnv('OPENAI_IMAGE_MODEL') || MODELS.image;
 
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh';
 
@@ -65,13 +92,16 @@ export class OpenAIError extends Error {
   code?: string;
   type?: string;
   requestId?: string;
-  constructor(message: string, init: { status: number; code?: string; type?: string; requestId?: string }) {
+  /** The model the failing request used (for "no access to model X" messages). */
+  model?: string;
+  constructor(message: string, init: { status: number; code?: string; type?: string; requestId?: string; model?: string }) {
     super(message);
     this.name = 'OpenAIError';
     this.status = init.status;
     this.code = init.code;
     this.type = init.type;
     this.requestId = init.requestId;
+    this.model = init.model;
   }
 }
 
@@ -89,6 +119,39 @@ export class IncompleteError extends Error {
     super(`Response incomplete: ${reason}`);
     this.name = 'IncompleteError';
   }
+}
+
+/** Replace anything that looks like an API key. */
+export function redactKeys(text: string): string {
+  return text.replace(/sk-[A-Za-z0-9_\-*.]{4,}/g, 'sk-…');
+}
+
+export interface FriendlyError {
+  status: number;
+  code: string;
+  message: string;
+}
+
+/**
+ * User-facing description of an OpenAI failure. Never includes the key or raw upstream text for auth failures.
+ * `model` (if known) is mentioned for model-access problems so users know what to override in Settings.
+ */
+export function describeOpenAIError(error: unknown, model?: string): FriendlyError | null {
+  if (error instanceof NotConfiguredError) return { status: 412, code: 'OPENAI_KEY_REQUIRED', message: 'Add your OpenAI API key in Settings to use AI features.' };
+  if (!(error instanceof OpenAIError)) return null;
+  const upstream = error.code ?? '';
+  if (error.status === 401) return { status: 401, code: 'OPENAI_KEY_INVALID', message: 'OpenAI rejected your API key. It may be invalid, expired or revoked. Check it in Settings.' };
+  if (error.status === 403) return { status: 403, code: 'OPENAI_FORBIDDEN', message: 'Your OpenAI account or project is not allowed to make this request. Check project permissions and model access in your OpenAI dashboard.' };
+  if (upstream === 'model_not_found' || (error.status === 404 && /model/i.test(error.message))) {
+    return { status: 424, code: 'OPENAI_MODEL_UNAVAILABLE', message: `Your OpenAI account does not have access to ${(error.model ?? model) ? `the model "${error.model ?? model}"` : 'the required model'}. Choose a model you can use in Settings → Models.` };
+  }
+  if (error.status === 429) {
+    return upstream === 'insufficient_quota'
+      ? { status: 402, code: 'OPENAI_QUOTA_EXCEEDED', message: 'Your OpenAI account is out of credit or over its quota. Add credit in your OpenAI billing settings.' }
+      : { status: 429, code: 'OPENAI_RATE_LIMITED', message: 'OpenAI is rate limiting your key. Wait a moment and try again.' };
+  }
+  if (error.status >= 500) return { status: 502, code: 'OPENAI_UNAVAILABLE', message: 'OpenAI is temporarily unavailable. Try again shortly.' };
+  return { status: 400, code: 'OPENAI_REQUEST_REJECTED', message: 'OpenAI could not process this request.' };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -206,8 +269,10 @@ async function call(path: string, opts: CallOptions = {}): Promise<any> {
     } catch {
       /* non-JSON error body */
     }
+    // OpenAI error text can echo a masked key ("Incorrect API key provided: sk-abc***xyz"): never keep key fragments.
+    if (typeof err.message === 'string') err.message = redactKeys(err.message);
     usageLogger({ feature: opts.feature ?? 'unknown', endpoint: path, model, status: res.status, attempts: attempt, durationMs: Date.now() - started, requestId, error: err.code ?? err.type });
-    throw new OpenAIError(err.message ?? `OpenAI API error ${res.status}`, { status: res.status, code: err.code, type: err.type, requestId });
+    throw new OpenAIError(err.message ?? `OpenAI API error ${res.status}`, { status: res.status, code: err.code, type: err.type, requestId, model: typeof model === 'string' ? model : undefined });
   }
   throw lastError ?? new Error('OpenAI request failed');
 }
@@ -640,9 +705,9 @@ export const AUDIO_MODELS = {
   speech: 'gpt-4o-mini-tts'
 } as const;
 
-export const transcribeModel = () => readEnv('OPENAI_TRANSCRIBE_MODEL') || AUDIO_MODELS.transcribe;
-export const ttsModel = () => readEnv('OPENAI_TTS_MODEL') || AUDIO_MODELS.tts;
-export const realtimeModel = () => readEnv('OPENAI_REALTIME_MODEL') || AUDIO_MODELS.realtime;
+export const transcribeModel = () => modelResolver('transcribe') || readEnv('OPENAI_TRANSCRIBE_MODEL') || AUDIO_MODELS.transcribe;
+export const ttsModel = () => modelResolver('tts') || readEnv('OPENAI_TTS_MODEL') || AUDIO_MODELS.tts;
+export const realtimeModel = () => modelResolver('realtime') || readEnv('OPENAI_REALTIME_MODEL') || AUDIO_MODELS.realtime;
 export const speechModel = () => readEnv('OPENAI_SPEECH_MODEL') || AUDIO_MODELS.speech;
 /** 'realtime' (default) or 'speech' (legacy /v1/audio/speech). */
 export const ttsEndpoint = (): 'realtime' | 'speech' => (readEnv('OPENAI_TTS_ENDPOINT') === 'speech' ? 'speech' : 'realtime');
@@ -976,3 +1041,33 @@ export async function createRealtimeClientSecret(opts: RealtimeSessionOptions = 
 
 /** Base URL browsers use for the WebRTC SDP exchange. */
 export const realtimeCallsUrl = () => `${apiBase()}/realtime/calls`;
+
+// ---------------------------------------------------------------------------------------------
+// Key validation (Settings): GET /v1/models with an explicit key. The key is never logged or echoed.
+// ---------------------------------------------------------------------------------------------
+export interface KeyCheck {
+  /** valid = accepted; invalid = 401; restricted = 403 (authenticated, but this key cannot list models); unreachable = OpenAI down/rate limited. */
+  status: 'valid' | 'invalid' | 'restricted' | 'unreachable';
+  modelIds: string[];
+}
+
+export async function checkOpenAIKey(key: string): Promise<KeyCheck> {
+  try {
+    const res = await fetch(`${apiBase()}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) });
+    if (res.status === 401) return { status: 'invalid', modelIds: [] };
+    if (res.status === 403) return { status: 'restricted', modelIds: [] };
+    if (!res.ok) return { status: 'unreachable', modelIds: [] };
+    const data = await res.json().catch(() => ({}));
+    return { status: 'valid', modelIds: (data?.data ?? []).map((m: any) => String(m.id)) };
+  } catch {
+    return { status: 'unreachable', modelIds: [] };
+  }
+}
+
+/** Is a model id usable by this account according to the /v1/models list? (null when the list is unavailable) */
+export const hasModel = (modelIds: string[], id: string): boolean | null => (modelIds.length ? modelIds.includes(id) : null);
+
+/** Defaults/overrides currently in effect for each slot. */
+export function effectiveModels(): Record<ModelSlot, string> {
+  return { text: textModel(), reasoning: reasoningModel(), image: imageModel(), transcribe: transcribeModel(), tts: ttsModel(), realtime: realtimeModel() };
+}

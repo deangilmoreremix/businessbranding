@@ -40,6 +40,7 @@
     "supabase/functions/*/index.ts",
     "supabase/functions/deno-shim.d.ts",
     "supabase/functions/_shared/openai.ts",
+    "supabase/functions/_shared/edge.ts",
     "scripts",
     "vitest.config.mts"
   ]
