@@ -10,11 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { captionsFromText } from '@/lib/local/captions';
+
+const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
 export function VoiceTranscription() {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('en');
   const [context, setContext] = useState('');
+  const [onDevice, setOnDevice] = useState(false);
+  const [modelStatus, setModelStatus] = useState('');
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<string | null>(null);
@@ -23,6 +31,9 @@ export function VoiceTranscription() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+      // Local preview + duration (used to time the caption track)
+      setFileUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(selectedFile); });
+      setDurationMs(0);
     }
   };
 
@@ -31,6 +42,26 @@ export function VoiceTranscription() {
 
     setTranscribing(true);
     setProgress(0);
+
+    if (onDevice) {
+      // Optional on-device Whisper (opt-in): the model is downloaded once and then cached by the browser.
+      try {
+        const { transcribeOnDevice } = await import('@/lib/local/whisper');
+        setModelStatus('Preparing on-device model (first use downloads ~40-80 MB)…');
+        const text = await transcribeOnDevice(file, (p) => {
+          if (p.status === 'progress' && p.progress !== undefined) setModelStatus(`Downloading model… ${Math.round(p.progress)}%`);
+        });
+        setResult(text || 'No speech detected.');
+        setProgress(100);
+      } catch (error) {
+        console.error('On-device transcription failed:', error);
+        setResult('On-device transcription failed in this browser. Turn it off to use OpenAI transcription.');
+      } finally {
+        setModelStatus('');
+        setTranscribing(false);
+      }
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -116,6 +147,21 @@ export function VoiceTranscription() {
                 </Select>
               </div>
 
+              <div className="flex items-start gap-2 rounded border p-2">
+                <input
+                  id="on-device"
+                  type="checkbox"
+                  className="mt-1"
+                  checked={onDevice}
+                  onChange={(e) => setOnDevice(e.target.checked)}
+                />
+                <label htmlFor="on-device" className="text-xs text-muted-foreground">
+                  Transcribe on this device with Whisper (private, free). Optional: downloads a ~40-80 MB model the first time,
+                  English only, slower than OpenAI. Leave off to use OpenAI.
+                </label>
+              </div>
+              {modelStatus && <p className="text-xs text-muted-foreground" role="status">{modelStatus}</p>}
+
               <div className="space-y-2">
                 <Label>Context (optional)</Label>
                 <Input
@@ -162,6 +208,13 @@ export function VoiceTranscription() {
                 Copy Text
               </Button>
             </div>
+            {fileUrl && (
+              <audio
+                src={fileUrl}
+                className="hidden"
+                onLoadedMetadata={(e) => setDurationMs(Number.isFinite(e.currentTarget.duration) ? Math.round(e.currentTarget.duration * 1000) : 0)}
+              />
+            )}
             <ScrollArea className="h-[400px]">
               {result ? (
                 <p className="whitespace-pre-wrap text-sm">{result}</p>
@@ -171,6 +224,11 @@ export function VoiceTranscription() {
                 </div>
               )}
             </ScrollArea>
+            {result && fileUrl && durationMs > 0 && !result.startsWith('Transcription failed') && !result.startsWith('On-device transcription failed') && (
+              <div className="mt-4">
+                <CaptionPlayer audioUrl={fileUrl} captions={captionsFromText(result, durationMs)} filename={file?.name.replace(/\.[^.]+$/, '') || 'transcript'} estimated />
+              </div>
+            )}
           </Card>
         </div>
       </div>

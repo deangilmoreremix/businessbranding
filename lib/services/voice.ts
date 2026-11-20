@@ -75,6 +75,38 @@ export async function createAudiobook(options: AudiobookOptions): Promise<Blob> 
   return res.blob();
 }
 
+/** Result of narration made from segments, with each clip's duration (for exact captions). */
+export interface NarrationResult {
+  blob: Blob;
+  /** Clip length per segment/chapter in ms (0 for empty ones); clips are joined with a 350 ms pause. */
+  durationsMs: number[];
+}
+
+const parseDurations = (res: Response) =>
+  (res.headers.get('X-Segment-Durations') || '').split(',').filter(Boolean).map(Number);
+
+/** Like createPodcast but also returns per-segment durations. */
+export async function createPodcastWithTimings(title: string, segments: PodcastSegment[]): Promise<NarrationResult> {
+  const res = await fetch('/api/voice/podcast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, segments })
+  });
+  if (!res.ok) throw await readError(res, 'Podcast generation failed');
+  return { blob: await res.blob(), durationsMs: parseDurations(res) };
+}
+
+/** Like createAudiobook but also returns per-chapter durations. */
+export async function createAudiobookWithTimings(options: AudiobookOptions): Promise<NarrationResult> {
+  const res = await fetch('/api/voice/audiobook', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options)
+  });
+  if (!res.ok) throw await readError(res, 'Audiobook generation failed');
+  return { blob: await res.blob(), durationsMs: parseDurations(res) };
+}
+
 export async function transcribeAudio(options: TranscriptionOptions): Promise<TranscriptionResult> {
   const form = new FormData();
   form.append('file', options.audio);

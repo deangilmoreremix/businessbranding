@@ -3,13 +3,14 @@ import { NextResponse } from 'next/server';
 /** Narration/instructions guard: keep prompts to a sane size. */
 export const MAX_SCRIPT_CHARS = 20_000;
 
-export function wavResponse(audio: Uint8Array, filename = 'speech.wav'): Response {
+export function wavResponse(audio: Uint8Array, filename = 'speech.wav', extraHeaders: Record<string, string> = {}): Response {
   return new Response(audio as BodyInit, {
     headers: {
       'Content-Type': 'audio/wav',
       'Content-Length': String(audio.byteLength),
       'Content-Disposition': `inline; filename="${filename}"`,
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
+      ...extraHeaders
     }
   });
 }

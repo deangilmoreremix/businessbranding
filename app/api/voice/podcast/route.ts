@@ -1,4 +1,4 @@
-import { synthesizeSegments } from '@/lib/openai';
+import { synthesizeSegmentsDetailed } from '@/lib/openai';
 import { errorResponse, rateLimit } from '@/lib/ai-http';
 import { badRequest, MAX_SCRIPT_CHARS, wavResponse } from '@/lib/voice-http';
 
@@ -15,8 +15,8 @@ export async function POST(request: Request) {
     const total = segments.reduce((n: number, s: any) => n + (typeof s?.text === 'string' ? s.text.length : 0), 0);
     if (total === 0 || total > MAX_SCRIPT_CHARS) return badRequest('segment text is empty or too long');
 
-    const audio = await synthesizeSegments(segments.map((s: any) => ({ text: String(s.text ?? ''), voice: s.voiceId })));
-    return wavResponse(audio, 'podcast.wav');
+    const { audio, durationsMs } = await synthesizeSegmentsDetailed(segments.map((s: any) => ({ text: String(s.text ?? ''), voice: s.voiceId })));
+    return wavResponse(audio, 'podcast.wav', { 'X-Segment-Durations': durationsMs.join(',') });
   } catch (error) {
     return errorResponse(error, 'Failed to generate podcast');
   }

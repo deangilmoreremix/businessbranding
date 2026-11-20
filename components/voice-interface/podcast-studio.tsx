@@ -18,7 +18,11 @@ import {
   Loader2,
   FileMusic
 } from 'lucide-react';
-import { createPodcast } from '@/lib/services/voice';
+import dynamic from 'next/dynamic';
+import { createPodcastWithTimings } from '@/lib/services/voice';
+import { captionsFromSegments } from '@/lib/local/captions';
+
+const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 import { createContentItem } from '@/lib/supabase';
 
 interface PodcastSegment {
@@ -36,6 +40,7 @@ export function PodcastStudio() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [captionSource, setCaptionSource] = useState<{ text: string; durationMs: number }[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
@@ -94,10 +99,12 @@ export function PodcastStudio() {
     try {
       // Generate the podcast with OpenAI text-to-speech (one voice per segment)
       
-      const audioBlob = await createPodcast(title, segments.map(s => ({
+      const { blob: audioBlob, durationsMs } = await createPodcastWithTimings(title, segments.map(s => ({
         text: s.text,
         voiceId: s.voiceId
       })));
+      // Snapshot text + clip durations so captions stay correct if the segments are edited afterwards
+      setCaptionSource(segments.map((s, i) => ({ text: s.text, durationMs: durationsMs[i] ?? 0 })));
       
       // Revoke previous URL to prevent memory leaks
       if (audioUrl) {
@@ -275,7 +282,7 @@ export function PodcastStudio() {
                     {isPlaying ? 'Pause' : 'Play'}
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <a href={audioUrl} download={`${title}.mp3`}>
+                    <a href={audioUrl} download={`${title}.wav`}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </a>
@@ -283,9 +290,12 @@ export function PodcastStudio() {
                 </div>
               </div>
               <audio controls className="w-full">
-                <source src={audioUrl} type="audio/mpeg" />
+                <source src={audioUrl} type="audio/wav" />
                 Your browser does not support the audio element.
               </audio>
+              {captionSource.length > 0 && (
+                <CaptionPlayer audioUrl={audioUrl} captions={captionsFromSegments(captionSource)} filename={title || 'podcast'} />
+              )}
             </div>
           </Card>
         )}

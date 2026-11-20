@@ -13,7 +13,6 @@
   "dependencies": {
     "@genkit-ai/ai": "^0.9.0",
     "@headlessui/react": "^1.7.18",
-    "@huggingface/transformers": "^4.3.2",
     "@lottiefiles/react-lottie-player": "^3.5.3",
     "@mdx-js/react": "^3.0.0",
     "@mediapipe/tasks-vision": "^1.2.3",
@@ -52,6 +51,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.3.1",
+    "@remotion/captions": "4.0.545",
     "@supabase/auth-helpers-nextjs": "^0.9.0",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "2.39.8",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +45,9 @@ interface CompetitorIntelligenceProps {
     metrics?: Record<string, number>;
   }>;
 }
+
+// Background deep research + notifications: browser-only, loaded on demand.
+const DeepResearchPanel = dynamic(() => import('@/components/local/deep-research-panel'), { ssr: false, loading: () => null });
 
 export function CompetitorIntelligence({ industry = 'Technology', competitors = [] }: CompetitorIntelligenceProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -283,6 +287,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
           </Tabs>
         </div>
       </CardHeader>
+      <DeepResearchPanel industry={industry} />
 
       <CardContent>
         <Tabs value={activeView} className="space-y-4">

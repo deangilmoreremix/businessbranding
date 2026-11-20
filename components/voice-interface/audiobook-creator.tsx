@@ -21,6 +21,10 @@ import {
   FileAudio,
   Bookmark
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { captionsFromSegments } from '@/lib/local/captions';
+
+const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
 interface Chapter {
   id: string;
@@ -39,6 +43,7 @@ export function AudiobookCreator() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [captionSource, setCaptionSource] = useState<{ text: string; durationMs: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
 
@@ -86,6 +91,9 @@ export function AudiobookCreator() {
 
       if (!response.ok) throw new Error('Audiobook generation failed');
 
+      const durations = (response.headers.get('X-Segment-Durations') || '').split(',').filter(Boolean).map(Number);
+      // Narration reads each chapter title before its text; mirror that in the captions
+      setCaptionSource(chapters.map((c, i) => ({ text: `${c.title ? `${c.title}. ` : ''}${c.text}`, durationMs: durations[i] ?? 0 })));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
@@ -256,7 +264,7 @@ export function AudiobookCreator() {
                     Add Bookmark
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <a href={audioUrl} download={`${title}.mp3`}>
+                    <a href={audioUrl} download={`${title}.wav`}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </a>
@@ -270,6 +278,9 @@ export function AudiobookCreator() {
                 progressColor="#6366F1"
                 onReady={() => setCurrentTime(0)}
               />
+              {captionSource.length > 0 && (
+                <CaptionPlayer audioUrl={audioUrl} captions={captionsFromSegments(captionSource)} filename={title || 'audiobook'} />
+              )}
               {bookmarks.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {bookmarks.map((time, index) => (

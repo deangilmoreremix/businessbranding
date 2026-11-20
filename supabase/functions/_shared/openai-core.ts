@@ -911,14 +911,36 @@ export async function synthesizeSpeech(opts: SpeechOptions): Promise<{ audio: Ui
   return { audio, mime: 'audio/wav' };
 }
 
-/** Multi-voice production (podcast, audiobook): one clip per segment, joined into a single WAV. */
-export async function synthesizeSegments(segments: { text: string; voice?: string; instructions?: string }[]): Promise<Uint8Array> {
+/** Duration of a WAV clip in milliseconds. */
+export function wavDurationMs(wav: Uint8Array): number {
+  const { pcm, sampleRate } = wavToPcm(wav);
+  return Math.round((pcm.byteLength / 2 / sampleRate) * 1000);
+}
+
+/**
+ * Multi-voice production (podcast, audiobook): one clip per segment, joined into a single WAV.
+ * `durationsMs[i]` is the length of segment i's clip (0 when it had no text), which lets callers build exact captions
+ * (clips are joined with a 350 ms pause).
+ */
+export async function synthesizeSegmentsDetailed(
+  segments: { text: string; voice?: string; instructions?: string }[]
+): Promise<{ audio: Uint8Array; durationsMs: number[] }> {
   const clips: Uint8Array[] = [];
+  const durationsMs: number[] = [];
   for (const seg of segments) {
-    if (seg.text?.trim()) clips.push((await synthesizeSpeech(seg)).audio);
+    if (seg.text?.trim()) {
+      const clip = (await synthesizeSpeech(seg)).audio;
+      clips.push(clip);
+      durationsMs.push(wavDurationMs(clip));
+    } else durationsMs.push(0);
   }
   if (!clips.length) throw new Error('No text to synthesize');
-  return concatWav(clips);
+  return { audio: concatWav(clips), durationsMs };
+}
+
+/** Same as synthesizeSegmentsDetailed but returns only the audio. */
+export async function synthesizeSegments(segments: { text: string; voice?: string; instructions?: string }[]): Promise<Uint8Array> {
+  return (await synthesizeSegmentsDetailed(segments)).audio;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -3,7 +3,9 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Mic, Send, Square, Volume2 } from 'lucide-react';
+import { useVoiceInput } from '@/components/local/use-voice-input';
+import { readAloud, readAloudSupported, stopReadAloud } from '@/components/local/read-aloud';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -30,6 +32,15 @@ export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const previousResponseId = useRef<string | undefined>(undefined);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const voice = useVoiceInput((text) => setInput((prev) => (prev ? `${prev} ${text}` : text)));
+
+  const toggleReadAloud = async (index: number, text: string) => {
+    if (speakingIndex === index) { stopReadAloud(); setSpeakingIndex(null); return; }
+    setSpeakingIndex(index);
+    await readAloud(text);
+    setSpeakingIndex((cur) => (cur === index ? null : cur));
+  };
 
   const patchLast = (fn: (m: Message) => Message) =>
     setMessages((prev) => prev.map((m, i) => (i === prev.length - 1 ? fn(m) : m)));
@@ -96,6 +107,16 @@ export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) 
           <div key={i} className={m.role === 'user' ? 'text-right' : 'text-left'}>
             <div className={`inline-block max-w-[90%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
               {m.text || (busy && i === messages.length - 1 ? <Loader2 className="h-4 w-4 animate-spin" /> : null)}
+              {m.role === 'assistant' && m.text && !busy && readAloudSupported() && (
+                <button
+                  type="button"
+                  onClick={() => toggleReadAloud(i, m.text)}
+                  className="ml-2 inline-flex align-middle opacity-70 hover:opacity-100"
+                  aria-label={speakingIndex === i ? 'Stop reading' : 'Read aloud'}
+                >
+                  {speakingIndex === i ? <Square className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                </button>
+              )}
               {m.images?.map((src, j) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={j} src={src} alt="Generated brand concept" className="mt-2 rounded-md max-w-full" />
@@ -116,6 +137,7 @@ export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) 
         ))}
         {status && <p className="text-xs text-muted-foreground">{status}</p>}
       </div>
+      {voice.error && <p className="text-xs text-red-500" role="alert">{voice.error}</p>}
       <div className="flex gap-2">
         <Textarea
           value={input}
@@ -130,6 +152,18 @@ export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) 
           rows={2}
           disabled={busy}
         />
+        {voice.supported && (
+          <Button
+            type="button"
+            variant={voice.listening ? 'destructive' : 'outline'}
+            onClick={voice.listening ? voice.stop : voice.start}
+            disabled={busy || voice.busy}
+            aria-label={voice.listening ? 'Stop voice input' : 'Start voice input'}
+            title={voice.engine === 'browser' ? 'Using your browser\'s speech recognition' : 'Voice input'}
+          >
+            {voice.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : voice.listening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        )}
         <Button onClick={send} disabled={busy || !input.trim()} aria-label="Send message">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
