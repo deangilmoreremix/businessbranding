@@ -1,7 +1,8 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 
 export async function analyzeContent(content: string, type: 'brand' | 'visual' | 'voice') {
   try {
-    const response = await fetch('/api/ai/analyze', {
+    const response = await authFetch('/api/ai/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

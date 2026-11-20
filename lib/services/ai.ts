@@ -1,4 +1,5 @@
 import type { TaskName } from '@/lib/ai-tasks';
+import { authFetch, KEY_REQUIRED_EVENT } from '@/lib/client/auth-fetch';
 
 /**
  * AI features (Responses API + Structured Outputs), usable from server and client code.
@@ -8,22 +9,26 @@ import type { TaskName } from '@/lib/ai-tasks';
  * demo data (the demo fixtures also define the JSON schemas: see scripts/gen-ai-schemas.mjs).
  */
 
-let clientConfigured: boolean | null = null;
+// The user's key status can change at any time (they add or remove it in Settings), so only a recent "configured"
+// answer is reused; "not configured" is always re-checked and shows the "Add your OpenAI key" banner.
+let configuredAt = 0;
 
 export async function isDemoMode(): Promise<boolean> {
   if (typeof window === 'undefined') {
     const { isConfigured } = await import('@/lib/openai');
     return !isConfigured();
   }
-  if (clientConfigured === null) {
-    try {
-      const res = await fetch('/api/ai/task');
-      clientConfigured = res.ok ? !!(await res.json()).configured : false;
-    } catch {
-      clientConfigured = false;
-    }
+  if (Date.now() - configuredAt < 30_000) return false;
+  let configured = false;
+  try {
+    const res = await authFetch('/api/ai/task');
+    configured = res.ok ? !!(await res.json()).configured : false;
+  } catch {
+    configured = false;
   }
-  return !clientConfigured;
+  if (configured) configuredAt = Date.now();
+  else window.dispatchEvent(new CustomEvent(KEY_REQUIRED_EVENT));
+  return !configured;
 }
 
 export interface AITaskResult<T> {
@@ -38,7 +43,7 @@ export async function callTask<T = any>(task: TaskName, input: string, opts: { i
     const { runTask } = await import('@/lib/ai-tasks');
     return runTask<T>(task, input, opts);
   }
-  const res = await fetch('/api/ai/task', {
+  const res = await authFetch('/api/ai/task', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ task, input, imageUrls: opts.imageUrls })

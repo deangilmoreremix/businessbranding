@@ -1,5 +1,5 @@
-import { generateImage, isConfigured, runAgentTurn, textModel, type FunctionTool } from '@/lib/openai';
-import { rateLimit } from '@/lib/ai-http';
+import { describeOpenAIError, generateImage, runAgentTurn, textModel, type FunctionTool } from '@/lib/openai';
+import { runInContext, withUser } from '@/lib/server/user';
 
 export const runtime = 'nodejs';
 
@@ -50,9 +50,7 @@ const FUNCTIONS: FunctionTool[] = [
  * Conversation state lives at OpenAI (store:true + previous_response_id); the client only keeps the last response id.
  */
 export async function POST(request: Request) {
-  const limited = rateLimit(request, 'assistant', 20);
-  if (limited) return limited;
-
+  return withUser(request, { bucket: 'assistant', limit: 20 }, async (ctx) => {
   let body: any;
   try {
     body = await request.json();
@@ -67,7 +65,6 @@ export async function POST(request: Request) {
   if (previousResponseId !== undefined && !/^resp_[A-Za-z0-9_-]+$/.test(previousResponseId)) {
     return Response.json({ error: 'Invalid previousResponseId' }, { status: 400 });
   }
-  if (!isConfigured()) return Response.json({ error: 'OPENAI_API_KEY is not configured', demo: true }, { status: 503 });
 
   const analysis = context && JSON.stringify(context).length <= MAX_CONTEXT_CHARS ? context : null;
   const factors: any[] = Array.isArray(analysis?.brandFactors) ? analysis.brandFactors : [];
@@ -75,6 +72,7 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      await runInContext(ctx, async () => {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       try {
         const result = await runAgentTurn({
@@ -103,15 +101,19 @@ export async function POST(request: Request) {
         });
         send({ type: 'done', responseId: result.responseId, citations: result.citations });
       } catch (error) {
-        console.error('Assistant turn failed:', error);
-        send({ type: 'error', message: 'The assistant could not complete that request. Please try again.' });
+        console.error('Assistant turn failed:', error instanceof Error ? error.name : 'error');
+        const friendly = describeOpenAIError(error, textModel());
+        send({ type: 'error', message: friendly?.message ?? 'The assistant could not complete that request. Please try again.', code: friendly?.code });
       } finally {
+        await ctx.flush();
         controller.close();
       }
+      });
     }
   });
 
   return new Response(stream, {
     headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' }
+  });
   });
 }

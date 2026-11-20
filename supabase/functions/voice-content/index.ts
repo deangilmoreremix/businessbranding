@@ -1,3 +1,4 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { isConfigured, REALTIME_VOICES, synthesizeSegments, synthesizeSpeech, transcribeAudio } from "../_shared/openai.ts";
 
@@ -21,7 +22,7 @@ const wav = (audio: Uint8Array) => new Response(audio, { headers: { ...corsHeade
 //   POST     .../podcast     { segments: [{ text, voiceId }] }          -> audio/wav
 //   POST     .../audiobook   { chapters: [{ title, text, voiceId }] }   -> audio/wav
 //   POST     .../transcribe  multipart { audio, language?, prompt? }    -> { text, languages }
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -86,4 +87,4 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
-});
+}, { bucket: 'voice-content' }));

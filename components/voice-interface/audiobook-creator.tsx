@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromSegments } from '@/lib/local/captions';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
@@ -78,7 +79,7 @@ export function AudiobookCreator() {
     }, 500);
 
     try {
-      const response = await fetch('/api/voice/audiobook', {
+      const response = await authFetch('/api/voice/audiobook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

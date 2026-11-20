@@ -14,7 +14,7 @@ Voice features run on OpenAI audio models. All calls are made server-side; the b
 | Script optimization | `POST /api/voice/optimize` | Responses API, Structured Outputs |
 | Enhancement | `POST /api/voice/enhance` | Transcribe (if audio) → polish script → re-narrate |
 
-Set `OPENAI_API_KEY` on the server. Voices (`voiceId`): `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar` (marin and cedar recommended).
+Voice endpoints use the signed-in user's own OpenAI key (Settings → OpenAI); without one they return `412 OPENAI_KEY_REQUIRED`. Voices (`voiceId`): `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar` (marin and cedar recommended).
 
 > Disclose to end users that the voice is AI-generated (OpenAI usage policy).
 

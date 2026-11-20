@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { transcribeAudio } from '@/lib/openai';
-import { errorResponse, rateLimit } from '@/lib/ai-http';
+import { withUser } from '@/lib/server/user';
 import { badRequest } from '@/lib/voice-http';
 
 export const runtime = 'nodejs';
@@ -13,9 +13,7 @@ const MAX_BYTES = 25 * 1024 * 1024; // /v1/audio/transcriptions file limit
  * -> { text, languages }   (gpt-transcribe by default; OPENAI_TRANSCRIBE_MODEL to change)
  */
 export async function POST(request: Request) {
-  const limited = rateLimit(request, 'transcribe', 10);
-  if (limited) return limited;
-  try {
+  return withUser(request, { bucket: 'transcribe', limit: 10 }, async () => {
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File) || file.size === 0) return badRequest('An audio file is required');
@@ -33,7 +31,5 @@ export async function POST(request: Request) {
       // model is intentionally not client-selectable; set OPENAI_TRANSCRIBE_MODEL on the server
     });
     return NextResponse.json(result);
-  } catch (error) {
-    return errorResponse(error, 'Failed to transcribe audio');
-  }
+  });
 }

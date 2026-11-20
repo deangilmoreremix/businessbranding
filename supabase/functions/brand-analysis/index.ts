@@ -1,7 +1,7 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createStructured, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
+import { createStructured, BRAND_DEVELOPER_PROMPT, isConfigured } from "../_shared/openai.ts";
 
-const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +23,7 @@ Provide analysis in the following format:
 
 Return the analysis as a structured JSON object.`;
 
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     // Return demo response if in demo mode
-    if (OPENAI_API_KEY === 'demo-mode') {
+    if (!isConfigured()) {
       return new Response(
         JSON.stringify({
           healthScore: 85,
@@ -129,7 +129,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Unknown error occurred',
-        demo: OPENAI_API_KEY === 'demo-mode'
+        demo: !isConfigured()
       }),
       { 
         status: 500,
@@ -140,4 +140,4 @@ Deno.serve(async (req: Request) => {
       }
     );
   }
-});
+}, { bucket: 'brand-analysis' }));

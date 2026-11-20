@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Mic, MicOff } from 'lucide-react';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 type Status = 'idle' | 'connecting' | 'live' | 'error';
 
@@ -39,14 +40,14 @@ export function LiveVoice({ voiceId, instructions }: LiveVoiceProps) {
     setError('');
     setStatus('connecting');
     try {
-      const tokenRes = await fetch('/api/voice/realtime', {
+      const tokenRes = await authFetch('/api/voice/realtime', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voiceId, instructions })
       });
       const token = await tokenRes.json().catch(() => ({}));
       if (!tokenRes.ok) {
-        throw new Error(tokenRes.status === 503 ? 'Live voice needs OPENAI_API_KEY to be configured on the server.' : token.error || 'Could not start a voice session');
+        throw new Error(token.error || 'Could not start a voice session');
       }
 
       const pc = new RTCPeerConnection();

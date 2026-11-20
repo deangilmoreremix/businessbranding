@@ -19,6 +19,7 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 interface VoiceEnhancementProps {
   onEnhancementComplete?: (enhancedAudio: Blob) => void;
@@ -48,7 +49,7 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
     }, 500);
 
     try {
-      const response = await fetch('/api/voice/enhance', {
+      const response = await authFetch('/api/voice/enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

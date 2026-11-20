@@ -1,3 +1,4 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { createResponse, generateImage, isConfigured, NotConfiguredError } from "../_shared/openai.ts";
 
 const corsHeaders = {
@@ -16,7 +17,7 @@ const json = (body: unknown, status = 200) =>
 // POST { prompt, type?: 'text' | 'image', effort?, size?, quality? }
 //   text  -> { text, citations }   Responses API (gpt-6.2-sol by default)
 //   image -> { images }            Images API (gpt-image-2.6-sunburst by default), data URLs
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -46,4 +47,4 @@ Deno.serve(async (req: Request) => {
     if (error instanceof NotConfiguredError) return json({ demo: true, error: error.message }, 503);
     return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
-});
+}, { bucket: 'openai' }));

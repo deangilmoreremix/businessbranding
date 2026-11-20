@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Mic, Send, Square, Volume2 } from 'lucide-react';
 import { useVoiceInput } from '@/components/local/use-voice-input';
 import { readAloud, readAloudSupported, stopReadAloud } from '@/components/local/read-aloud';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -53,14 +54,14 @@ export function AssistantChat({ analysis, mode = 'brand' }: AssistantChatProps) 
     setMessages((prev) => [...prev, { role: 'user', text }, { role: 'assistant', text: '' }]);
 
     try {
-      const res = await fetch('/api/ai/assistant', {
+      const res = await authFetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, previousResponseId: previousResponseId.current, context: analysis, mode })
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(res.status === 503 ? 'The AI assistant is not configured yet (missing OPENAI_API_KEY).' : err.error || 'Request failed');
+        throw new Error(err.error || 'Request failed');
       }
 
       const reader = res.body.getReader();

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { speechRecognitionSupported, startDictation } from '@/lib/local/speech';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 export type VoiceEngine = 'openai' | 'browser';
 
@@ -50,7 +51,7 @@ export function useVoiceInput(onText: (text: string) => void) {
           try {
             const form = new FormData();
             form.append('file', new Blob(chunks.current, { type: rec.mimeType || 'audio/webm' }), 'voice.webm');
-            const res = await fetch('/api/voice/transcribe', { method: 'POST', body: form });
+            const res = await authFetch('/api/voice/transcribe', { method: 'POST', body: form });
             if (!res.ok) throw new Error(String(res.status));
             const { text } = await res.json();
             if (text) onText(text.trim());

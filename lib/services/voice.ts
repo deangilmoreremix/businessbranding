@@ -8,6 +8,7 @@ import type {
   Voice,
   VoiceAnalysisResult
 } from '../types/voice';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 /**
  * Voice features on OpenAI:
@@ -35,7 +36,6 @@ export const VOICES: Voice[] = [
 
 async function readError(res: Response, fallback: string): Promise<Error> {
   const body = await res.json().catch(() => ({}));
-  if (res.status === 503) return new Error('Voice features need OPENAI_API_KEY to be configured on the server.');
   return new Error(body.error || `${fallback} (${res.status})`);
 }
 
@@ -45,7 +45,7 @@ export async function getAvailableVoices(): Promise<Voice[]> {
 
 /** Narrate text; resolves to a WAV blob. */
 export async function generateVoiceOver(text: string, voiceId: string = DEFAULT_VOICE_ID, instructions?: string): Promise<Blob> {
-  const res = await fetch('/api/voice/generate', {
+  const res = await authFetch('/api/voice/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, voiceId, instructions })
@@ -56,7 +56,7 @@ export async function generateVoiceOver(text: string, voiceId: string = DEFAULT_
 
 /** Multi-voice podcast: one segment per speaker, joined into a single WAV. */
 export async function createPodcast(title: string, segments: PodcastSegment[]): Promise<Blob> {
-  const res = await fetch('/api/voice/podcast', {
+  const res = await authFetch('/api/voice/podcast', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, segments })
@@ -66,7 +66,7 @@ export async function createPodcast(title: string, segments: PodcastSegment[]): 
 }
 
 export async function createAudiobook(options: AudiobookOptions): Promise<Blob> {
-  const res = await fetch('/api/voice/audiobook', {
+  const res = await authFetch('/api/voice/audiobook', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options)
@@ -87,7 +87,7 @@ const parseDurations = (res: Response) =>
 
 /** Like createPodcast but also returns per-segment durations. */
 export async function createPodcastWithTimings(title: string, segments: PodcastSegment[]): Promise<NarrationResult> {
-  const res = await fetch('/api/voice/podcast', {
+  const res = await authFetch('/api/voice/podcast', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, segments })
@@ -98,7 +98,7 @@ export async function createPodcastWithTimings(title: string, segments: PodcastS
 
 /** Like createAudiobook but also returns per-chapter durations. */
 export async function createAudiobookWithTimings(options: AudiobookOptions): Promise<NarrationResult> {
-  const res = await fetch('/api/voice/audiobook', {
+  const res = await authFetch('/api/voice/audiobook', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options)
@@ -115,7 +115,7 @@ export async function transcribeAudio(options: TranscriptionOptions): Promise<Tr
   options.keywords?.forEach((k) => form.append('keywords', k));
   if (options.model) form.append('model', options.model);
 
-  const res = await fetch('/api/voice/transcribe', { method: 'POST', body: form });
+  const res = await authFetch('/api/voice/transcribe', { method: 'POST', body: form });
   if (!res.ok) throw await readError(res, 'Transcription failed');
   return res.json();
 }

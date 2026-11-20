@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { editImage, generateImage, isConfigured, MODELS, type ImageOptions } from '@/lib/openai';
-import { errorResponse, rateLimit } from '@/lib/ai-http';
+import { editImage, generateImage, MODELS, type ImageOptions } from '@/lib/openai';
+import { withUser } from '@/lib/server/user';
 
 export const runtime = 'nodejs';
 
@@ -43,16 +43,12 @@ async function loadReference(ref: string): Promise<{ data: Uint8Array; mime: str
  * Without referenceImages: Images API generation. With them: Images API edit (logo/asset variations).
  */
 export async function POST(request: Request) {
-  const limited = rateLimit(request, 'image', 10);
-  if (limited) return limited;
-
-  try {
+  return withUser(request, { bucket: 'image', limit: 10 }, async () => {
     const body = await request.json();
     const { prompt, referenceImages } = body;
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 4000) {
       return NextResponse.json({ error: 'A prompt (max 4000 chars) is required' }, { status: 400 });
     }
-    if (!isConfigured()) return NextResponse.json({ error: 'OPENAI_API_KEY is not configured', demo: true }, { status: 503 });
 
     const opts: ImageOptions = {
       prompt,
@@ -66,15 +62,14 @@ export async function POST(request: Request) {
     };
 
     const refs: string[] = Array.isArray(referenceImages) ? referenceImages.filter((r) => typeof r === 'string').slice(0, 4) : [];
-    const images = refs.length
-      ? await editImage({ ...opts, images: await Promise.all(refs.map(loadReference)) })
-      : await generateImage(opts);
+    let loaded: Awaited<ReturnType<typeof loadReference>>[] = [];
+    try {
+      loaded = await Promise.all(refs.map(loadReference));
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : 'Reference image could not be loaded', code: 'BAD_REFERENCE_IMAGE' }, { status: 400 });
+    }
+    const images = loaded.length ? await editImage({ ...opts, images: loaded }) : await generateImage(opts);
 
     return NextResponse.json({ images: images.map((i) => i.dataUrl) });
-  } catch (error) {
-    if (error instanceof Error && /Reference image/.test(error.message)) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    return errorResponse(error, 'Failed to generate image');
-  }
+  });
 }

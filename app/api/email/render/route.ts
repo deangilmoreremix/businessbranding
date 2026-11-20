@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import * as React from 'react';
 import { render } from '@react-email/render';
 import BrandEmail from '@/emails/brand-email';
-import { rateLimit } from '@/lib/ai-http';
+import { withUser } from '@/lib/server/user';
 
 export const runtime = 'nodejs';
 
@@ -14,9 +14,7 @@ const hex = /^#[0-9a-fA-F]{6}$/;
  * POST { brandName, headline, body, ctaLabel?, ctaUrl?, palette? } -> { html, text }
  */
 export async function POST(request: Request) {
-  const limited = rateLimit(request, 'email-render', 30);
-  if (limited) return limited;
-  try {
+  return withUser(request, { bucket: 'email-render', limit: 30, requireKey: false }, async () => {
     const b = await request.json();
     const ctaUrl = str(b.ctaUrl, 500);
     const props = {
@@ -31,8 +29,5 @@ export async function POST(request: Request) {
     const element = React.createElement(BrandEmail, props);
     const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
     return NextResponse.json({ html, text });
-  } catch (error) {
-    console.error('Email render failed:', error);
-    return NextResponse.json({ error: 'Failed to render email' }, { status: 500 });
-  }
+  });
 }

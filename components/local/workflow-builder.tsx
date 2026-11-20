@@ -10,6 +10,7 @@ import { FolderOpen, Loader2, Play, Plus, Save, Trash2 } from 'lucide-react';
 import { STEP_LABELS, defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type StepKind, type Workflow } from '@/lib/local/workflow';
 import { openFile, saveFile } from '@/lib/local/fs-access';
 import { useLocalDraft } from '@/lib/local/use-draft';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 type StepData = { kind: StepKind; values: Record<string, string> };
 type StepNode = Node<StepData, 'step'>;
@@ -105,19 +106,19 @@ export default function WorkflowBuilder() {
             outputs[id] = node.data.text ?? '';
             res[id] = { text: outputs[id] };
           } else if (node.kind === 'copy') {
-            const r = await fetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: `${node.data.instruction ?? ''}\n\nBrief:\n${input}` }) });
-            if (!r.ok) throw new Error(r.status === 503 ? 'OpenAI is not configured (OPENAI_API_KEY).' : `AI request failed (${r.status})`);
+            const r = await authFetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: `${node.data.instruction ?? ''}\n\nBrief:\n${input}` }) });
+            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `AI request failed (${r.status})`);
             const { data } = await r.json();
             outputs[id] = `${data.title}\n\n${data.content}`;
             res[id] = { text: outputs[id] };
           } else if (node.kind === 'email') {
             const [headline, ...rest] = input.split('\n\n');
-            const r = await fetch('/api/email/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...node.data, headline, body: rest.join('\n\n') }) });
+            const r = await authFetch('/api/email/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...node.data, headline, body: rest.join('\n\n') }) });
             if (!r.ok) throw new Error('Email rendering failed');
             res[id] = { html: (await r.json()).html };
           } else if (node.kind === 'voice') {
-            const r = await fetch('/api/voice/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: input, voiceId: node.data.voiceId }) });
-            if (!r.ok) throw new Error(r.status === 503 ? 'OpenAI is not configured (OPENAI_API_KEY).' : `Voice generation failed (${r.status})`);
+            const r = await authFetch('/api/voice/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: input, voiceId: node.data.voiceId }) });
+            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Voice generation failed (${r.status})`);
             res[id] = { audioUrl: URL.createObjectURL(await r.blob()) };
           }
         } catch (e: any) {

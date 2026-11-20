@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -287,7 +288,7 @@ export async function analyzeCompetitors(
 
   try {
     console.log('Analyzing competitors in:', industry);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/competitor-intelligence`, {
+    const response = await authFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/competitor-intelligence`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,

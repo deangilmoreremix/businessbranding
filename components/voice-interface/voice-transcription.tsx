@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromText } from '@/lib/local/captions';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
@@ -74,7 +75,7 @@ export function VoiceTranscription() {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 1000);
 
-      const response = await fetch('/api/voice/transcribe', {
+      const response = await authFetch('/api/voice/transcribe', {
         method: 'POST',
         body: formData
       });

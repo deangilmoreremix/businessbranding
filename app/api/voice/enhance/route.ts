@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { isConfigured, synthesizeSpeech, transcribeAudio } from '@/lib/openai';
+import { synthesizeSpeech, transcribeAudio } from '@/lib/openai';
 import { performEnhancedAnalysis } from '@/lib/services/ai';
-import { errorResponse, rateLimit } from '@/lib/ai-http';
+import { withUser } from '@/lib/server/user';
 import { badRequest, MAX_SCRIPT_CHARS, wavDataUrl, wavResponse } from '@/lib/voice-http';
 
 export const runtime = 'nodejs';
@@ -27,10 +27,7 @@ function deliveryFrom(settings: any): string {
  *  - multipart { audio }      -> audio/wav  (the recording is transcribed with gpt-transcribe, polished, re-narrated)
  */
 export async function POST(request: Request) {
-  const limited = rateLimit(request, 'voice-enhance', 4);
-  if (limited) return limited;
-  try {
-    if (!isConfigured()) return NextResponse.json({ error: 'OPENAI_API_KEY is not configured', demo: true }, { status: 503 });
+  return withUser(request, { bucket: 'voice-enhance', limit: 4 }, async () => {
 
     if ((request.headers.get('content-type') || '').startsWith('multipart/form-data')) {
       const form = await request.formData();
@@ -52,7 +49,5 @@ export async function POST(request: Request) {
     const enhancedContent = await performEnhancedAnalysis(text);
     const { audio } = await synthesizeSpeech({ text: enhancedContent.enhancedContent, instructions: deliveryFrom(settings) });
     return NextResponse.json({ enhancedContent, audioUrl: wavDataUrl(audio) });
-  } catch (error) {
-    return errorResponse(error, 'Failed to enhance voice content');
-  }
+  });
 }

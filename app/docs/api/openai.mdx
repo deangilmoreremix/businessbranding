@@ -6,8 +6,29 @@ The AI API (powered by OpenAI: Responses API for text, Images API for images) pr
 
 ## Authentication
 
-The OpenAI key is **server-side only**. Set `OPENAI_API_KEY` in your hosting environment and in your
-Supabase project secrets (`supabase secrets set OPENAI_API_KEY=...`). Never expose it via `NEXT_PUBLIC_*`.
+Every AI endpoint uses **the signed-in user's own OpenAI key** (bring your own key). There is no global OpenAI key.
+
+1. The user adds a key in **Settings → OpenAI**. It is checked against OpenAI (`GET /v1/models`), encrypted with AES-256-GCM
+   (`KEY_ENCRYPTION_SECRET`) and stored server-side in `user_api_keys`. Only the last four characters are ever shown again, and the key is never logged,
+   returned, placed in a URL or kept in `localStorage`.
+2. Clients call the API with their Supabase session: `Authorization: Bearer <access token>` (the app's `authFetch` does this). The session is verified first.
+3. The key is resolved per request. Errors:
+
+| Status | `code` | Meaning |
+|---|---|---|
+| 401 | `AUTH_REQUIRED` | No or invalid session |
+| 412 | `OPENAI_KEY_REQUIRED` | The user has not added a key (the UI shows "Add your OpenAI key" linking to Settings) |
+| 401 | `OPENAI_KEY_INVALID` | OpenAI rejected the key (revoked/typo) |
+| 403 | `OPENAI_FORBIDDEN` | The key lacks permission for the request |
+| 424 | `OPENAI_MODEL_UNAVAILABLE` | The key cannot use the model; pick another in Settings → Models |
+| 402 | `OPENAI_QUOTA_EXCEEDED` | The user's OpenAI account is out of credit |
+| 429 | `OPENAI_RATE_LIMITED` / `RATE_LIMITED` | OpenAI's limit, or the per-user limit of this app |
+
+Settings endpoints: `GET|PUT|POST|DELETE /api/settings/openai-key` (status, validate+save, test, remove) and `GET|PUT /api/settings/models` (per-user model overrides).
+
+Server setup: `SUPABASE_SERVICE_ROLE_KEY`, `KEY_ENCRYPTION_SECRET` (`openssl rand -base64 32`) and the migration `20261121000000_byok_api_keys.sql`
+(for Edge Functions: `supabase secrets set KEY_ENCRYPTION_SECRET=...`). For local development only, `ALLOW_SERVER_OPENAI_KEY=true` lets
+`OPENAI_API_KEY` serve users without a key; leave it off in production.
 
 Optional model overrides:
 

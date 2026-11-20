@@ -1,7 +1,7 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createStructured, createResponse, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
+import { createStructured, createResponse, BRAND_DEVELOPER_PROMPT, isConfigured } from "../_shared/openai.ts";
 
-const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, apikey, X-Client-Info"
 };
 
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
     const { content, type } = await req.json();
 
     // Return dummy data if no API key or in demo mode
-    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
+    if (!isConfigured()) {
       const demoAnalysis = getDemoAnalysis(type);
       return new Response(
         JSON.stringify(demoAnalysis),
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
       }
     );
   }
-});
+}, { bucket: 'ai-analysis' }));
 
 // Helper function to provide demo analysis data
 function getDemoAnalysis(type: string) {

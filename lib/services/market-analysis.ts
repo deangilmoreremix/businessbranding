@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -360,7 +361,7 @@ export async function analyzeMarket(
 
   try {
     console.log('Analyzing market for:', industry);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/market-analysis`, {
+    const response = await authFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/market-analysis`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,

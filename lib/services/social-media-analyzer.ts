@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -154,7 +155,7 @@ export async function analyzeSocialProfile(
 
   try {
     console.log('Analyzing social media profile:', profileUrl);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-media-analyzer`, {
+    const response = await authFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-media-analyzer`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,

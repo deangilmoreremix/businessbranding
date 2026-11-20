@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 /**
  * Brand image generation and edits via the OpenAI Images API (through /api/ai/image; the key stays on the server).
  *  - generateBrandImages: text -> image (new logo / asset concepts)
@@ -14,12 +15,6 @@ export interface ImageRequestOptions {
   n?: number;
 }
 
-class ImageNotConfiguredError extends Error {
-  constructor() {
-    super('Image generation needs OPENAI_API_KEY to be configured on the server.');
-  }
-}
-
 async function toDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
   // Local previews are blob: URLs the server cannot fetch, so inline them.
@@ -33,12 +28,11 @@ async function toDataUrl(url: string): Promise<string> {
 }
 
 async function requestImages(body: Record<string, unknown>): Promise<string[]> {
-  const res = await fetch('/api/ai/image', {
+  const res = await authFetch('/api/ai/image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  if (res.status === 503) throw new ImageNotConfiguredError();
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Image request failed (${res.status})`);
   return data.images as string[];

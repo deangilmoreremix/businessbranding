@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Settings,
@@ -23,9 +23,15 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { OpenAIKeySettings } from '@/components/settings/openai-key-settings';
 
 export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
+  // Controlled so a /settings#ai link (from the "Add your OpenAI key" notice) opens the OpenAI tab without a hydration mismatch.
+  const [tab, setTab] = useState('profile');
+  useEffect(() => {
+    if (window.location.hash === '#ai') setTab('ai');
+  }, []);
 
   const handleSave = () => {
     setSaving(true);
@@ -62,8 +68,8 @@ export default function SettingsPage() {
           </motion.p>
         </div>
 
-        <Tabs defaultValue="profile">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full mb-8">
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full mb-8">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -75,6 +81,10 @@ export default function SettingsPage() {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Security
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              OpenAI
             </TabsTrigger>
             <TabsTrigger value="billing" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -212,6 +222,10 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <OpenAIKeySettings />
           </TabsContent>
 
           <TabsContent value="billing">

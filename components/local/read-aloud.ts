@@ -1,4 +1,5 @@
 import { speak, speechSynthesisSupported, stopSpeaking } from '@/lib/local/speech';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 let audio: HTMLAudioElement | null = null;
 
@@ -13,7 +14,7 @@ export function stopReadAloud() {
 export async function readAloud(text: string, voiceId = 'marin'): Promise<'openai' | 'browser'> {
   stopReadAloud();
   try {
-    const res = await fetch('/api/voice/generate', {
+    const res = await authFetch('/api/voice/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: text.slice(0, 4000), voiceId })

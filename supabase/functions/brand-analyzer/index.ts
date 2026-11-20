@@ -1,8 +1,8 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createStructured, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
+import { createStructured, BRAND_DEVELOPER_PROMPT, isConfigured } from "../_shared/openai.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -63,7 +63,7 @@ Provide analysis in the following format:
 
 Return the analysis as a structured JSON object.`;
 
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Return demo data if API key is missing
-    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
+    if (!isConfigured()) {
       return new Response(
         JSON.stringify({
           healthScore: 85,
@@ -219,4 +219,4 @@ Deno.serve(async (req: Request) => {
       }
     );
   }
-});
+}, { bucket: 'brand-analyzer' }));

@@ -1,5 +1,6 @@
 
 import { callTask, isDemoMode } from './ai';
+import { authFetch } from '@/lib/client/auth-fetch';
 
 export interface BrandAnalysis {
   // Core Brand Metrics
@@ -173,7 +174,7 @@ export class BrandAnalyzer {
     // Try to use the Supabase Edge Function first for better reliability
     try {
       console.log("Trying enhanced edge function for brand analysis");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/brand-analyzer`, {
+      const response = await authFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/brand-analyzer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,

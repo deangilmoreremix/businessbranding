@@ -1,3 +1,4 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { isConfigured, synthesizeSpeech, NotConfiguredError } from "../_shared/openai.ts";
 
 const corsHeaders = {
@@ -11,7 +12,7 @@ const json = (body: unknown, status = 200) =>
 
 // Text-to-speech on the OpenAI Realtime API (gpt-realtime-2.1-mini by default; OPENAI_TTS_MODEL).
 // POST { text, voiceId?, instructions? } -> audio/wav
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -32,4 +33,4 @@ Deno.serve(async (req: Request) => {
     if (error instanceof NotConfiguredError) return json({ demo: true, error: error.message }, 503);
     return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
-});
+}, { bucket: 'voice-generator' }));

@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -147,7 +148,7 @@ export async function scanWebsite(url: string): Promise<WebsiteScanResult> {
 
   try {
     console.log('Scanning website:', url);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/website-scanner`, {
+    const response = await authFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/website-scanner`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,

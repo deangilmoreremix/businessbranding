@@ -1,7 +1,7 @@
+import { edgeHandler } from "../_shared/edge.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createStructured, BRAND_DEVELOPER_PROMPT } from "../_shared/openai.ts";
+import { createStructured, BRAND_DEVELOPER_PROMPT, isConfigured } from "../_shared/openai.ts";
 
-const OPENAI_API_KEY = (Deno.env.get('OPENAI_API_KEY') || 'demo-mode');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,7 +143,7 @@ async function scrapeWebsite(url: string): Promise<string> {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(edgeHandler(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -160,7 +160,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Return demo data if API key is missing
-    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo-mode') {
+    if (!isConfigured()) {
       const demoResult: WebsiteScanResult = {
         url,
         scanDate: new Date().toISOString(),
@@ -295,4 +295,4 @@ Deno.serve(async (req: Request) => {
       }
     );
   }
-});
+}, { bucket: 'website' }));
