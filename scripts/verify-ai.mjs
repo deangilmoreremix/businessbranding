@@ -452,6 +452,10 @@ ok('GET /api/ai/task -> configured', (await r.json()).configured === true);
   ok('POST /api/newsletter: duplicate (case-insensitive) is not stored twice', r.status === 200 && st.newsletter_subscriptions.length === 1);
   r = await fetch(supa + '/rest/v1/newsletter_subscriptions', { headers: { apikey: 'anon-key', Authorization: 'Bearer tok-alice' } });
   ok('newsletter: clients cannot read subscriptions', r.status === 401);
+  // global hourly cap (PUBLIC_FORM_HOURLY_CAP=40 in the runner): rotating a spoofable header cannot flood the tables
+  { const bodies = []; for (let i = 0; i < 60; i++) { const x = await fetch(app + '/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': `172.16.${i}.1` }, body: JSON.stringify({ email: `flood${i}@example.test` }) }); bodies.push([x.status, (await x.json()).code]); }
+    st = await supaState();
+    ok(`newsletter: rotating X-Forwarded-For is stopped by the global hourly cap (${st.newsletter_subscriptions.length} rows)`, bodies.some(([c, k]) => c === 429 && k === 'BUSY') && st.newsletter_subscriptions.length <= 41); }
   r = await fetch(app + '/api/usage');
   ok('GET /api/usage without a session -> 401', r.status === 401);
 }

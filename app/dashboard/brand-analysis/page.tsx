@@ -94,7 +94,6 @@ export default function BrandAnalysisPage() {
           {brandAnalysisResults && (
             <BrandPillarBreakdown 
               pillarScores={brandAnalysisResults.brandFactors}
-              onImprovementSelected={() => {}}
             />
           )}
         </div>

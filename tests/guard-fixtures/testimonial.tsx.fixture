@@ -1,0 +1,2 @@
+// expect: testimonial-attribution
+export const X = () => <blockquote>&ldquo;It changed everything for us.&rdquo; <cite>Maria Lopez, CMO</cite></blockquote>;

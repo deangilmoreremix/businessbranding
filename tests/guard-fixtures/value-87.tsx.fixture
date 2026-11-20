@@ -1,0 +1,2 @@
+// expect: numeric-data-array
+export const data = [{ label: 'Reach', value: 87 }];

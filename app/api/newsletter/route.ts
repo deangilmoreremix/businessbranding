@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { countRecentNewsletter, insertNewsletter, supabaseConfigured } from '@/lib/server/user';
-import { clientHash, notifyOwner } from '@/lib/server/public-forms';
+import { countRecentNewsletter, countRecentRows, insertNewsletter, supabaseConfigured } from '@/lib/server/user';
+import { clientHash, globalHourlyCap, notifyOwner } from '@/lib/server/public-forms';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   try {
     const hash = await clientHash(request);
     if ((await countRecentNewsletter(hash, new Date(Date.now() - 3600_000).toISOString())) >= 10) return json({ error: 'Too many attempts. Please try again later.', code: 'RATE_LIMITED' }, 429);
+    if ((await countRecentRows('newsletter_subscriptions', new Date(Date.now() - 3600_000).toISOString(), globalHourlyCap('newsletter'))) >= globalHourlyCap('newsletter')) return json({ error: 'Sign-ups are very busy right now. Please try again later.', code: 'BUSY' }, 429);
     const added = await insertNewsletter({ email, client_hash: hash });
     if (added) await notifyOwner('newsletter', { email });
     return json({ ok: true, alreadySubscribed: !added }, 200);

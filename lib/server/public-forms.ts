@@ -1,9 +1,12 @@
 import '@/lib/openai'; // binds the runtime env reader used by the shared server modules
 import { clientAddress } from '@/lib/contact';
 
+/** Per-hour ceiling on stored rows across ALL clients, so rotating a spoofable address header cannot flood the tables. */
+export const globalHourlyCap = (kind: 'contact' | 'newsletter'): number => Number(process.env.PUBLIC_FORM_HOURLY_CAP) || (kind === 'contact' ? 200 : 300);
+
 /** Salted hash of the client identity (the raw address is never stored). */
 export async function clientHash(request: Request): Promise<string> {
-  const id = clientAddress(request.headers, { TRUST_PROXY_HEADERS: process.env.TRUST_PROXY_HEADERS });
+  const id = clientAddress(request.headers, { TRUST_PROXY_HEADERS: process.env.TRUST_PROXY_HEADERS, NETLIFY: process.env.NETLIFY });
   const salt = process.env.KEY_ENCRYPTION_SECRET || 'public-forms';
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}|${id}`));
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');

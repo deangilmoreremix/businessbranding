@@ -1,3 +1,25 @@
+# AI Brand Creator (this application)
+
+Next.js 14 + Supabase, bring-your-own-OpenAI-key. There is no built-in or fallback data: a signed-in user without a key is asked to add one; failures
+show their real cause with Retry. See `docs/FAKE_DATA_AUDIT.md`, `docs/FEATURE_TEST_MATRIX.md` and `docs/DEPLOYMENT.md`.
+
+## Deployment requirements for the public forms (`/api/contact`, `/api/newsletter`)
+
+These endpoints are public on purpose, so they are defended rather than authenticated: validation, size caps, a honeypot field, a per-client
+hourly limit and a **global** hourly cap (`PUBLIC_FORM_HOURLY_CAP`, default 200 contact / 300 newsletter rows per hour across all clients).
+
+The per-client limit needs a trustworthy client address. The app resolves it like this:
+
+1. `x-nf-client-connection-ip`, **only when `NETLIFY=true`** (Netlify sets and overwrites it; anywhere else a client can forge it);
+2. `x-real-ip`, **only when `TRUST_PROXY_HEADERS=true`** (set this only behind a proxy that overwrites `X-Real-IP`);
+3. otherwise the **rightmost** `X-Forwarded-For` hop (the one your own proxy appended);
+4. otherwise a fingerprint of the request headers.
+
+If the app is exposed directly (no proxy that appends to `X-Forwarded-For`), a client can send a different single `X-Forwarded-For` value per request
+and get a fresh per-client bucket each time. Run it behind a proxy/CDN that appends the real peer address, and rely on the global cap as the backstop.
+
+---
+
 # Supabase CLI
 
 [![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)

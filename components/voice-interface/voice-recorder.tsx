@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ import {
 import { generateVoiceOver } from '@/lib/services/voice';
 import { saveGeneratedAudio, type SavedAudio } from '@/lib/local/content-save';
 import dynamic from 'next/dynamic';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
 
 // Waveform + trimming use the Web Audio API and canvas, so they are browser-only and loaded on demand.
 const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
@@ -36,7 +36,7 @@ export function VoiceRecorder() {
   const [volume, setVolume] = useState(0.5);
   const [format, setFormat] = useState('mp3');
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [contentTitle, setContentTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -89,11 +89,7 @@ export function VoiceRecorder() {
     if (!recordedBlob) return;
 
     setProcessing(true);
-    setProgress(0);
-    
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90));
-    }, 500);
+    setEnhanceError(null);
 
     try {
       const formData = new FormData();
@@ -104,7 +100,7 @@ export function VoiceRecorder() {
         body: formData
       });
 
-      if (!response.ok) throw new Error('Enhancement failed');
+      if (!response.ok) throw await toApiError(response, 'Enhancement failed');
 
       const enhancedBlob = await response.blob();
       setRecordedBlob(enhancedBlob);
@@ -116,11 +112,9 @@ export function VoiceRecorder() {
       
       const url = URL.createObjectURL(enhancedBlob);
       setAudioUrl(url);
-      setProgress(100);
-    } catch (error) {
-      console.error('Failed to enhance audio:', error);
+    } catch (e) {
+      setEnhanceError(e instanceof Error ? `${e.message}. You can try again.` : 'Enhancement failed. You can try again.');
     } finally {
-      clearInterval(progressInterval);
       setProcessing(false);
     }
   };
@@ -357,14 +351,8 @@ export function VoiceRecorder() {
             </div>
             {saved && <p role="status" data-testid="save-status" className="text-xs text-muted-foreground">{saved.local ? 'Saved on this device.' : 'Not saved (browser storage unavailable).'} {saved.cloud ? 'Also saved to your account.' : saved.cloudReason}</p>}
 
-            {processing && (
-              <div className="space-y-2">
-                <Progress value={progress} />
-                <p className="text-sm text-center text-muted-foreground">
-                  {progress < 100 ? 'Enhancing audio...' : 'Done!'}
-                </p>
-              </div>
-            )}
+            <ElapsedStatus active={processing} label="Enhancing audio…" />
+            {enhanceError && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{enhanceError}</p>}
 
             {recordedBlob && (
               <AudioTrimmer

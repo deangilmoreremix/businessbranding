@@ -36,7 +36,8 @@ export default function DeepResearchPanel({ industry }: { industry: string }) {
     setRunning(true);
     setError('');
     setElapsed(0);
-    timer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+    const startedAt = Date.now();
+    timer.current = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
     try {
       const res = await pollResearch<Result['data']>('competitors', job.id, { intervalMs: 4000, timeoutMs: 15 * 60_000 });
       if (!alive.current) return;

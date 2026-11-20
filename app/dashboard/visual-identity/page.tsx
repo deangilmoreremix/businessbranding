@@ -78,7 +78,7 @@ export default function VisualIdentityPage() {
         ]} />
 
         <Card className="p-6 mb-8" id="asset-studio">
-          <VisualIdentityAnalyzer onAnalysisComplete={() => {}} />
+          <VisualIdentityAnalyzer  />
         </Card>
 
         <div className="space-y-6">

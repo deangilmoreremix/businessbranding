@@ -1,0 +1,2 @@
+// expect: testimonial-attribution
+export const q = { quote: 'Great tool', by: 'Priya Natarajan, Founder' };

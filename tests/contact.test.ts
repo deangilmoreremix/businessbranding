@@ -17,7 +17,11 @@ describe('client address for rate limiting', () => {
     expect(new Set(spoofed).size).toBe(1); // eight different spoofed values must still be ONE client
   });
   it('prefers the platform header over everything else', () => {
-    expect(clientAddress(h({ 'x-nf-client-connection-ip': '198.51.100.4', 'x-real-ip': '10.0.0.1', 'x-forwarded-for': '6.6.6.6' }))).toBe('198.51.100.4');
+    expect(clientAddress(h({ 'x-nf-client-connection-ip': '198.51.100.4', 'x-real-ip': '10.0.0.1', 'x-forwarded-for': '6.6.6.6' }), { NETLIFY: 'true' })).toBe('198.51.100.4');
+    // off Netlify the header is client-controlled and must be ignored
+    expect(clientAddress(h({ 'x-nf-client-connection-ip': '198.51.100.4', 'x-forwarded-for': '6.6.6.6' }))).toBe('6.6.6.6');
+    const rotated = ['1.1.1.1', '2.2.2.2'].map((ip) => clientAddress(h({ 'x-nf-client-connection-ip': ip, 'user-agent': 'curl' })));
+    expect(new Set(rotated).size).toBe(1);
   });
   it('does NOT trust a directly spoofed X-Real-IP unless TRUST_PROXY_HEADERS=true', () => {
     const spoofed = ['1.1.1.1', '2.2.2.2', '3.3.3.3'].map((ip) => clientAddress(h({ 'x-real-ip': ip, 'user-agent': 'curl' })));

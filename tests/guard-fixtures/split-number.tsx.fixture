@@ -1,0 +1,7 @@
+// expect: stat-literal
+export const X = () => (
+  <p>
+    98
+    % of users
+  </p>
+);

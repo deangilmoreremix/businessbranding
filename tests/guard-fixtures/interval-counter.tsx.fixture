@@ -1,0 +1,2 @@
+// expect: interval-counter
+export const X = () => { setInterval(() => setCount((c) => c + 7), 1000); return null; };

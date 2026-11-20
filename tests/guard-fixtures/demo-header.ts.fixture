@@ -1,0 +1,2 @@
+// expect: sample-fixture
+export const h = { 'X-Sample-Data': 'true' };

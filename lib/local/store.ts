@@ -82,7 +82,7 @@ export async function listDrafts(prefix = ''): Promise<DraftRecord[]> {
 }
 
 // ---- Generated-asset cache ---------------------------------------------------------------------
-const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const newId = () => `${Date.now().toString(36)}-${Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(36).padStart(2, '0')).join('')}`;
 
 export async function putAsset(input: Omit<AssetRecord, 'id' | 'createdAt'> & { id?: string }): Promise<string> {
   const rec: AssetRecord = { ...input, id: input.id ?? newId(), createdAt: Date.now() };

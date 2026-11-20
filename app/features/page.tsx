@@ -84,7 +84,7 @@ const tools = [
   },
   {
     title: 'Case Studies',
-    description: 'Real-world brand transformation stories',
+    description: 'Case studies the operator has published (none yet unless listed)',
     icon: Users,
     href: '/case-studies',
     color: 'violet'

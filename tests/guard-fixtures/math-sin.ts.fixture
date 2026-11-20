@@ -1,0 +1,2 @@
+// expect: math-series
+export const series = Array.from({ length: 12 }, (_, i) => Math.floor(500 + 300 * Math.sin(i)));

@@ -1,0 +1,2 @@
+// expect: interval-counter
+export const X = () => { setInterval(() => { setN((p) => Math.min(p + 5, 95)); }, 500); return null; };

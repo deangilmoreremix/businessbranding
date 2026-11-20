@@ -1057,49 +1057,6 @@ export default function BrandAnalysisClient({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Digital Presence Score
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center">
-                      <div className="relative w-24 h-24">
-                        <svg className="w-full h-full" viewBox="-1 -1 38 38" aria-label={`Brand health ${formatPercent(results.healthScore, 'n/a')}`} role="img">
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke="#eee"
-                            strokeWidth="3"
-                          />
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke="#10b981"
-                            strokeWidth="3"
-                            strokeDasharray={`${websiteData ? 85 : 0}, 100`}
-                          />
-                          <text
-                            x="18"
-                            y="20.35"
-                            className="text-lg font-bold"
-                            textAnchor="middle"
-                            fill="currentColor"
-                          >
-                            {websiteData ? '85%' : 'N/A'}
-                          </text>
-                        </svg>
-                      </div>
-                    </div>
-                    <p className="text-center text-sm text-muted-foreground">
-                      {websiteData ? 'Strong digital presence detected' : 'Website scan required'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </TabsContent>

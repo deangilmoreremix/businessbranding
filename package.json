@@ -23,6 +23,7 @@
     "e2e:features-local-ai": "node scripts/e2e-run.mjs e2e/features-local-ai.spec.js",
     "e2e": "node scripts/e2e-run.mjs e2e/auth.spec.js e2e/byok-settings.spec.js e2e/ui-fixes.spec.js e2e/features-visual.spec.js e2e/features-voice.spec.js e2e/features-assistant.spec.js e2e/features-analysis.spec.js e2e/features-errors-pages.spec.js e2e/features-local-ai.spec.js e2e/features-dashboard.spec.js e2e/features-settings.spec.js e2e/public-pages.spec.js e2e/viewports.spec.js e2e/failures.spec.js",
     "e2e:build": "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:${E2E_SUPABASE_PORT:-5998} NEXT_PUBLIC_SUPABASE_ANON_KEY=anon-key npm run build",
+    "verify:ai": "bash scripts/verify-ai.sh",
     "test:db": "bash scripts/db-test.sh",
     "test:edge": "node scripts/edge-test.mjs",
     "e2e:features-dashboard": "node scripts/e2e-run.mjs e2e/features-dashboard.spec.js",

@@ -1,0 +1,2 @@
+// expect: free-trial
+export const X = () => <p>Start your free trial</p>;

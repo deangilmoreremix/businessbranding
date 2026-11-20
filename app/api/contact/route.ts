@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateContact } from '@/lib/contact';
-import { countRecentContacts, insertContact, supabaseConfigured } from '@/lib/server/user';
-import { clientHash, notifyOwner } from '@/lib/server/public-forms';
+import { countRecentContacts, countRecentRows, insertContact, supabaseConfigured } from '@/lib/server/user';
+import { clientHash, globalHourlyCap, notifyOwner } from '@/lib/server/public-forms';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   try {
     const hash = await clientHash(request);
     if ((await countRecentContacts(hash, new Date(Date.now() - 3600_000).toISOString())) >= HOURLY_LIMIT) return json({ error: 'You have sent several messages recently. Please try again later.', code: 'RATE_LIMITED' }, 429);
+    if ((await countRecentRows('contact_submissions', new Date(Date.now() - 3600_000).toISOString(), globalHourlyCap('contact'))) >= globalHourlyCap('contact')) return json({ error: 'The contact form is receiving a lot of messages right now. Please try again later.', code: 'BUSY' }, 429);
     await insertContact({ name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), subject, message: form.message.trim(), client_hash: hash });
     const notified = await notifyOwner('contact', { name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), message: form.message.trim().slice(0, 500) });
     return json({ ok: true, notified }, 200);

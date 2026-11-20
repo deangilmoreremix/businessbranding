@@ -40,7 +40,7 @@ async function measureImage(url: string): Promise<{ width?: number; height?: num
 }
 
 interface VisualIdentityAnalyzerProps {
-  onAnalysisComplete: (info: {
+  onAnalysisComplete?: (info: {
     assets: string[];
     colors: string[];
     fonts: string[];

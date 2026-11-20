@@ -1,0 +1,2 @@
+// expect: vague-claim
+export const X = () => <p>Trusted by thousands of brands</p>;

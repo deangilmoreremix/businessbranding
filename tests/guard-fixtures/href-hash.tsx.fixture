@@ -1,0 +1,2 @@
+// expect: dead-href
+export const X = () => <a href="#">x</a>;

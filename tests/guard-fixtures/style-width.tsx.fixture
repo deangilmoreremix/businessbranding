@@ -1,0 +1,2 @@
+// expect: literal-style-percent
+export const Bar = () => <div style={{ width: '75%' }} />;

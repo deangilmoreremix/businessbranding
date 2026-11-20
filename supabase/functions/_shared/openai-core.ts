@@ -190,7 +190,7 @@ function retryDelay(res: Response | undefined, attempt: number): number {
   if (ms && !Number.isNaN(Number(ms))) return Math.min(Number(ms), 30000);
   const s = res?.headers.get('retry-after');
   if (s && !Number.isNaN(Number(s))) return Math.min(Number(s) * 1000, 30000);
-  return Math.min(500 * 2 ** (attempt - 1), 8000) + Math.random() * 250;
+  return Math.min(500 * 2 ** (attempt - 1), 8000) + (crypto.getRandomValues(new Uint8Array(1))[0] / 255) * 250; // retry jitter
 }
 
 interface CallOptions {

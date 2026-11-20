@@ -1,0 +1,2 @@
+// expect: times-claim
+export const X = () => <p>Boosts conversion by 3x</p>;

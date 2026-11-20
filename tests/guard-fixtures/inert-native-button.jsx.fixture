@@ -1,0 +1,2 @@
+// expect: inert-button
+export const X = () => <button className="x">Dead</button>;

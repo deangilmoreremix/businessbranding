@@ -114,6 +114,12 @@ export async function countRecentContacts(clientHash: string, sinceIso: string):
   return Array.isArray(rows) ? rows.length : 0;
 }
 
+/** Number of rows (any client) created since `sinceIso`, counted up to `cap + 1`. */
+export async function countRecentRows(table: 'contact_submissions' | 'newsletter_subscriptions', sinceIso: string, cap: number): Promise<number> {
+  const rows = await rest(`${table}?select=id&created_at=gte.${q(sinceIso)}&limit=${cap + 1}`);
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
 export async function insertContact(row: { name: string; email: string; subject: string; message: string; client_hash: string; user_id?: string | null }): Promise<void> {
   await rest('contact_submissions', { method: 'POST', prefer: 'return=minimal', body: row });
 }

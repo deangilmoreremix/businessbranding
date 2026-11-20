@@ -21,9 +21,10 @@ export function validateContact(f: ContactForm): ContactErrors {
  *  3. otherwise the RIGHTMOST `x-forwarded-for` hop (appended by the nearest proxy; the left side is client-supplied);
  *  4. with no usable address at all, a fingerprint of the request headers, so unidentifiable clients do not share one global bucket.
  */
-export function clientAddress(headers: { get(name: string): string | null }, env: { TRUST_PROXY_HEADERS?: string } = {}): string {
+export function clientAddress(headers: { get(name: string): string | null }, env: { TRUST_PROXY_HEADERS?: string; NETLIFY?: string } = {}): string {
+  // Only Netlify sets (and overwrites) this header; anywhere else a client could forge it.
   const platform = headers.get('x-nf-client-connection-ip');
-  if (platform && platform.trim()) return platform.trim();
+  if (platform && platform.trim() && env.NETLIFY === 'true') return platform.trim();
   const real = headers.get('x-real-ip');
   if (real && real.trim() && env.TRUST_PROXY_HEADERS === 'true') return real.trim();
   const hops = (headers.get('x-forwarded-for') || '').split(',').map((h) => h.trim()).filter(Boolean);

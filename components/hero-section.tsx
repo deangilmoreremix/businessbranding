@@ -110,7 +110,7 @@ export default function HeroSection() {
                 size="lg"
                 className="group"
               >
-                View Success Stories
+                Case Studies
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
               </Button>
             </Link>

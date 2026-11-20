@@ -1,0 +1,2 @@
+// expect: price-literal
+export const X = () => <p>$150/mo</p>;
