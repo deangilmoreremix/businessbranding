@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadVoicePrefs } from '@/lib/local/voice-prefs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { AudioVisualizer } from './audio-visualizer';
@@ -21,6 +24,11 @@ import {
   FileAudio,
   Bookmark
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { captionsFromSegments } from '@/lib/local/captions';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+
+const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
 interface Chapter {
   id: string;
@@ -33,12 +41,15 @@ export function AudiobookCreator() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [narrator, setNarrator] = useState('');
+  const [defaultVoice, setDefaultVoice] = useState('marin');
+  useEffect(() => { loadVoicePrefs().then((p) => { setDefaultVoice(p.voiceId); setNarrator((n) => n || p.voiceId); }); }, []);
   const [chapters, setChapters] = useState<Chapter[]>([
-    { id: '1', title: 'Chapter 1', text: '', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+    { id: '1', title: 'Chapter 1', text: '', voiceId: 'marin' }
   ]);
   const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [captionSource, setCaptionSource] = useState<{ text: string; durationMs: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
 
@@ -49,7 +60,7 @@ export function AudiobookCreator() {
         id: String(chapters.length + 1), 
         title: `Chapter ${chapters.length + 1}`, 
         text: '', 
-        voiceId: '21m00Tcm4TlvDq8ikWAM' 
+        voiceId: defaultVoice 
       }
     ]);
   };
@@ -66,14 +77,10 @@ export function AudiobookCreator() {
 
   const generateAudiobook = async () => {
     setGenerating(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 95));
-    }, 500);
+    setError(null);
 
     try {
-      const response = await fetch('/api/voice/audiobook', {
+      const response = await authFetch('/api/voice/audiobook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,16 +91,17 @@ export function AudiobookCreator() {
         })
       });
 
-      if (!response.ok) throw new Error('Audiobook generation failed');
+      if (!response.ok) throw await toApiError(response, 'Audiobook generation failed');
+      const blob = await acceptAudio(response);
 
-      const blob = await response.blob();
+      const durations = (response.headers.get('X-Segment-Durations') || '').split(',').filter(Boolean).map(Number);
+      // Narration reads each chapter title before its text; mirror that in the captions
+      setCaptionSource(chapters.map((c, i) => ({ text: `${c.title ? `${c.title}. ` : ''}${c.text}`, durationMs: durations[i] ?? 0 })));
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      setProgress(100);
-    } catch (error) {
-      console.error('Failed to generate audiobook:', error);
+    } catch (e) {
+      setError(`${describeError(e).message} You can try again.`);
     } finally {
-      clearInterval(progressInterval);
       setGenerating(false);
     }
   };
@@ -146,9 +154,9 @@ export function AudiobookCreator() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="21m00Tcm4TlvDq8ikWAM">Rachel</SelectItem>
-                  <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella</SelectItem>
-                  <SelectItem value="AZnzlk1XvdvUeBnXmlld">Antoni</SelectItem>
+                  <SelectItem value="marin">Marin</SelectItem>
+                  <SelectItem value="cedar">Cedar</SelectItem>
+                  <SelectItem value="alloy">Alloy</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -195,9 +203,9 @@ export function AudiobookCreator() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="21m00Tcm4TlvDq8ikWAM">Rachel</SelectItem>
-                          <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella</SelectItem>
-                          <SelectItem value="AZnzlk1XvdvUeBnXmlld">Antoni</SelectItem>
+                          <SelectItem value="marin">Marin</SelectItem>
+                          <SelectItem value="cedar">Cedar</SelectItem>
+                          <SelectItem value="alloy">Alloy</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -236,14 +244,8 @@ export function AudiobookCreator() {
           )}
         </Button>
 
-        {generating && (
-          <div className="space-y-2">
-            <Progress value={progress} />
-            <p className="text-sm text-center text-muted-foreground">
-              Generating audiobook content...
-            </p>
-          </div>
-        )}
+        <ElapsedStatus active={generating} label="Generating audiobook…" />
+        {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
 
         {audioUrl && (
           <Card className="p-4">
@@ -256,7 +258,7 @@ export function AudiobookCreator() {
                     Add Bookmark
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <a href={audioUrl} download={`${title}.mp3`}>
+                    <a href={audioUrl} download={`${title}.wav`}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </a>
@@ -270,6 +272,9 @@ export function AudiobookCreator() {
                 progressColor="#6366F1"
                 onReady={() => setCurrentTime(0)}
               />
+              {captionSource.length > 0 && (
+                <CaptionPlayer audioUrl={audioUrl} captions={captionsFromSegments(captionSource)} filename={title || 'audiobook'} />
+              )}
               {bookmarks.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {bookmarks.map((time, index) => (

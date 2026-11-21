@@ -3,16 +3,8 @@ const withMDX = require('@next/mdx')();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
-  images: { 
-    unoptimized: true,
-    domains: [
-      'images.unsplash.com',
-      'gadedbrnqzpfqtsdfzcg.supabase.co', // Supabase storage domain
-      'api.recraft.ai', // Recraft API domain
-      'api.elevenlabs.io' // ElevenLabs API domain
-    ]
-  },
+  // next/image is not used and the optimizer is off, so no remote image host is configured.
+  images: { unoptimized: true },
   experimental: {
     optimizeCss: true,
     optimizePackageImports: [
@@ -22,15 +14,20 @@ const nextConfig = {
     ],
     mdxRs: true
   },
+  serverExternalPackages: ['ws'],
+  async redirects() {
+    return [
+      { source: '/docs/gemini-features', destination: '/docs/ai-features', permanent: true },
+      { source: '/docs/api', destination: '/docs/api/openai', permanent: false }
+    ];
+  },
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
-  typescript: {
-    // During build time, skip type checking to avoid build failures
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Type errors and lint errors fail the build (tsc and eslint are both clean).
+  typescript: { ignoreBuildErrors: false },
+  eslint: { ignoreDuringBuilds: false },
   webpack: (config, { isServer }) => {
+    // konva's Node build optionally requires `canvas`; the editor is browser-only (dynamic, ssr:false)
+    config.resolve.alias = { ...config.resolve.alias, canvas: false };
     // Avoid "self is not defined" error with Supabase client
     if (!isServer) {
       config.resolve.fallback = {
@@ -44,7 +41,7 @@ const nextConfig = {
     config.cache = false;
     config.resolve.preferRelative = true;
     
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isServer) {
       config.optimization = {
         ...config.optimization,
         minimize: true,
@@ -58,6 +55,10 @@ const nextConfig = {
           cacheGroups: {
             defaultVendors: {
               test: /[\\/]node_modules[\\/]/,
+              // Only group vendor modules used by the initial load. Libraries that are only needed by lazily loaded
+              // features (editor, workflows, ...) stay in their own async chunks instead of inflating shared vendor
+              // chunks (e.g. vendor.lucide-react) that every page downloads.
+              chunks: 'initial',
               priority: -10,
               reuseExistingChunk: true,
               name(module) {

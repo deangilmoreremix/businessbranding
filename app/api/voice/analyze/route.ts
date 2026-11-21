@@ -1,36 +1,25 @@
 import { NextResponse } from 'next/server';
-import { analyzeMultimodal } from '@/lib/services/gemini';
-import { analyzeVoiceContent } from '@/lib/services/eleven-labs';
+import { analyzeMultimodal } from '@/lib/services/ai';
+import { analyzeVoiceContent } from '@/lib/services/voice';
+import { withUser } from '@/lib/server/user';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  try {
+  return withUser(request, { bucket: 'voice-analyze', limit: 20 }, async () => {
     const { text, voiceUrl } = await request.json();
+    if (typeof text !== 'string' || !text.trim()) return NextResponse.json({ error: 'text is required' }, { status: 400 });
 
-    // Get voice analysis from ElevenLabs
-    const voiceAnalysis = await analyzeVoiceContent(text);
+    // Both analyses use Structured Outputs; run them in parallel.
+    const [voiceAnalysis, multiModalAnalysis] = await Promise.all([
+      analyzeVoiceContent(text),
+      analyzeMultimodal({ text, voiceUrl })
+    ]);
 
-    // Get multi-modal analysis from Gemini
-    const multiModalAnalysis = await analyzeMultimodal({
-      text,
-      voiceUrl
-    });
-
-    // Combine analyses
-    const combinedAnalysis = {
+    return NextResponse.json({
       voice: voiceAnalysis,
       multiModal: multiModalAnalysis,
-      recommendations: [
-        ...voiceAnalysis.audienceAlignment.recommendations,
-        ...multiModalAnalysis.recommendations || []
-      ]
-    };
-
-    return NextResponse.json(combinedAnalysis);
-  } catch (error) {
-    console.error('Voice analysis failed:', error);
-    return NextResponse.json(
-      { error: 'Failed to analyze voice content' },
-      { status: 500 }
-    );
-  }
+      recommendations: [...voiceAnalysis.audienceAlignment.recommendations, ...(multiModalAnalysis.recommendations || [])]
+    });
+  });
 }

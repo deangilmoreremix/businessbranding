@@ -1,0 +1,325 @@
+# AI API Reference
+
+## Overview
+
+The AI API (powered by OpenAI: Responses API for text, Images API for images) provides advanced AI capabilities for brand analysis, content generation, and optimization. This reference covers all available endpoints and their usage.
+
+## Authentication
+
+Every AI endpoint uses **the signed-in user's own OpenAI key** (bring your own key). There is no global OpenAI key.
+
+1. The user adds a key in **Settings → OpenAI**. It is checked against OpenAI (`GET /v1/models`), encrypted with AES-256-GCM
+   (`KEY_ENCRYPTION_SECRET`) and stored server-side in `user_api_keys`. Only the last four characters are ever shown again, and the key is never logged,
+   returned, placed in a URL or kept in `localStorage`.
+2. Clients call the API with their Supabase session: `Authorization: Bearer <access token>` (the app's `authFetch` does this). The session is verified first.
+3. The key is resolved per request. Errors:
+
+| Status | `code` | Meaning |
+|---|---|---|
+| 401 | `AUTH_REQUIRED` | No or invalid session |
+| 412 | `OPENAI_KEY_REQUIRED` | The user has not added a key (the UI shows "Add your OpenAI key" linking to Settings) |
+| 401 | `OPENAI_KEY_INVALID` | OpenAI rejected the key (revoked/typo) |
+| 403 | `OPENAI_FORBIDDEN` | The key lacks permission for the request |
+| 424 | `OPENAI_MODEL_UNAVAILABLE` | The key cannot use the model; pick another in Settings → Models |
+| 402 | `OPENAI_QUOTA_EXCEEDED` | The user's OpenAI account is out of credit |
+| 429 | `OPENAI_RATE_LIMITED` / `RATE_LIMITED` | OpenAI's limit, or the per-user limit of this app |
+
+Settings endpoints: `GET|PUT|POST|DELETE /api/settings/openai-key` (status, validate+save, test, remove) and `GET|PUT /api/settings/models` (per-user model overrides).
+
+Server setup: `SUPABASE_SERVICE_ROLE_KEY`, `KEY_ENCRYPTION_SECRET` (`openssl rand -base64 32`) and the migration `20261121000000_byok_api_keys.sql`
+(for Edge Functions: `supabase secrets set KEY_ENCRYPTION_SECRET=...`). For local development only, `ALLOW_SERVER_OPENAI_KEY=true` lets
+`OPENAI_API_KEY` serve users without a key; leave it off in production.
+
+Optional model overrides:
+
+```bash
+OPENAI_TEXT_MODEL=gpt-6.2-sol   # Responses API model (gpt-6.2-astra for heavier reasoning)
+OPENAI_IMAGE_MODEL=gpt-image-2.6-sunburst   # Images API model (gpt-image-2.6-flare = fast)
+```
+
+## Endpoints
+
+### Brand Analysis
+
+```typescript
+POST /api/brand/analyze
+```
+
+Analyzes brand strategy and provides comprehensive insights.
+
+#### Request
+```typescript
+{
+  "businessDescription": string,
+  "industry"?: string,
+  "competitors"?: string[],
+  "targetAudience"?: string[]
+}
+```
+
+#### Response
+```typescript
+{
+  "healthScore": number,
+  "marketFit": number,
+  "brandFactors": Array<{
+    name: string,
+    score: number,
+    insights: string[]
+  }>,
+  "recommendations": string[]
+}
+```
+
+### Content Generation
+
+```typescript
+POST /api/content/generate
+```
+
+Generates brand-aligned content across different formats.
+
+#### Request
+```typescript
+{
+  "type": "mission" | "vision" | "values" | "description",
+  "industry": string,
+  "tone": string,
+  "length"?: number
+}
+```
+
+#### Response
+```typescript
+{
+  "content": string,
+  "variations": string[],
+  "metrics": {
+    "clarity": number,
+    "impact": number,
+    "brandAlignment": number
+  }
+}
+```
+
+### Social Media Analysis
+
+```typescript
+POST /api/social/analyze
+```
+
+Analyzes social media presence and engagement.
+
+#### Request
+```typescript
+{
+  "profiles": {
+    "facebook"?: string,
+    "twitter"?: string,
+    "instagram"?: string,
+    "linkedin"?: string
+  }
+}
+```
+
+#### Response
+```typescript
+{
+  "engagement": {
+    "score": number,
+    "metrics": Record<string, number>
+  },
+  "sentiment": {
+    "positive": number,
+    "negative": number,
+    "neutral": number
+  },
+  "recommendations": string[]
+}
+```
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- 200: Success
+- 400: Bad Request
+- 401: Unauthorized
+- 429: Too Many Requests
+- 500: Server Error
+
+Error responses:
+
+```typescript
+{
+  "error": {
+    "code": string,
+    "message": string,
+    "details"?: any
+  }
+}
+```
+
+## Rate Limits
+
+Requests are limited per signed-in user (a sliding window enforced in the database; exceeding it returns 429 `RATE_LIMITED` with a `Retry-After` header). Separately, OpenAI applies its own limits to your key.
+
+## Best Practices
+
+1. **Performance**
+```typescript
+// Cache results
+const cachedAnalysis = await cache.get(cacheKey);
+if (cachedAnalysis) return cachedAnalysis;
+
+// Make API call
+const analysis = await analyzeContent();
+await cache.set(cacheKey, analysis, 3600);
+```
+
+2. **Error Handling**
+```typescript
+try {
+  const result = await makeRequest();
+} catch (error) {
+  if (error.status === 429) {
+    await sleep(1000);
+    return retry(makeRequest);
+  }
+  throw error;
+}
+```
+
+3. **Batch Processing**
+```typescript
+const batchAnalyze = async (items) => {
+  const batchSize = 10;
+  const results = [];
+  
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(item => analyzeItem(item))
+    );
+    results.push(...batchResults);
+  }
+  
+  return results;
+};
+```
+
+## Examples
+
+### Brand Analysis
+```typescript
+const analysis = await analyzeBrand({
+  description: "Tech startup focused on AI solutions",
+  industry: "Technology",
+  competitors: ["Company A", "Company B"],
+  targetAudience: ["Enterprise", "SMB"]
+});
+```
+
+### Content Generation
+```typescript
+const content = await generateContent({
+  type: "mission",
+  industry: "Healthcare",
+  tone: "professional",
+  length: 100
+});
+```
+
+### Social Analysis
+```typescript
+const socialInsights = await analyzeSocial({
+  profiles: {
+    twitter: "https://twitter.com/company",
+    linkedin: "https://linkedin.com/company/name"
+  }
+});
+```
+
+## Webhooks
+
+### Configuration
+```typescript
+POST /api/webhooks/configure
+{
+  "url": string,
+  "events": string[],
+  "secret": string
+}
+```
+
+### Event Types
+- `analysis.complete`
+- `content.generated`
+- `error.occurred`
+
+### Payload Format
+```typescript
+{
+  "event": string,
+  "timestamp": string,
+  "data": any,
+  "signature": string
+}
+```
+
+Note for GPT-6.2 requests: `temperature`, `top_p` and `top_logprobs` are omitted, reasoning is set via
+`reasoning.effort`, and system prompts are sent as a leading `developer` message in `input`.
+
+## AI endpoints
+
+All endpoints run server-side. Responses use the OpenAI **Responses API**; every place the UI parses JSON uses
+**Structured Outputs** (`text.format: json_schema`, `strict: true`), so no JSON repair is needed. Schemas live in
+`supabase/functions/_shared/schemas.ts` (maintained by hand; the former generator read demo fixtures that no longer exist).
+
+### Named tasks (Structured Outputs, reasoning effort per task)
+```typescript
+POST /api/ai/task
+{ "task": "brand_analysis" | "brand_evolution" | "branding_concepts" | "top_brands" | ..., "input": string, "imageUrls"?: string[] }
+// -> { "data": <schema-validated object>, "citations": [{ "url", "title" }] }
+```
+`GET /api/ai/task` returns `{ "configured": boolean }`. Without a key the app shows an "add your key" state; there is no fallback data.
+Tasks that need current facts (`top_brands`, `social_profiles`, `social_profile_insights`) first research with the hosted
+`web_search` tool and then convert the findings to the strict schema; display the returned `citations` as links.
+
+### Assistant (streaming + function calling + conversation state)
+```typescript
+POST /api/ai/assistant   // text/event-stream
+{ "message": string, "previousResponseId"?: string, "context"?: object }
+// events: delta {text} | tool {name} | image {dataUrl} | done {responseId, citations} | error {message}
+```
+Conversation state is kept by OpenAI (`store: true` + `previous_response_id`); the client only sends the last response id.
+The assistant can call app functions (`get_brand_factor`, `list_weak_factors`, `generate_brand_image`) and use `web_search`.
+
+### Deep research (background mode)
+```typescript
+POST /api/ai/research { "kind": "competitors" | "market", "industry": string }  // -> 202 { id, status }
+GET  /api/ai/research?kind=market&id=resp_...   // { status } while running, then { status: "completed", data, citations }
+```
+
+### Images (Images API)
+```typescript
+POST /api/ai/image
+{ "prompt": string, "referenceImages"?: string[], "size"?, "quality"?, "complexity"?, "background"?, "fast"?: boolean }
+// -> { "images": string[] }   // data: URLs
+```
+Without `referenceImages` it generates; with them it edits (logo/asset variations). `fast: true` uses `gpt-image-2.6-flare`.
+
+### Voice (audio)
+See the [Voice API](/docs/api/voice): text-to-speech (Realtime API), transcription (`gpt-transcribe`) and live voice (Realtime over WebRTC).
+
+## Server-side usage
+
+```typescript
+import { createStructured, researchStructured, generateImage } from '@/lib/openai';
+
+const { data } = await createStructured('brand_evolution', { input: 'Evolve Acme', effort: 'medium' });
+const [image] = await generateImage({ prompt: 'Minimal logo for a coffee brand' });
+```
+
+Requests are retried on 408/409/429/5xx with `retry-after` backoff, and each call logs token usage
+(`ai_usage` JSON line: feature, model, status, attempts, duration, tokens; never prompts). Override the sink with `setUsageLogger`.

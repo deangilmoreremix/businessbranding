@@ -36,7 +36,7 @@ const sidebarNavItems = [
       },
       {
         title: 'AI Features',
-        href: '/docs/gemini-features',
+        href: '/docs/ai-features',
         icon: Brain
       },
       {
@@ -83,11 +83,6 @@ const sidebarNavItems = [
         title: 'Brand Pillar Breakdown',
         href: '/docs/components/brand-pillar-breakdown',
         icon: Star
-      },
-      {
-        title: 'Feature Discovery',
-        href: '/docs/components/feature-discovery',
-        icon: Wand2
       }
     ]
   },
@@ -101,7 +96,7 @@ const sidebarNavItems = [
       },
       {
         title: 'Case Studies',
-        href: '/docs/case-studies',
+        href: '/case-studies',
         icon: Users
       }
     ]
@@ -117,7 +112,7 @@ export default function DocsLayout({
   const [search, setSearch] = useState('');
 
   return (
-    <div className="container flex-1 items-start md:grid md:grid-cols-[240px_1fr] md:gap-6 lg:grid-cols-[280px_1fr] lg:gap-10">
+    <div className="container flex-1 items-start md:grid md:grid-cols-[240px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10">
       <aside className="fixed top-14 z-30 -ml-2 hidden h-[calc(100vh-3.5rem)] w-full shrink-0 overflow-y-auto border-r md:sticky md:block">
         <div className="py-6 pr-6 lg:py-8">
           <div className="mb-4">
@@ -164,7 +159,7 @@ export default function DocsLayout({
           </ScrollArea>
         </div>
       </aside>
-      <main className="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_200px]">
+      <main className="relative min-w-0 py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_200px]">
         <div className="mx-auto w-full min-w-0">
           <div className="pb-12">
             {children}

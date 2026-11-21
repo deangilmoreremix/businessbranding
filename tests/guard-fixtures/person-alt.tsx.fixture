@@ -1,0 +1,2 @@
+// expect: person-alt
+export const X = () => <img src="/a.png" alt="Sarah Williams" />;

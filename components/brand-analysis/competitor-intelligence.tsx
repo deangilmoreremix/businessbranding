@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ import {
   Users,
 } from 'lucide-react';
 
+import { formatFraction } from '@/lib/format';
 import { ResponsiveRadar } from '@nivo/radar';
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveHeatMap } from '@nivo/heatmap';
@@ -32,9 +34,11 @@ import { ResponsivePie } from '@nivo/pie';
 
 interface CompetitorIntelligenceProps {
   industry?: string;
+  market?: { growthRate?: number; competitionLevel?: 'high' | 'medium' | 'low' };
   competitors?: Array<{
     name: string;
     marketShare?: number;
+    marketPosition?: string;
     strengths?: string[];
     weaknesses?: string[];
     digitalPresence?: number;
@@ -45,193 +49,56 @@ interface CompetitorIntelligenceProps {
   }>;
 }
 
-export function CompetitorIntelligence({ industry = 'Technology', competitors = [] }: CompetitorIntelligenceProps) {
+// Background deep research + notifications: browser-only, loaded on demand.
+const DeepResearchPanel = dynamic(() => import('@/components/local/deep-research-panel'), { ssr: false, loading: () => null });
+
+export function CompetitorIntelligence({ industry = 'your market', competitors = [], market }: CompetitorIntelligenceProps) {
+  const shares = competitors.map((c) => c.marketShare).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0).sort((x, y) => y - x);
+  const top3 = shares.length >= 3 && competitors.length === shares.length ? shares.slice(0, 3).reduce((x, y) => x + y, 0) : null;
+  const marketStats = [
+    { title: 'Market Growth Rate', value: typeof market?.growthRate === 'number' ? formatFraction(market.growthRate) : 'Not measured', icon: TrendingUp, sub: 'From this analysis' },
+    { title: 'Competition Level', value: market?.competitionLevel ? market.competitionLevel[0].toUpperCase() + market.competitionLevel.slice(1) : 'Not measured', icon: Target, sub: 'From this analysis' },
+    { title: 'Top 3 Share', value: top3 === null ? 'Not measured' : formatFraction(top3 > 1 ? top3 / 100 : top3, 0), icon: BarChart, sub: top3 === null ? 'Needs market share for at least 3 competitors' : 'Sum of the three largest shares in this analysis' }
+  ];
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCompetitor, setExpandedCompetitor] = useState<string | null>(null);
   const [activeView, setActiveView] = useState('overview');
 
-  // Demo competitors data if none provided
-  const defaultCompetitors = [
-    {
-      name: 'Industry Leader Inc.',
-      marketShare: 28.5,
-      strengths: ['Brand recognition', 'Product quality', 'Marketing reach'],
-      weaknesses: ['Premium pricing', 'Slower innovation'],
-      digitalPresence: 92,
-      brandStrength: 94,
-      pricing: 'premium',
-      targetAudience: ['Enterprise', 'Upper mid-market'],
-      metrics: {
-        brandLoyalty: 89,
-        customerSatisfaction: 86,
-        innovation: 78,
-        marketReach: 94,
-        digitalPresence: 92,
-        socialEngagement: 88,
-        priceCompetitiveness: 62
-      }
-    },
-    {
-      name: 'Innovation Tech',
-      marketShare: 22.3,
-      strengths: ['Innovation speed', 'Customer service', 'Digital experience'],
-      weaknesses: ['Brand awareness', 'Limited product range'],
-      digitalPresence: 96,
-      brandStrength: 84,
-      pricing: 'mid',
-      targetAudience: ['Tech-savvy users', 'Early adopters'],
-      metrics: {
-        brandLoyalty: 82,
-        customerSatisfaction: 90,
-        innovation: 95,
-        marketReach: 76,
-        digitalPresence: 96,
-        socialEngagement: 91,
-        priceCompetitiveness: 76
-      }
-    },
-    {
-      name: 'ValueSoft Solutions',
-      marketShare: 18.7,
-      strengths: ['Competitive pricing', 'Large customer base', 'Reliable solutions'],
-      weaknesses: ['Less innovative', 'Customer support issues'],
-      digitalPresence: 78,
-      brandStrength: 72,
-      pricing: 'low',
-      targetAudience: ['Small business', 'Budget-conscious'],
-      metrics: {
-        brandLoyalty: 74,
-        customerSatisfaction: 72,
-        innovation: 68,
-        marketReach: 82,
-        digitalPresence: 78,
-        socialEngagement: 70,
-        priceCompetitiveness: 92
-      }
-    },
-    {
-      name: 'NextGen Systems',
-      marketShare: 14.2,
-      strengths: ['Cutting-edge technology', 'Strong developer community', 'Open ecosystem'],
-      weaknesses: ['Limited market presence', 'Complex products'],
-      digitalPresence: 88,
-      brandStrength: 76,
-      pricing: 'mid',
-      targetAudience: ['Developers', 'Tech companies'],
-      metrics: {
-        brandLoyalty: 79,
-        customerSatisfaction: 83,
-        innovation: 91,
-        marketReach: 68,
-        digitalPresence: 88,
-        socialEngagement: 85,
-        priceCompetitiveness: 75
-      }
-    },
-    {
-      name: 'Heritage Technologies',
-      marketShare: 9.5,
-      strengths: ['Established reputation', 'Enterprise relationships', 'Industry expertise'],
-      weaknesses: ['Aging infrastructure', 'Slow modernization'],
-      digitalPresence: 65,
-      brandStrength: 82,
-      pricing: 'high',
-      targetAudience: ['Enterprise', 'Government'],
-      metrics: {
-        brandLoyalty: 86,
-        customerSatisfaction: 78,
-        innovation: 59,
-        marketReach: 81,
-        digitalPresence: 65,
-        socialEngagement: 62,
-        priceCompetitiveness: 68
-      }
-    },
-    {
-      name: 'Agile Solutions',
-      marketShare: 5.8,
-      strengths: ['Flexibility', 'Quick implementation', 'Customer-centric'],
-      weaknesses: ['Scale limitations', 'Narrow product focus'],
-      digitalPresence: 82,
-      brandStrength: 68,
-      pricing: 'mid',
-      targetAudience: ['Mid-market', 'Growth-stage companies'],
-      metrics: {
-        brandLoyalty: 76,
-        customerSatisfaction: 88,
-        innovation: 84,
-        marketReach: 62,
-        digitalPresence: 82,
-        socialEngagement: 79,
-        priceCompetitiveness: 81
-      }
-    },
-    {
-      name: 'Emerging Technologies',
-      marketShare: 4.1,
-      strengths: ['Disruptive innovation', 'Fast growth', 'Modern architecture'],
-      weaknesses: ['Limited track record', 'Funding constraints'],
-      digitalPresence: 90,
-      brandStrength: 64,
-      pricing: 'low',
-      targetAudience: ['Startups', 'Digital-first businesses'],
-      metrics: {
-        brandLoyalty: 68,
-        customerSatisfaction: 85,
-        innovation: 93,
-        marketReach: 58,
-        digitalPresence: 90,
-        socialEngagement: 94,
-        priceCompetitiveness: 88
-      }
-    }
-  ];
-
-  const allCompetitors = competitors.length > 0 ? competitors : defaultCompetitors;
+  // Only competitors from the real analysis are shown (no stock competitor rows).
+  const allCompetitors = competitors;
   
   // Filter competitors based on search term
   const filteredCompetitors = allCompetitors.filter(competitor => 
     competitor.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Prepare data for radar chart
-  const radarData = allCompetitors.slice(0, 5).map(competitor => {
-    const metrics = competitor.metrics || {
-      brandLoyalty: Math.round(Math.random() * 30 + 60),
-      innovation: Math.round(Math.random() * 30 + 60),
-      marketReach: Math.round(Math.random() * 30 + 60),
-      digitalPresence: Math.round(Math.random() * 30 + 60),
-      customerSatisfaction: Math.round(Math.random() * 30 + 60),
-    };
+  // Chart data uses ONLY values present in the analysis; a missing value is left out (or null), never invented.
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  const radarData = allCompetitors.slice(0, 5).filter((c) => c.metrics && Object.values(c.metrics).some(isNum)).map((competitor) => ({
+    competitor: competitor.name || 'Unknown',
+    ...competitor.metrics
+  }));
 
-    return {
-      competitor: competitor.name || 'Unknown',
-      ...metrics
-    };
-  });
-  
-  // Prepare data for market share pie chart
-  const pieData = allCompetitors.map(competitor => ({
+  const pieData = allCompetitors.filter((c) => isNum(c.marketShare) && c.marketShare > 0).map((competitor) => ({
     id: competitor.name,
     label: competitor.name,
-    value: competitor.marketShare || Math.round(Math.random() * 20 + 5)
+    value: competitor.marketShare as number
   }));
-  
-  // Prepare data for strength/weakness heatmap
+
+  const heatRow = (id: string, pick: (c: any) => unknown) => ({ id, data: allCompetitors.slice(0, 7).map((c) => ({ x: c.name, y: isNum(pick(c)) ? (pick(c) as number) : null })) });
   const heatmapData = [
-    { id: 'Brand Strength', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.brandStrength || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Digital Presence', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.digitalPresence || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Innovation', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.metrics?.innovation || Math.round(Math.random() * 30 + 60) })) },
-    { id: 'Customer Satisfaction', data: allCompetitors.slice(0, 7).map(c => ({ x: c.name, y: c.metrics?.customerSatisfaction || Math.round(Math.random() * 30 + 60) })) }
-  ];
-  
-  // Bar chart data for strategic comparison
+    heatRow('Brand Strength', (c) => c.brandStrength ?? c.score),
+    heatRow('Digital Presence', (c) => c.digitalPresence),
+    heatRow('Innovation', (c) => c.metrics?.innovation),
+    heatRow('Customer Satisfaction', (c) => c.metrics?.customerSatisfaction)
+  ].filter((row) => row.data.some((d) => d.y !== null));
+
   const barData = allCompetitors.length > 0 && allCompetitors[0].metrics
-    ? Object.keys(allCompetitors[0].metrics).map(metric => {
+    ? Object.keys(allCompetitors[0].metrics).map((metric) => {
         const data: any = { metric: metric.replace(/([A-Z])/g, ' $1').trim() };
-        allCompetitors.slice(0, 5).forEach(competitor => {
+        allCompetitors.slice(0, 5).forEach((competitor) => {
           const metricValue = competitor.metrics?.[metric as keyof typeof competitor.metrics];
-          data[competitor.name || 'Unknown'] = typeof metricValue === 'number' ? metricValue : Math.round(Math.random() * 30 + 60);
+          if (isNum(metricValue)) data[competitor.name || 'Unknown'] = metricValue;
         });
         return data;
       })
@@ -243,7 +110,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-xl font-bold">Top Competitors Intelligence</CardTitle>
-          <Badge variant="outline">Industry: {industry}</Badge>
+          <Badge variant="outline">Market: {industry}</Badge>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
@@ -261,7 +128,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold">Top Competitors Intelligence</CardTitle>
-          <Badge variant="outline">Industry: {industry}</Badge>
+          <Badge variant="outline">Market: {industry}</Badge>
         </div>
         <div className="flex items-center gap-4 mt-4">
           <div className="relative flex-1">
@@ -283,6 +150,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
           </Tabs>
         </div>
       </CardHeader>
+      <DeepResearchPanel industry={industry} />
 
       <CardContent>
         <Tabs value={activeView} className="space-y-4">
@@ -366,7 +234,9 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 <CardTitle className="text-lg">Strengths & Weaknesses Heatmap</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="h-[250px]">
+                {heatmapData.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center" data-testid="heatmap-unmeasured">Not measured: the analysis has no per-competitor strength scores.</p>}
+                <div className="h-[250px]" hidden={heatmapData.length === 0}>
+                  {heatmapData.length > 0 && (
                   <ResponsiveHeatMap
                     data={heatmapData}
                     margin={{ top: 50, right: 60, bottom: 60, left: 90 }}
@@ -406,6 +276,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                       }
                     ]}
                   />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -581,120 +452,17 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="lg:col-span-2">
-                  <CardHeader className="py-4">
-                    <CardTitle className="text-lg">Opportunity Gaps</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                          { title: 'Innovation Gap', score: 76, description: 'Potential to overtake 3 competitors with focused R&D' },
-                          { title: 'Price-Value Gap', score: 82, description: 'Strong opportunity in mid-market segment' },
-                          { title: 'Digital Experience', score: 88, description: 'Top 3 potential in digital customer journey' },
-                        ].map((opportunity, i) => (
-                          <Card key={i} className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Target className="h-5 w-5 text-blue-500" />
-                              <h3 className="font-medium">{opportunity.title}</h3>
-                            </div>
-                            <div className="space-y-3">
-                              <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Opportunity Score</span>
-                                <span className="font-medium">{opportunity.score}/100</span>
-                              </div>
-                              <Progress value={opportunity.score} className="h-2" />
-                              <p className="text-sm">{opportunity.description}</p>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="py-4">
-                    <CardTitle className="text-lg">Disruption Risk</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      {[
-                        { competitor: "Emerging Technologies", risk: 85, trend: "up", description: "Disruptive AI-powered solution gaining traction" },
-                        { competitor: "Innovation Tech", risk: 72, trend: "up", description: "Recent funding round to expand market reach" },
-                        { competitor: "NextGen Systems", risk: 68, trend: "stable", description: "New product launch scheduled next quarter" }
-                      ].map((risk, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{risk.competitor}</span>
-                              {risk.trend === "up" ? (
-                                <TrendingUp className="h-4 w-4 text-red-500" />
-                              ) : risk.trend === "down" ? (
-                                <TrendingDown className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Badge variant="outline">Stable</Badge>
-                              )}
-                            </div>
-                            <Badge variant={risk.risk > 80 ? 'destructive' : 'outline'}>
-                              {risk.risk}% Risk
-                            </Badge>
-                          </div>
-                          <Progress value={risk.risk} className="h-2" />
-                          <p className="text-sm text-muted-foreground">{risk.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="py-4">
-                    <CardTitle className="text-lg">Competitive Advantage</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      {[
-                        { area: "Customer Experience", advantage: 78, description: "7% above industry average" },
-                        { area: "Technical Innovation", advantage: 86, description: "Leading in 3 of 5 categories" },
-                        { area: "Price-to-Value", advantage: 73, description: "Mid-tier position with premium features" }
-                      ].map((advantage, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">{advantage.area}</span>
-                            <Badge variant="outline" className="bg-green-100 text-green-800">
-                              {advantage.advantage}% Advantage
-                            </Badge>
-                          </div>
-                          <Progress value={advantage.advantage} className="h-2" />
-                          <p className="text-sm text-muted-foreground">{advantage.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </div>
           </TabsContent>
           
           <TabsContent value="market">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              {[
-                { title: 'Total Market Size', value: '$8.7B', growth: '+12%', icon: BarChart },
-                { title: 'Market Growth Rate', value: '14.8%', growth: '+2.3%', icon: TrendingUp },
-                { title: 'Market Concentration', value: 'Moderate', sub: 'Top 3 hold 65%', icon: Target },
-              ].map((stat, i) => (
+              {marketStats.map((stat, i) => (
                 <Card key={i} className="p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-muted-foreground text-sm">{stat.title}</p>
                       <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                      <p className="text-sm mt-1">
-                        <Badge variant="outline" className={(stat.growth?.startsWith('+')) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {stat.growth || 'N/A'} YoY
-                        </Badge>
-                      </p>
                     </div>
                     <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900">
                       <stat.icon className="text-blue-700 dark:text-blue-300 h-5 w-5" />
@@ -707,265 +475,7 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
               ))}
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <Card>
-                <CardHeader className="py-4">
-                  <CardTitle className="text-lg">Market Segments</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="h-[300px]">
-                    <ResponsivePie
-                      data={[
-                        { id: 'Enterprise', value: 42 },
-                        { id: 'Mid-Market', value: 28 },
-                        { id: 'SMB', value: 21 },
-                        { id: 'Consumer', value: 9 },
-                      ]}
-                      margin={{ top: 20, right: 20, bottom: 80, left: 20 }}
-                      innerRadius={0.5}
-                      padAngle={0.7}
-                      cornerRadius={3}
-                      activeOuterRadiusOffset={8}
-                      colors={{ scheme: 'nivo' }}
-                      borderWidth={1}
-                      borderColor={{
-                        from: 'color',
-                        modifiers: [['darker', 0.2]],
-                      }}
-                      arcLinkLabelsSkipAngle={10}
-                      arcLinkLabelsTextColor="#333333"
-                      arcLinkLabelsThickness={2}
-                      arcLinkLabelsColor={{ from: 'color' }}
-                      arcLabelsSkipAngle={10}
-                      arcLabelsTextColor={{
-                        from: 'color',
-                        modifiers: [['darker', 2]],
-                      }}
-                      legends={[
-                        {
-                          anchor: 'bottom',
-                          direction: 'row',
-                          justify: false,
-                          translateX: 0,
-                          translateY: 56,
-                          itemsSpacing: 0,
-                          itemWidth: 100,
-                          itemHeight: 18,
-                          itemTextColor: '#999',
-                          itemDirection: 'left-to-right',
-                          itemOpacity: 1,
-                          symbolSize: 18,
-                          symbolShape: 'circle'
-                        }
-                      ]}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="py-4">
-                  <CardTitle className="text-lg">Competitor Growth Trends</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="h-[300px]">
-                    <ResponsiveBar
-                      data={[
-                        {
-                          year: '2023',
-                          'Industry Leader Inc.': 4.2,
-                          'Innovation Tech': 8.7,
-                          'ValueSoft Solutions': 3.1,
-                          'NextGen Systems': 12.5,
-                          'Emerging Technologies': 18.6,
-                        },
-                        {
-                          year: '2024',
-                          'Industry Leader Inc.': 3.8,
-                          'Innovation Tech': 10.3,
-                          'ValueSoft Solutions': 2.6,
-                          'NextGen Systems': 15.2,
-                          'Emerging Technologies': 16.9,
-                        },
-                        {
-                          year: '2025 (Projected)',
-                          'Industry Leader Inc.': 2.9,
-                          'Innovation Tech': 12.8,
-                          'ValueSoft Solutions': 1.8,
-                          'NextGen Systems': 18.5,
-                          'Emerging Technologies': 14.3,
-                        }
-                      ]}
-                      keys={['Industry Leader Inc.', 'Innovation Tech', 'ValueSoft Solutions', 'NextGen Systems', 'Emerging Technologies']}
-                      indexBy="year"
-                      margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
-                      padding={0.3}
-                      valueScale={{ type: 'linear' }}
-                      indexScale={{ type: 'band', round: true }}
-                      colors={{ scheme: 'nivo' }}
-                      borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-                      axisTop={null}
-                      axisRight={null}
-                      axisBottom={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 0,
-                        legend: 'Year',
-                        legendPosition: 'middle',
-                        legendOffset: 32,
-                      }}
-                      axisLeft={{
-                        tickSize: 5,
-                        tickPadding: 5,
-                        tickRotation: 0,
-                        legend: 'Growth (%)',
-                        legendPosition: 'middle',
-                        legendOffset: -40,
-                      }}
-                      labelSkipWidth={12}
-                      labelSkipHeight={12}
-                      labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-                      legends={[
-                        {
-                          dataFrom: 'keys',
-                          anchor: 'bottom-right',
-                          direction: 'column',
-                          justify: false,
-                          translateX: 120,
-                          translateY: 0,
-                          itemsSpacing: 2,
-                          itemWidth: 100,
-                          itemHeight: 20,
-                          itemDirection: 'left-to-right',
-                          itemOpacity: 0.85,
-                          symbolSize: 20,
-                          effects: [
-                            {
-                              on: 'hover',
-                              style: {
-                                itemOpacity: 1,
-                              },
-                            },
-                          ],
-                        },
-                      ]}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
             
-            <Card>
-              <CardHeader className="py-4">
-                <CardTitle className="text-lg">Regional Market Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="h-[300px]">
-                  <ResponsiveHeatMap
-                    data={[
-                      {
-                        id: 'North America',
-                        data: [
-                          { x: 'Industry Leader', y: 38 },
-                          { x: 'Innovation Tech', y: 24 },
-                          { x: 'ValueSoft', y: 18 },
-                          { x: 'NextGen', y: 12 },
-                          { x: 'Heritage', y: 5 },
-                          { x: 'Agile', y: 2 },
-                          { x: 'Emerging', y: 1 },
-                        ]
-                      },
-                      {
-                        id: 'Europe',
-                        data: [
-                          { x: 'Industry Leader', y: 29 },
-                          { x: 'Innovation Tech', y: 21 },
-                          { x: 'ValueSoft', y: 22 },
-                          { x: 'NextGen', y: 15 },
-                          { x: 'Heritage', y: 8 },
-                          { x: 'Agile', y: 3 },
-                          { x: 'Emerging', y: 2 },
-                        ]
-                      },
-                      {
-                        id: 'Asia Pacific',
-                        data: [
-                          { x: 'Industry Leader', y: 25 },
-                          { x: 'Innovation Tech', y: 27 },
-                          { x: 'ValueSoft', y: 15 },
-                          { x: 'NextGen', y: 18 },
-                          { x: 'Heritage', y: 7 },
-                          { x: 'Agile', y: 4 },
-                          { x: 'Emerging', y: 4 },
-                        ]
-                      },
-                      {
-                        id: 'Latin America',
-                        data: [
-                          { x: 'Industry Leader', y: 19 },
-                          { x: 'Innovation Tech', y: 16 },
-                          { x: 'ValueSoft', y: 31 },
-                          { x: 'NextGen', y: 14 },
-                          { x: 'Heritage', y: 12 },
-                          { x: 'Agile', y: 6 },
-                          { x: 'Emerging', y: 2 },
-                        ]
-                      },
-                      {
-                        id: 'Middle East & Africa',
-                        data: [
-                          { x: 'Industry Leader', y: 22 },
-                          { x: 'Innovation Tech', y: 18 },
-                          { x: 'ValueSoft', y: 24 },
-                          { x: 'NextGen', y: 13 },
-                          { x: 'Heritage', y: 11 },
-                          { x: 'Agile', y: 8 },
-                          { x: 'Emerging', y: 4 },
-                        ]
-                      }
-                    ]}
-                    margin={{ top: 60, right: 90, bottom: 60, left: 90 }}
-                    valueFormat=">-.2s"
-                    axisTop={{
-                      tickSize: 5,
-                      tickPadding: 5,
-                      tickRotation: -45,
-                      legend: 'Competitors',
-                      legendOffset: 40
-                    }}
-                    axisLeft={{
-                      tickSize: 5,
-                      tickPadding: 5,
-                      tickRotation: 0,
-                      legend: 'Regions',
-                      legendPosition: 'middle',
-                      legendOffset: -72
-                    }}
-                    colors={{
-                      type: 'sequential',
-                      scheme: 'blues'
-                    }}
-                    legends={[
-                      {
-                        anchor: 'bottom',
-                        translateX: 0,
-                        translateY: 30,
-                        length: 400,
-                        thickness: 8,
-                        direction: 'row',
-                        tickPosition: 'after',
-                        tickSize: 3,
-                        tickSpacing: 4,
-                        tickOverlap: false,
-                        title: 'Market Share %',
-                        titleAlign: 'start',
-                        titleOffset: 4
-                      }
-                    ]}
-                  />
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
           
           <TabsContent value="profiles">
@@ -981,21 +491,17 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium text-lg">{competitor.name}</h3>
-                            {index < 3 && (
-                              <Badge variant={
-                                index === 0 ? 'default' : 
-                                index === 1 ? 'outline' : 
-                                'secondary'
-                              }>
+                            {competitor.marketPosition && (
+                              <Badge variant="outline">
                                 <Award className="h-3 w-3 mr-1" />
-                                {index === 0 ? 'Leader' : index === 1 ? 'Challenger' : 'Strong Performer'}
+                                {competitor.marketPosition}
                               </Badge>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Briefcase className="h-4 w-4 mr-1" />
-                              Market Share: <span className="font-medium ml-1">{competitor.marketShare}%</span>
+                              Market Share: <span className="font-medium ml-1">{typeof competitor.marketShare === 'number' ? `${competitor.marketShare}%` : 'Not measured'}</span>
                             </span>
                             <span> • </span>
                             <span className="flex items-center">
@@ -1006,10 +512,6 @@ export function CompetitorIntelligence({ industry = 'Technology', competitors = 
                         </div>
                       </div>
                       
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Visit
-                      </Button>
                     </div>
                   </div>
 

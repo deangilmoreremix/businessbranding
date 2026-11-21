@@ -1,0 +1,68 @@
+# Voice API Reference
+
+## Overview
+
+Voice features run on OpenAI audio models. All calls are made server-side; the browser only talks to `/api/*`.
+
+| Feature | Endpoint | OpenAI API / model |
+|---|---|---|
+| Text-to-speech | `POST /api/voice/generate` | Realtime API, `gpt-realtime-2.1-mini` (`OPENAI_TTS_MODEL`) |
+| Podcast / audiobook | `POST /api/voice/podcast`, `/api/voice/audiobook` | Same, one clip per segment joined into one WAV |
+| Transcription | `POST /api/voice/transcribe` | `POST /v1/audio/transcriptions`, `gpt-transcribe` (`OPENAI_TRANSCRIBE_MODEL`) |
+| Live voice | `POST /api/voice/realtime` | Realtime API over WebRTC, `gpt-realtime-2.1` (`OPENAI_REALTIME_MODEL`) |
+| Voice analysis | `POST /api/voice/analyze` | Responses API, Structured Outputs |
+| Enhancement | `POST /api/voice/enhance` | Transcribe (if audio) → polish script → re-narrate |
+
+Voice endpoints use the signed-in user's own OpenAI key (Settings → OpenAI); without one they return `412 OPENAI_KEY_REQUIRED`. Voices (`voiceId`): `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar` (marin and cedar recommended).
+
+> Disclose to end users that the voice is AI-generated (OpenAI usage policy).
+
+The Speech API models (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) are deprecated and shut down on 2027-01-06, so text-to-speech uses the Realtime API by default. To use the legacy endpoint while it is available, set `OPENAI_TTS_ENDPOINT=speech` (and `OPENAI_SPEECH_MODEL`).
+
+## Text to speech
+
+```typescript
+POST /api/voice/generate
+{ "text": string, "voiceId"?: string, "instructions"?: string }   // instructions = delivery, e.g. "warm and upbeat"
+// -> audio/wav
+```
+
+```typescript
+POST /api/voice/podcast     { "segments": [{ "text": string, "voiceId": string }] }                  // -> audio/wav
+POST /api/voice/audiobook   { "title", "author", "narrator", "chapters": [{ "title", "text", "voiceId" }] } // -> audio/wav
+```
+
+## Transcription
+
+```typescript
+POST /api/voice/transcribe   // multipart/form-data
+// file (required, up to 25 MB), language? (ISO code), prompt? (context), keywords? (repeatable)
+// -> { "text": string, "languages": [{ "code": string }] }
+```
+
+## Live voice (WebRTC)
+
+```typescript
+POST /api/voice/realtime  { "voiceId"?: string, "instructions"?: string }
+// -> { "value": string, "model": string, "callsUrl": string }
+```
+
+`value` is a short-lived client secret. In the browser, create an `RTCPeerConnection`, add the microphone track, create a
+data channel named `oai-events`, then `POST` the SDP offer to `callsUrl` with `Authorization: Bearer <value>` and
+`Content-Type: application/sdp`, and apply the returned SDP answer. See `components/voice-interface/live-voice.tsx`.
+
+## Analysis and optimization
+
+```typescript
+POST /api/voice/analyze   { "text": string, "voiceUrl"?: string }
+// -> { voice: { tone, sentiment, culturalSensitivity, emotionalResonance, audienceAlignment }, multiModal, recommendations }
+
+
+POST /api/voice/enhance   { "text": string, "settings"?: { emotion, pacing } }   // JSON -> { enhancedContent, audioUrl }
+POST /api/voice/enhance   multipart { audio }                                    // -> audio/wav
+```
+
+## Removed
+
+Earlier versions used third-party voice and image providers. They were removed: voice cloning/design, sound effects,
+dubbing and audio-cleanup have no OpenAI equivalent in this app. Enhancement now re-narrates a polished script instead.

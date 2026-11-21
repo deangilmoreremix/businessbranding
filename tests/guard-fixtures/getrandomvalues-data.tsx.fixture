@@ -1,0 +1,2 @@
+// expect: random-data
+export const X = () => { const v = crypto.getRandomValues(new Uint8Array(8)); return <p>{v[0]}</p>; };

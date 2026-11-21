@@ -1,0 +1,2 @@
+// expect: create-element-button
+export function make() { const b = document.createElement('button'); b.textContent = 'Go'; return b; }

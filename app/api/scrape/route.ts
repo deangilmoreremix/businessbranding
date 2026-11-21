@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
+import { withUser } from '@/lib/server/user';
+import { safeFetch, UnsafeUrlError } from '@/lib/server/safe-fetch';
+
+export const runtime = 'nodejs';
 
 const SOCIAL_SELECTORS = {
   facebook: [
@@ -53,6 +57,7 @@ const SOCIAL_SELECTORS = {
 };
 
 export async function GET(request: Request) {
+  return withUser(request, { bucket: 'scrape', limit: 20, requireKey: false }, async () => {
   try {
     const { searchParams } = new URL(request.url);
     const url = searchParams.get('url');
@@ -64,23 +69,21 @@ export async function GET(request: Request) {
     // Add protocol if missing
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
 
-    console.log('Scraping URL:', fullUrl);
-
-    const response = await fetch(fullUrl, {
+    // SSRF guard: public http(s) hosts only (DNS resolved + pinned), redirects re-validated per hop, 15 MB / 15 s caps
+    const response = await safeFetch(fullUrl, {
+      maxRedirects: 4,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Accept-Language': 'en-US,en;q=0.5'
       }
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.status < 200 || response.status >= 300) {
+      return NextResponse.json({ error: `The website responded with status ${response.status}.`, code: 'UPSTREAM_STATUS' }, { status: 502 });
     }
 
-    const html = await response.text();
+    const html = response.body.toString('utf8');
     const $ = cheerio.load(html);
     
     // Extract social media links
@@ -102,7 +105,7 @@ export async function GET(request: Request) {
             const dataAttrs = Object.keys($(el).data());
             for (const attr of dataAttrs) {
               if (attr.toLowerCase().includes('href') || attr.toLowerCase().includes('url')) {
-                href = $(el).data(attr);
+                href = $(el).data(attr) as string | undefined;
                 break;
               }
             }
@@ -167,7 +170,6 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log('Found social links:', socialLinks);
 
     // Extract meta information
     const meta = {
@@ -190,10 +192,10 @@ export async function GET(request: Request) {
       meta
     });
   } catch (error) {
-    console.error('Error scraping website:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to scrape website',
-      details: error
-    }, { status: 500 });
+    if (error instanceof UnsafeUrlError) return NextResponse.json({ error: error.message, code: 'UNSAFE_URL' }, { status: 400 });
+    console.error('Error scraping website:', error instanceof Error ? error.name : 'unknown');
+    // never return error.message / the error object to the client
+    return NextResponse.json({ error: 'Failed to scrape website', code: 'SCRAPE_FAILED' }, { status: 502 });
   }
+  });
 }

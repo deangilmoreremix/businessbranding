@@ -33,3 +33,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local env (secrets)
+.env
+.env.local
+public/vendor/
+
+# test artifacts and tool state
+e2e-*.png
+supabase/.temp/
+test-results/

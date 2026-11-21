@@ -1,0 +1,2 @@
+// expect: math-random
+export const v = Math.random() * 100;

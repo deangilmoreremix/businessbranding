@@ -21,9 +21,8 @@ Configure your environment variables in `.env`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
-NEXT_PUBLIC_ELEVEN_LABS_API_KEY=your_eleven_labs_key
-NEXT_PUBLIC_RECRAFT_API_KEY=your_recraft_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key   # server-side only
+KEY_ENCRYPTION_SECRET=base64_32_random_bytes      # openssl rand -base64 32; users add their own OpenAI key in Settings
 ```
 
 ## Core Components
@@ -135,30 +134,37 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 ## AI Integration
 
-### Gemini Setup
+### OpenAI Setup
+
+The key stays on the server. Use the shared helpers (Responses API for text, Images API for images):
 
 ```tsx
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createResponse, generateImage } from '@/lib/openai';
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+const text = await createResponse({ input: 'Analyze this brand', json: true });
+const [image] = await generateImage({ prompt: 'Logo concept' });
 ```
+
+From the browser, call `POST /api/ai/generate` or `POST /api/ai/image`.
 
 ### Voice Generation
 
 ```tsx
-import { generateVoiceOver } from '@/lib/services/eleven-labs';
+import { generateVoiceOver } from '@/lib/services/voice';
 
-const audioBlob = await generateVoiceOver(text, voiceId);
+// OpenAI text-to-speech (Realtime API); voiceId is a built-in voice such as "marin"
+const audioBlob = await generateVoiceOver(text, 'marin');
 const audioUrl = URL.createObjectURL(audioBlob);
 ```
 
 ### Image Generation
 
 ```tsx
-import { transformImage } from '@/lib/services/recraft';
+import { generateBrandImages, transformImage } from '@/lib/services/openai-images';
 
-const result = await transformImage(imageUrl, prompt, style);
+// OpenAI Images API (gpt-image-2.6): generate new concepts, or edit an existing image into variations
+const created = await generateBrandImages(prompt);
+const variations = await transformImage(imageUrl, prompt, style);
 ```
 
 ## Component Customization
@@ -294,5 +300,18 @@ function checkAccess(userId, resource) {
 
 - Documentation: `/docs`
 - API Reference: `/docs/api`
-- Community Support: Discord server
-- Email Support: support@aibrandcreator.com
+- Questions or problems: use the [contact form](/contact)
+
+## Security: rotate keys that were committed earlier
+
+Git history still contains the original `.env` (first committed in `a4f5488`, still present in `2ff6c7f` and `ba0d981`) with **live** credentials: Gemini, ElevenLabs and Recraft API
+keys and the Supabase anon JWT. Removing a file from the working tree does not remove it from history, so treat every one of those
+values as compromised:
+
+1. Revoke and regenerate the Gemini, ElevenLabs and Recraft keys in their dashboards (the app no longer uses these providers at all).
+2. Rotate the Supabase anon and service-role keys (Project Settings → API → JWT secret rotation) and update `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY` and your hosting environment.
+3. Optionally purge the history (`git filter-repo --path .env --invert-paths`, then force-push and have every collaborator re-clone).
+   Rotation is the part that actually protects you; a purge alone does not, because the old values may already have been copied.
+
+The app now needs no third-party AI key on the server: each signed-in user supplies their own OpenAI key in **Settings → OpenAI**.

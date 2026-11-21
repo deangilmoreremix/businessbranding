@@ -1,0 +1,2 @@
+// expect: literal-class-percent
+export const X = () => <div className="h-2 w-[75%]" />;

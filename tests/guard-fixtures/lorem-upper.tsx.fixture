@@ -1,0 +1,2 @@
+// expect: lorem
+export const X = () => <p>LOREM IPSUM dolor</p>;

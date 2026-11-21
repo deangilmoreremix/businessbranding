@@ -1,29 +1,35 @@
 import { NextResponse } from 'next/server';
-import { transcribeAudio } from '@/lib/services/eleven-labs';
+import { transcribeAudio } from '@/lib/openai';
+import { withUser } from '@/lib/server/user';
+import { badRequest } from '@/lib/voice-http';
 
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
+const MAX_BYTES = 25 * 1024 * 1024; // /v1/audio/transcriptions file limit
+
+/**
+ * Speech-to-text. multipart: file, language?, prompt?, keywords? (repeatable), model?
+ * -> { text, languages }   (gpt-transcribe by default; OPENAI_TRANSCRIBE_MODEL to change)
+ */
 export async function POST(request: Request) {
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const language = formData.get('language') as string;
-    const speakerCount = parseInt(formData.get('speakerCount') as string);
-    const wordTiming = formData.get('wordTiming') === 'true';
-    const model = formData.get('model') as string;
+  return withUser(request, { bucket: 'transcribe', limit: 10 }, async () => {
+    const form = await request.formData();
+    const file = form.get('file');
+    if (!(file instanceof File) || file.size === 0) return badRequest('An audio file is required');
+    if (file.size > MAX_BYTES) return NextResponse.json({ error: 'Audio files must be 25 MB or smaller' }, { status: 413 });
 
+    const language = form.get('language');
+    const prompt = form.get('prompt');
     const result = await transcribeAudio({
-      audio: file,
-      language,
-      speaker_count: speakerCount,
-      word_timing: wordTiming,
-      model
+      data: new Uint8Array(await file.arrayBuffer()),
+      mime: file.type || 'audio/webm',
+      filename: file.name || 'audio.webm',
+      prompt: typeof prompt === 'string' && prompt ? prompt.slice(0, 1000) : undefined,
+      keywords: form.getAll('keywords').filter((k): k is string => typeof k === 'string').slice(0, 50),
+      languages: typeof language === 'string' && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(language) ? [language] : undefined
+      // model is intentionally not client-selectable; set OPENAI_TRANSCRIBE_MODEL on the server
     });
-
     return NextResponse.json(result);
-  } catch (error) {
-    console.error('Transcription failed:', error);
-    return NextResponse.json(
-      { error: 'Failed to transcribe audio' },
-      { status: 500 }
-    );
-  }
+  });
 }

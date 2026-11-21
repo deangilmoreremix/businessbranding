@@ -1,0 +1,2 @@
+// expect: abbrev-count
+export const X = () => <p>125.8K visitors</p>;

@@ -73,20 +73,31 @@ ALTER TABLE content_generation_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies (simplified for demo - in production these would be more restrictive)
+DROP POLICY IF EXISTS "Users can access their own brand analyses" ON brand_analyses;
 CREATE POLICY "Users can access their own brand analyses" ON brand_analyses
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
+
+DROP POLICY IF EXISTS "Users can access their own sessions" ON user_sessions;
 
 CREATE POLICY "Users can access their own sessions" ON user_sessions
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
 
+DROP POLICY IF EXISTS "Users can access their own events" ON analytics_events;
+
 CREATE POLICY "Users can access their own events" ON analytics_events
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
+
+DROP POLICY IF EXISTS "Users can access their own metrics" ON brand_metrics;
 
 CREATE POLICY "Users can access their own metrics" ON brand_metrics
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
 
+DROP POLICY IF EXISTS "Users can access their own content history" ON content_generation_history;
+
 CREATE POLICY "Users can access their own content history" ON content_generation_history
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
+
+DROP POLICY IF EXISTS "Users can access their own preferences" ON user_preferences;
 
 CREATE POLICY "Users can access their own preferences" ON user_preferences
   FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);

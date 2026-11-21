@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { 
   Brain, 
   Github, 
@@ -25,27 +24,17 @@ import {
   Lock,
   HelpCircle
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { NewsletterForm } from '@/components/newsletter-form';
 
 export function Footer() {
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setSubscribed(true);
-      setEmail('');
-    }
-  };
-
   const links = {
     services: [
       { name: 'Brand Analysis', href: '/brand-strategy', icon: BarChart },
       { name: 'Visual Identity', href: '/visual-identity', icon: Palette },
       { name: 'Voice Content', href: '/voice-content', icon: Headphones },
-      { name: 'Content Dashboard', href: '/dashboard', icon: LayoutDashboard }
+      { name: 'Content Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Content Workflows', href: '/workflows', icon: LayoutDashboard },
+      { name: 'Planning & Calendar', href: '/dashboard/planning', icon: LayoutDashboard }
     ],
     resources: [
       { name: 'Documentation', href: '/docs', icon: FileText },
@@ -55,7 +44,7 @@ export function Footer() {
     ],
     company: [
       { name: 'About Us', href: '/about', icon: Info },
-      { name: 'Pricing', href: '/pricing', icon: LayoutDashboard },
+      { name: 'Billing & keys', href: '/pricing', icon: LayoutDashboard },
       { name: 'Contact', href: '/contact', icon: MessageSquare },
       { name: 'Integrations', href: '/integrations', icon: Settings }
     ],
@@ -64,15 +53,16 @@ export function Footer() {
       { name: 'Terms of Service', href: '/terms', icon: FileText },
       { name: 'Cookie Policy', href: '/cookies', icon: HelpCircle }
     ],
+    // Social/contact links exist only when configured (NEXT_PUBLIC_SOCIAL_TWITTER / _LINKEDIN / _GITHUB / NEXT_PUBLIC_CONTACT_EMAIL); there are no defaults.
     social: [
-      { name: 'Twitter', href: 'https://twitter.com/aibrandcreator', icon: Twitter },
-      { name: 'LinkedIn', href: 'https://linkedin.com/company/aibrandcreator', icon: Linkedin },
-      { name: 'GitHub', href: 'https://github.com/aibrandcreator', icon: Github },
-      { name: 'Email', href: 'mailto:hello@aibrandcreator.com', icon: Mail }
-    ]
+      { name: 'Twitter', href: process.env.NEXT_PUBLIC_SOCIAL_TWITTER, icon: Twitter },
+      { name: 'LinkedIn', href: process.env.NEXT_PUBLIC_SOCIAL_LINKEDIN, icon: Linkedin },
+      { name: 'GitHub', href: process.env.NEXT_PUBLIC_SOCIAL_GITHUB, icon: Github },
+      { name: 'Email', href: process.env.NEXT_PUBLIC_CONTACT_EMAIL ? `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}` : undefined, icon: Mail }
+    ].filter((l): l is { name: string; href: string; icon: typeof Twitter } => !!l.href)
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -83,7 +73,7 @@ export function Footer() {
     }
   };
 
-  const childVariants = {
+  const childVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { 
       opacity: 1, 
@@ -133,33 +123,11 @@ export function Footer() {
             </div>
             
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Create professional brand identities in minutes with the power of AI. Complete branding solution from strategy to visual assets and voice content.
+              Analyze your brand, create visual identity and voice content, and plan the rollout, with AI that runs on your own OpenAI key. Complete branding solution from strategy to visual assets and voice content.
             </p>
             
-            {subscribed ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 text-green-500 text-sm"
-              >
-                <p>Thanks for subscribing! We&apos;ll keep you updated.</p>
-              </motion.div>
-            ) : (
-              <form onSubmit={handleSubscribe} className="space-y-2">
-                <p className="text-sm font-medium">Subscribe to our newsletter</p>
-                <div className="flex gap-2">
-                  <Input 
-                    type="email" 
-                    placeholder="Enter your email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-background/50"
-                    required
-                  />
-                  <Button type="submit">Subscribe</Button>
-                </div>
-              </form>
-            )}
+            <p className="text-sm font-medium mb-2">Newsletter</p>
+            <NewsletterForm idPrefix="footer" />
           </motion.div>
           
           {/* Services */}
@@ -219,8 +187,8 @@ export function Footer() {
             </ul>
           </motion.div>
           
-          {/* Social */}
-          <motion.div className="lg:col-span-2" variants={childVariants}>
+          {/* Social (only configured links) */}
+          {links.social.length > 0 && <motion.div className="lg:col-span-2" variants={childVariants}>
             <h3 className="text-lg font-semibold mb-4">Connect</h3>
             <ul className="space-y-4">
               {links.social.map((link) => (
@@ -238,7 +206,7 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </motion.div>}
         </motion.div>
         
         <motion.div 
@@ -253,7 +221,7 @@ export function Footer() {
           </div>
           
           <div className="flex items-center gap-1">
-            Made with <Heart className="h-4 w-4 text-red-500" /> by AI Brand Creator Team
+            Made with <Heart className="h-4 w-4 text-red-500" aria-hidden />
           </div>
           
           <div className="flex gap-6">

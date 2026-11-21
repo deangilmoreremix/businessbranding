@@ -3,10 +3,11 @@
 import React, { useCallback } from 'react';
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
+import type { Engine } from "tsparticles-engine";
 import { motion } from 'framer-motion';
 
 export default function ParticleBackground({ color = "#4F46E5" }) {
-  const particlesInit = useCallback(async (engine) => {
+  const particlesInit = useCallback(async (engine: Engine) => {
     await loadSlim(engine);
   }, []);
 

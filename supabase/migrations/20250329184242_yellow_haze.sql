@@ -15,7 +15,7 @@
     - `voice_profiles`
       - `id` (uuid, primary key)
       - `name` (text)
-      - `voice_id` (text) - ElevenLabs voice ID
+      - `voice_id` (text) - OpenAI voice name (e.g. marin)
       - `settings` (jsonb) - Voice settings and parameters
       - `created_at` (timestamptz)
       - `user_id` (uuid)
@@ -82,17 +82,22 @@ ALTER TABLE image_assets ENABLE ROW LEVEL SECURITY;
 
 -- Create simplified policies that allow full access (for demo purposes)
 -- In a production environment, these would be more restrictive
+DROP POLICY IF EXISTS "Allow full access to content_items" ON content_items;
 CREATE POLICY "Allow full access to content_items"
   ON content_items
   FOR ALL
   USING (true)
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow full access to voice_profiles" ON voice_profiles;
+
 CREATE POLICY "Allow full access to voice_profiles"
   ON voice_profiles
   FOR ALL
   USING (true)
   WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow full access to image_assets" ON image_assets;
 
 CREATE POLICY "Allow full access to image_assets"
   ON image_assets

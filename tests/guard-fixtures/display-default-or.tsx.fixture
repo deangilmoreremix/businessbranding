@@ -1,0 +1,2 @@
+// expect: display-default
+export const X = ({ v }: any) => <Progress value={v.rate || 80} />;

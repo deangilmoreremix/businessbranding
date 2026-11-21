@@ -1,30 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadVoicePrefs } from '@/lib/local/voice-prefs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { captionsFromText } from '@/lib/local/captions';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { readJson, UnreadableResponseError } from '@/lib/client/validate';
+import { describeError } from '@/lib/client/ai-error';
+
+const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
+const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
 
 export function VoiceTranscription() {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('en');
-  const [speakerCount, setSpeakerCount] = useState(1);
-  const [wordTiming, setWordTiming] = useState(false);
-  const [model, setModel] = useState('scribe-v1');
+  useEffect(() => { loadVoicePrefs().then((p) => setLanguage(p.language)); }, []);
+  const [context, setContext] = useState('');
+  const [onDevice, setOnDevice] = useState(false);
+  const [modelStatus, setModelStatus] = useState('');
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+      // Local preview + duration (used to time the caption track)
+      setFileUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(selectedFile); });
+      setDurationMs(0);
     }
   };
 
@@ -32,37 +47,45 @@ export function VoiceTranscription() {
     if (!file) return;
 
     setTranscribing(true);
-    setProgress(0);
+    setError(null);
+
+    if (onDevice) {
+      // Optional on-device Whisper (opt-in): the model is downloaded once and then cached by the browser.
+      try {
+        const { transcribeOnDevice } = await import('@/lib/local/whisper');
+        setModelStatus('Preparing on-device model (first use downloads ~40-80 MB)…');
+        const text = await transcribeOnDevice(file, (p) => {
+          if (p.status === 'progress' && p.progress !== undefined) setModelStatus(`Downloading model… ${Math.round(p.progress)}%`);
+        });
+        setResult(text || 'No speech detected.');
+      } catch (error) {
+        console.error('On-device transcription failed:', error);
+        setError('On-device transcription failed in this browser. Turn it off to use OpenAI transcription, or try again.');
+      } finally {
+        setModelStatus('');
+        setTranscribing(false);
+      }
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('language', language);
-    formData.append('speakerCount', speakerCount.toString());
-    formData.append('wordTiming', wordTiming.toString());
-    formData.append('model', model);
+    if (context.trim()) formData.append('prompt', context.trim());
 
     try {
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90));
-      }, 1000);
-
-      const response = await fetch('/api/voice/transcribe', {
+      const response = await authFetch('/api/voice/transcribe', {
         method: 'POST',
         body: formData
       });
 
-      clearInterval(progressInterval);
+      if (!response.ok) throw await toApiError(response, 'Transcription failed');
 
-      if (!response.ok) {
-        throw new Error('Transcription failed');
-      }
-
-      const data = await response.json();
+      const data = await readJson(response);
+      if (typeof data?.text !== 'string') throw new UnreadableResponseError();
       setResult(data.text);
-      setProgress(100);
     } catch (error) {
-      console.error('Transcription failed:', error);
-      setResult('Transcription failed. Please try again.');
+      setError(`${describeError(error).message} You can try again.`);
     } finally {
       setTranscribing(false);
     }
@@ -102,6 +125,9 @@ export function VoiceTranscription() {
                 <span>{file.name}</span>
               </div>
             )}
+            {file && file.type.startsWith('audio/') && (
+              <AudioTrimmer blob={file} onTrim={(trimmed) => setFile(new File([trimmed], file.name.replace(/\.[^.]+$/, '') + '-trimmed.wav', { type: 'audio/wav' }))} />
+            )}
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -120,35 +146,27 @@ export function VoiceTranscription() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Number of Speakers</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={speakerCount}
-                  onChange={(e) => setSpeakerCount(parseInt(e.target.value))}
+              <div className="flex items-start gap-2 rounded border p-2">
+                <input
+                  id="on-device"
+                  type="checkbox"
+                  className="mt-1"
+                  checked={onDevice}
+                  onChange={(e) => setOnDevice(e.target.checked)}
                 />
+                <label htmlFor="on-device" className="text-xs text-muted-foreground">
+                  Transcribe on this device with Whisper (private, free). Optional: downloads a ~40-80 MB model the first time,
+                  English only, slower than OpenAI. Leave off to use OpenAI.
+                </label>
               </div>
+              {modelStatus && <p className="text-xs text-muted-foreground" role="status">{modelStatus}</p>}
 
               <div className="space-y-2">
-                <Label>Transcription Model</Label>
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scribe-v1">Scribe V1</SelectItem>
-                    <SelectItem value="scribe-premium-v1">Scribe Premium V1</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Word-level Timing</Label>
-                <Switch
-                  checked={wordTiming}
-                  onCheckedChange={setWordTiming}
+                <Label>Context (optional)</Label>
+                <Input
+                  placeholder="Names, product terms or topic to help accuracy"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
                 />
               </div>
             </div>
@@ -171,14 +189,8 @@ export function VoiceTranscription() {
               )}
             </Button>
 
-            {transcribing && (
-              <div className="space-y-2">
-                <Progress value={progress} />
-                <p className="text-sm text-center text-muted-foreground">
-                  {progress < 100 ? 'Processing audio...' : 'Done!'}
-                </p>
-              </div>
-            )}
+            <ElapsedStatus active={transcribing} label="Transcribing…" />
+            {error && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{error}</p>}
           </div>
 
           <Card className="p-4">
@@ -189,6 +201,13 @@ export function VoiceTranscription() {
                 Copy Text
               </Button>
             </div>
+            {fileUrl && (
+              <audio
+                src={fileUrl}
+                className="hidden"
+                onLoadedMetadata={(e) => setDurationMs(Number.isFinite(e.currentTarget.duration) ? Math.round(e.currentTarget.duration * 1000) : 0)}
+              />
+            )}
             <ScrollArea className="h-[400px]">
               {result ? (
                 <p className="whitespace-pre-wrap text-sm">{result}</p>
@@ -198,6 +217,11 @@ export function VoiceTranscription() {
                 </div>
               )}
             </ScrollArea>
+            {result && fileUrl && durationMs > 0 && !result.startsWith('Transcription failed') && !result.startsWith('On-device transcription failed') && (
+              <div className="mt-4">
+                <CaptionPlayer audioUrl={fileUrl} captions={captionsFromText(result, durationMs)} filename={file?.name.replace(/\.[^.]+$/, '') || 'transcript'} estimated />
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { transformImage } from '@/lib/services/recraft';
+import { transformImage } from '@/lib/services/openai-images';
 import html2canvas from 'html2canvas';
 
 // Define ImageAsset interface locally to avoid Supabase import issues
@@ -8,81 +8,12 @@ interface ImageAsset {
   url: string;
   prompt?: string;
   style?: string;
-  source?: 'recraft' | 'upload' | 'other';
+  source?: 'openai' | 'upload' | 'other';
   tags?: string[];
   metadata: Record<string, any>;
   created_at: string;
   updated_at: string;
   user_id: string;
-}
-
-/**
- * Transforms an image using the Recraft API and saves it to the database
- */
-export async function transformAndSaveImage(
-  imageUrl: string, 
-  prompt: string, 
-  options: {
-    title?: string;
-    style?: string;
-    tags?: string[];
-    userId?: string;
-  } = {}
-) {
-  if (!imageUrl || !prompt) {
-    throw new Error('Image URL and prompt are required');
-  }
-
-  try {
-    // Transform the image using Recraft
-    const transformResult = await transformImage(
-      imageUrl,
-      prompt,
-      options.style
-    );
-    
-    if (!transformResult || !transformResult.images || transformResult.images.length === 0) {
-      throw new Error('No images were generated');
-    }
-    
-    // Save each generated image to the database
-    const savedImages: ImageAsset[] = [];
-    
-    for (let i = 0; i < transformResult.images.length; i++) {
-      const generatedUrl = transformResult.images[i];
-      const index = i + 1;
-      
-      const newAsset: Omit<ImageAsset, 'id' | 'created_at' | 'updated_at'> = {
-        title: options.title || `${prompt} (${index})`,
-        url: generatedUrl,
-        prompt,
-        style: options.style,
-        source: 'recraft',
-        tags: options.tags || ['ai-generated'],
-        metadata: {
-          width: 1024,
-          height: 1024,
-          format: 'png',
-          generated: true
-        },
-        user_id: options.userId || 'default'
-      };
-      
-      // Demo implementation to avoid Supabase client issues during build
-      const savedImage: ImageAsset = {
-        ...newAsset,
-        id: 'demo-' + Date.now() + '-' + index,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      savedImages.push(savedImage);
-    }
-    
-    return savedImages;
-  } catch (error) {
-    console.error('Failed to transform and save image:', error);
-    throw error;
-  }
 }
 
 /**

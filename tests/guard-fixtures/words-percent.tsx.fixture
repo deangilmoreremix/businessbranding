@@ -1,0 +1,2 @@
+// expect: percent-words
+export const X = () => <p>Ninety-eight percent of customers agree</p>;

@@ -1,0 +1,2 @@
+// expect: computed-literal-percent
+export const X = () => <p>{Math.round(0.87 * 100)}%</p>;

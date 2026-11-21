@@ -4,16 +4,34 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { BrandAnalysis } from '@/components/brand-analysis';
 import { BrandPillarBreakdown } from '@/components/brand-pillar-breakdown';
 import { Brain, BarChart, Target, Activity, Sparkles } from 'lucide-react';
+import { headerTiles } from '@/lib/brand-metrics';
+import type { BrandAnalysis as BrandAnalysisResult } from '@/lib/services/brand-analyzer';
 
 export default function BrandAnalysisPage() {
-  const [businessInfo, setBusinessInfo] = useState(null);
-  const [brandAnalysisResults, setBrandAnalysisResults] = useState(null);
+  const [businessInfo, setBusinessInfo] = useState<{ websiteUrl?: string } | null>(null);
+  const [brandAnalysisResults, setBrandAnalysisResults] = useState<BrandAnalysisResult | null>(null);
 
-  const handleAnalysisComplete = (analysis) => {
+  const [idea, setIdea] = useState('');
+
+  const startAnalysis = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!idea.trim()) return;
+    setBrandAnalysisResults(null);
+    setBusinessInfo({ websiteUrl: idea.trim() });
+  };
+
+  const resetAnalysis = () => {
+    setBusinessInfo(null);
+    setBrandAnalysisResults(null);
+    setIdea('');
+  };
+
+  const handleAnalysisComplete = (analysis: BrandAnalysisResult) => {
     setBrandAnalysisResults(analysis);
   };
 
@@ -28,19 +46,14 @@ export default function BrandAnalysisPage() {
               Monitor and improve your brand performance across all metrics
             </p>
           </div>
-          <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+          <Button className="bg-gradient-to-r from-blue-600 to-purple-600" onClick={resetAnalysis}>
             <Sparkles className="mr-2 h-4 w-4" />
             New Analysis
           </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
-            { title: 'Brand Health Score', value: '85%', icon: Brain, color: 'blue' },
-            { title: 'Market Fit', value: '92%', icon: Target, color: 'purple' },
-            { title: 'Competitive Rank', value: '#2', icon: BarChart, color: 'indigo' },
-            { title: 'Growth Rate', value: '+45%', icon: Activity, color: 'green' }
-          ].map((stat, index) => (
+          {headerTiles(brandAnalysisResults).map((t, i) => ({ ...t, icon: [Brain, Target, BarChart, Activity][i], color: ['blue', 'purple', 'indigo', 'green'][i] })).map((stat, index) => (
             <motion.div
               key={stat.title}
               initial={{ opacity: 0, y: 20 }}
@@ -62,6 +75,16 @@ export default function BrandAnalysisPage() {
           ))}
         </div>
 
+        <form onSubmit={startAnalysis} className="mb-8 flex gap-3" aria-label="Start a brand analysis">
+          <Input
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            placeholder="Describe your business or enter its website URL"
+            aria-label="Business description or website"
+          />
+          <Button type="submit" disabled={!idea.trim()}>Analyze</Button>
+        </form>
+
         <div className="space-y-6">
           <BrandAnalysis 
             businessIdea={businessInfo?.websiteUrl || ''}
@@ -71,7 +94,6 @@ export default function BrandAnalysisPage() {
           {brandAnalysisResults && (
             <BrandPillarBreakdown 
               pillarScores={brandAnalysisResults.brandFactors}
-              onImprovementSelected={() => {}}
             />
           )}
         </div>

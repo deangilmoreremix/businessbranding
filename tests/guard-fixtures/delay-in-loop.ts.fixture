@@ -1,0 +1,7 @@
+// expect: artificial-delay
+export async function fake(setProgress: any) {
+  for (let i = 0; i < 5; i++) {
+    await new Promise((r) => setTimeout(r, 300));
+    setProgress(i * 20);
+  }
+}

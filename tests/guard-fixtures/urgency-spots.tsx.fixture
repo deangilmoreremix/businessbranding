@@ -1,0 +1,2 @@
+// expect: urgency-badge
+export const X = () => <Badge>Only 3 spots left</Badge>;

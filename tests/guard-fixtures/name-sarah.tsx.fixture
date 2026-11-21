@@ -1,0 +1,2 @@
+// expect: fake-name
+export const X = () => <p>Sarah Chen, CEO</p>;

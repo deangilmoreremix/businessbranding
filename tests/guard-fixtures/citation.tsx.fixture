@@ -1,0 +1,2 @@
+// expect: unsourced-citation
+export const X = () => <p>According to a recent study, brands grow.</p>;

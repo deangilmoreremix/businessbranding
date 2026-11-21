@@ -15,7 +15,7 @@
     - `voice_profiles`
       - `id` (uuid, primary key)
       - `name` (text)
-      - `voice_id` (text) - ElevenLabs voice ID
+      - `voice_id` (text) - OpenAI voice name (e.g. marin)
       - `settings` (jsonb) - Voice settings and parameters
       - `created_at` (timestamptz)
       - `user_id` (uuid) - References auth.users
@@ -52,17 +52,22 @@ ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE voice_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for content_items
+DROP POLICY IF EXISTS "Users can create their own content" ON content_items;
 CREATE POLICY "Users can create their own content"
   ON content_items
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own content" ON content_items;
+
 CREATE POLICY "Users can view their own content"
   ON content_items
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own content" ON content_items;
 
 CREATE POLICY "Users can update their own content"
   ON content_items
@@ -71,6 +76,8 @@ CREATE POLICY "Users can update their own content"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own content" ON content_items;
+
 CREATE POLICY "Users can delete their own content"
   ON content_items
   FOR DELETE
@@ -78,11 +85,14 @@ CREATE POLICY "Users can delete their own content"
   USING (auth.uid() = user_id);
 
 -- Create policies for voice_profiles
+DROP POLICY IF EXISTS "Users can create their own voice profiles" ON voice_profiles;
 CREATE POLICY "Users can create their own voice profiles"
   ON voice_profiles
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own voice profiles" ON voice_profiles;
 
 CREATE POLICY "Users can view their own voice profiles"
   ON voice_profiles
@@ -90,12 +100,16 @@ CREATE POLICY "Users can view their own voice profiles"
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own voice profiles" ON voice_profiles;
+
 CREATE POLICY "Users can update their own voice profiles"
   ON voice_profiles
   FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own voice profiles" ON voice_profiles;
 
 CREATE POLICY "Users can delete their own voice profiles"
   ON voice_profiles
@@ -113,10 +127,13 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS update_content_items_updated_at ON content_items;
 CREATE TRIGGER update_content_items_updated_at
   BEFORE UPDATE ON content_items
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_voice_profiles_updated_at ON voice_profiles;
 
 CREATE TRIGGER update_voice_profiles_updated_at
   BEFORE UPDATE ON voice_profiles

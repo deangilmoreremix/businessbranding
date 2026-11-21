@@ -1,0 +1,3 @@
+// expect: company-array
+const partners = ['Acme', 'Globex', 'Initech', 'Umbrella'];
+export const X = () => <ul>{partners.map((p) => <li key={p}>{p}</li>)}</ul>;

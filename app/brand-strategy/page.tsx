@@ -1,23 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BrandAnalysis } from '@/components/brand-analysis';
 import { BusinessAnalyzer } from '@/components/business-analyzer';
 import { CompetitiveAnalysis } from '@/components/competitive-analysis';
 import { DocumentationLinks } from '@/components/documentation-links';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { BrandAnalysis as BrandAnalysisResult } from '@/lib/services/brand-analyzer';
+
+interface BusinessInfo {
+  websiteUrl: string;
+  socialLinks: { facebook: string; instagram: string; twitter: string; linkedin: string };
+  analysis: string;
+}
 
 export default function BrandStrategyPage() {
-  const [businessInfo, setBusinessInfo] = useState(null);
-  const [brandAnalysisResults, setBrandAnalysisResults] = useState(null);
-
-  const handleAnalysisComplete = (analysis) => {
-    setBrandAnalysisResults(analysis);
-  };
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  // The analyzer renders the analysis itself (once) and hands the finished result up as JSON; do not render it a second time here.
+  const brandAnalysisResults = useMemo<BrandAnalysisResult | null>(() => {
+    try {
+      return businessInfo?.analysis ? (JSON.parse(businessInfo.analysis) as BrandAnalysisResult) : null;
+    } catch {
+      return null;
+    }
+  }, [businessInfo]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -38,21 +47,9 @@ export default function BrandStrategyPage() {
           <BusinessAnalyzer onAnalysisComplete={setBusinessInfo} />
         </div>
 
-        {businessInfo && (
-          <div className="mb-16">
-            <BrandAnalysis 
-              businessIdea={businessInfo.websiteUrl}
-              websiteUrl={businessInfo.websiteUrl}
-              onAnalysisComplete={handleAnalysisComplete}
-            />
-          </div>
-        )}
-
         {brandAnalysisResults && (
           <div className="mb-16">
-            <CompetitiveAnalysis 
-              analysis={brandAnalysisResults.competitiveAnalysis}
-            />
+            <CompetitiveAnalysis analysis={brandAnalysisResults} />
           </div>
         )}
 

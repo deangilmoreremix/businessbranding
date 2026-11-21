@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/client/auth-fetch';
 import { extractSocialLinks } from './social-extractor';
 import * as cheerio from 'cheerio';
 
@@ -87,7 +88,7 @@ const IMAGE_SELECTORS = {
   ]
 };
 
-export async function scrapeWebsite(url: string) {
+async function scrapeWebsiteRaw(url: string) {
   try {
     // Ensure URL has protocol
     if (!url.startsWith('http')) {
@@ -143,7 +144,7 @@ export async function scrapeWebsite(url: string) {
       
       // Fallback to API endpoint
       try {
-        const response = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`, {
+        const response = await authFetch(`/api/scrape?url=${encodeURIComponent(url)}`, {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
@@ -181,27 +182,19 @@ export async function scrapeWebsite(url: string) {
     }
   } catch (error) {
     console.error('Error scraping website:', error);
-    // Return empty data structure on error
-    return {
-      url,
-      title: '',
-      description: '',
-      socialLinks: {
-        facebook: '',
-        twitter: '',
-        instagram: '',
-        linkedin: ''
-      },
-      images: {
-        logos: [],
-        banners: [],
-        products: [],
-        team: [],
-        all: []
-      },
-      meta: {}
-    };
+    throw error; // callers show the failure; no empty "result" is invented
   }
+}
+
+export type ScrapeData = Awaited<ReturnType<typeof scrapeWebsiteRaw>> & { headings?: { text: string }[] };
+
+/**
+ * Scrapes a website. The scraped fields are exposed at the top level and also under `static`
+ * (callers read `data.static.*`).
+ */
+export async function scrapeWebsite(url: string): Promise<ScrapeData & { static: ScrapeData }> {
+  const data: ScrapeData = await scrapeWebsiteRaw(url);
+  return { ...data, static: data };
 }
 
 function extractSocialLinksFromPage($: cheerio.CheerioAPI, baseUrl: string): Record<string, string> {
@@ -223,7 +216,7 @@ function extractSocialLinksFromPage($: cheerio.CheerioAPI, baseUrl: string): Rec
           const dataAttrs = Object.keys($(el).data());
           for (const attr of dataAttrs) {
             if (attr.toLowerCase().includes('href') || attr.toLowerCase().includes('url')) {
-              href = $(el).data(attr);
+              href = $(el).data(attr) as string | undefined;
               break;
             }
           }

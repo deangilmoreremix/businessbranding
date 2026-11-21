@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useLocalDraft } from '@/lib/local/use-draft';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
 import { Badge } from '@/components/ui/badge';
 import { 
   Palette, 
@@ -16,16 +18,29 @@ import {
   Plus,
   X,
   Camera,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  Check
 } from 'lucide-react';
-import { transformImage } from '@/lib/services/recraft';
-import { API_KEYS } from '@/lib/api-config';
+import { generateOrTransform } from '@/lib/services/openai-images';
 import { extractTagsFromPrompt } from '@/lib/services/image-service';
 import { createImageAsset } from '@/lib/supabase';
 import { BrandPresenceAnalyzer } from '@/components/brand-presence-analyzer';
 
+/** Natural size and format of an image URL (data:, blob: or http). Missing values are omitted, never guessed. */
+async function measureImage(url: string): Promise<{ width?: number; height?: number; format?: string }> {
+  const format = /^data:image\/([a-z0-9.+-]+)/i.exec(url)?.[1];
+  const size = await new Promise<{ width: number; height: number } | null>((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  return { ...(size ?? {}), ...(format ? { format } : {}) };
+}
+
 interface VisualIdentityAnalyzerProps {
-  onAnalysisComplete: (info: {
+  onAnalysisComplete?: (info: {
     assets: string[];
     colors: string[];
     fonts: string[];
@@ -33,13 +48,15 @@ interface VisualIdentityAnalyzerProps {
   }) => void;
 }
 
+// Browser-only tools (editor, exports, local library) load lazily and only on the client.
+const AssetTools = dynamic(() => import('@/components/local/asset-tools'), { ssr: false, loading: () => null });
+
 export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: VisualIdentityAnalyzerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [transformPrompt, setTransformPrompt] = useState('');
+  const [transformPrompt, setTransformPrompt] = useLocalDraft('visual:prompt', '');
   const [transformStyle, setTransformStyle] = useState('');
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [transformedImages, setTransformedImages] = useState<string[]>([]);
   const [savedImages, setSavedImages] = useState<string[]>([]);
@@ -58,32 +75,24 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
   };
 
   const handleTransformImage = async () => {
-    if (!previewUrl || !transformPrompt) {
-      setError('Image and prompt are required');
+    if (!transformPrompt) {
+      setError('A prompt is required');
       return;
     }
 
     setLoading(true);
     setError('');
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90));
-    }, 1000);
-
     try {
       const extractedTags = extractTagsFromPrompt(transformPrompt);
       setTags(extractedTags);
       setImageTitle(transformPrompt.split('.')[0]);
       
-      const result = await transformImage(
-        previewUrl,
+      // With an uploaded image this edits it into variations; without one it generates new concepts.
+      const result = await generateOrTransform(
+        previewUrl || undefined,
         transformPrompt,
         transformStyle || undefined
       );
-      
-      clearInterval(progressInterval);
-      setProgress(100);
       
       if (result && result.images && result.images.length > 0) {
         setTransformedImages(prev => [...prev, ...result.images]);
@@ -96,7 +105,6 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
       setError(error instanceof Error ? error.message : 'Failed to transform image');
     } finally {
       setLoading(false);
-      clearInterval(progressInterval);
     }
   };
 
@@ -107,22 +115,18 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
         return;
       }
       
+      const dims = await measureImage(imageUrl);
       const imageAsset = {
         title: imageTitle,
         url: imageUrl,
         prompt: transformPrompt,
         style: transformStyle || undefined,
-        source: 'recraft' as const,
+        source: 'other' as const,
         tags,
-        metadata: {
-          width: 1024,
-          height: 1024,
-          format: 'png',
-          generated: true
-        },
-        user_id: 'user-id'
+        // real values read from the image itself (nothing assumed)
+        metadata: { ...dims, generated: true }
       };
-      
+
       await createImageAsset(imageAsset);
       setSavedImages(prev => [...prev, imageUrl]);
       
@@ -233,24 +237,19 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
               </div>
             </div>
 
-            {previewUrl && transformPrompt && (
+            {transformPrompt && (
               <Button
                 type="button"
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90"
                 onClick={handleTransformImage}
-                disabled={loading || !previewUrl || !transformPrompt}
+                disabled={loading || !transformPrompt}
               >
-                {loading ? 'Transforming...' : 'Transform Image with Recraft AI'}
+                {loading ? 'Generating...' : previewUrl ? 'Create Variations with AI' : 'Generate Image with AI'}
               </Button>
             )}
 
             {loading && (
-              <div className="space-y-2">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-center text-muted-foreground">
-                  Transforming image...
-                </p>
-              </div>
+              <ElapsedStatus active label="Generating images…" />
             )}
 
             {error && (
@@ -364,6 +363,7 @@ export default function VisualIdentityAnalyzerClient({ onAnalysisComplete }: Vis
             )}
           </div>
         </div>
+        <AssetTools images={[...(previewUrl ? [previewUrl] : []), ...transformedImages]} onAddImage={(url) => setTransformedImages((prev) => [...prev, url])} />
       </Card>
     </div>
   );

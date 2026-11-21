@@ -53,7 +53,7 @@ export default function TermsOfService() {
             </div>
             <Card className="p-6">
               <p className="text-muted-foreground mb-4">
-                By accessing or using AI Brand Creator's website and services, you agree to be bound by these Terms of Service.
+                By accessing or using AI Brand Creator&apos;s website and services, you agree to be bound by these Terms of Service.
                 If you do not agree to these terms, please do not use our services.
               </p>
               <p className="text-muted-foreground">
@@ -157,7 +157,7 @@ export default function TermsOfService() {
                 <li>We offer various subscription plans with different features and pricing</li>
                 <li>Payment is required in advance for subscription services</li>
                 <li>All fees are exclusive of taxes unless stated otherwise</li>
-                <li>We may change our pricing with 30 days' notice</li>
+                <li>We may change our pricing with 30 days&apos; notice</li>
                 <li>Refunds are processed according to our refund policy</li>
               </ul>
             </Card>
@@ -175,7 +175,7 @@ export default function TermsOfService() {
                 To the maximum extent permitted by law:
               </p>
               <ul className="list-disc pl-6 space-y-2 text-muted-foreground mb-6">
-                <li>We provide our services "as is" without warranties of any kind</li>
+                <li>We provide our services &quot;as is&quot; without warranties of any kind</li>
                 <li>We are not liable for any indirect, consequential, or incidental damages</li>
                 <li>Our total liability is limited to the amount you have paid us in the past 12 months</li>
               </ul>
@@ -198,8 +198,11 @@ export default function TermsOfService() {
                 If you have any questions about these Terms of Service, please contact us at:
               </p>
               <div className="bg-accent/5 p-4 rounded-lg mb-6">
-                <p className="font-medium">Email: legal@aibrandcreator.com</p>
-                <p className="font-medium">Address: 123 AI Street, San Francisco, CA 94103</p>
+                {process.env.NEXT_PUBLIC_CONTACT_EMAIL ? (
+                  <p className="font-medium">Email: {process.env.NEXT_PUBLIC_CONTACT_EMAIL}</p>
+                ) : (
+                  <p className="font-medium">Use the <Link href="/contact" className="underline">contact form</Link>.</p>
+                )}
               </div>
             </Card>
           </div>

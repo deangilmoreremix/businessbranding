@@ -1,0 +1,2 @@
+// expect: alert-success
+export const f = () => alert('Report exported as PDF!');

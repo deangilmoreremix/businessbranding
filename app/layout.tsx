@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { NavHeader } from '@/components/nav-header';
 import { SupportAgent } from '@/components/support-agent';
+import { PageBoundary } from '@/components/page-boundary';
+import { OpenAIKeyNotice } from '@/components/openai-key-notice';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Footer } from '@/components/footer';
 import { Providers } from './providers';
@@ -48,10 +50,11 @@ export default function RootLayout({
                   <div className="absolute h-full w-full bg-background [background:radial-gradient(75%_75%_at_50%_50%,rgba(255,255,255,0.05)_0%,rgba(0,0,0,0)_100%)]" />
                 </div>
                 <div className="relative z-10">
-                  {children}
+                  <PageBoundary>{children}</PageBoundary>
                 </div>
               </div>
               <SupportAgent />
+              <OpenAIKeyNotice />
             </TooltipProvider>
           </Providers>
         </div>

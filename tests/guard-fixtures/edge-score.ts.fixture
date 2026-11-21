@@ -1,0 +1,2 @@
+// expect: hardcoded-metric
+export const handler = () => new Response(JSON.stringify({ score: 87 }));

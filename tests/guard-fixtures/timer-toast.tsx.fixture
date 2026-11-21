@@ -1,0 +1,2 @@
+// expect: timer-only-handler
+export const X = () => <Button onClick={() => setTimeout(() => toast('Saved'), 1000)}>Save</Button>;

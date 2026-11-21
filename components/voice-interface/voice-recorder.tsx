@@ -3,7 +3,9 @@
 import { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { ElapsedStatus } from '@/components/elapsed-status';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -20,18 +22,23 @@ import {
   Pause,
   Save
 } from 'lucide-react';
-import { generateVoiceOver } from '@/lib/services/eleven-labs';
-import { createContentItem } from '@/lib/supabase';
+import { generateVoiceOver } from '@/lib/services/voice';
+import { saveGeneratedAudio, type SavedAudio } from '@/lib/local/content-save';
+import dynamic from 'next/dynamic';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+
+// Waveform + trimming use the Web Audio API and canvas, so they are browser-only and loaded on demand.
+const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 
 export function VoiceRecorder() {
+  const [saved, setSaved] = useState<SavedAudio | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.5);
-  const [noiseReduction, setNoiseReduction] = useState(0.5);
   const [format, setFormat] = useState('mp3');
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [contentTitle, setContentTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -84,25 +91,20 @@ export function VoiceRecorder() {
     if (!recordedBlob) return;
 
     setProcessing(true);
-    setProgress(0);
-    
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90));
-    }, 500);
+    setEnhanceError(null);
 
     try {
       const formData = new FormData();
       formData.append('audio', recordedBlob);
-      formData.append('noiseReduction', noiseReduction.toString());
 
-      const response = await fetch('/api/voice/enhance', {
+      const response = await authFetch('/api/voice/enhance', {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('Enhancement failed');
+      if (!response.ok) throw await toApiError(response, 'Enhancement failed');
 
-      const enhancedBlob = await response.blob();
+      const enhancedBlob = await acceptAudio(response);
       setRecordedBlob(enhancedBlob);
       
       // Revoke previous URL to prevent memory leaks
@@ -112,11 +114,9 @@ export function VoiceRecorder() {
       
       const url = URL.createObjectURL(enhancedBlob);
       setAudioUrl(url);
-      setProgress(100);
-    } catch (error) {
-      console.error('Failed to enhance audio:', error);
+    } catch (e) {
+      setEnhanceError(`${describeError(e).message} You can try again.`);
     } finally {
-      clearInterval(progressInterval);
       setProcessing(false);
     }
   };
@@ -176,20 +176,13 @@ export function VoiceRecorder() {
     
     setSaving(true);
     try {
-      await createContentItem({
+      setSaved(await saveGeneratedAudio({
         title: contentTitle,
         type: 'voice_over',
-        url: audioUrl || '',
-        metadata: {
-          format,
-          duration: audioRef.current?.duration || 0,
-          noiseReduction,
-          createdAt: new Date().toISOString()
-        },
-        user_id: 'user-id' // This would be the real user ID in a production app
-      });
-    } catch (error) {
-      console.error('Failed to save recording:', error);
+        blob: recordedBlob,
+        durationSec: audioRef.current?.duration && isFinite(audioRef.current.duration) ? audioRef.current.duration : 0,
+        metadata: { format }
+      }));
     } finally {
       setSaving(false);
     }
@@ -282,15 +275,9 @@ export function VoiceRecorder() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Noise Reduction</Label>
-                <Slider
-                  value={[noiseReduction * 100]}
-                  onValueChange={([value]) => setNoiseReduction(value / 100)}
-                  max={100}
-                  step={1}
-                />
-              </div>
+              <p className="text-xs text-muted-foreground self-end">
+                Enhance transcribes your recording, polishes the script and re-narrates it with an AI voice.
+              </p>
 
               <div className="space-y-2">
                 <Label>Export Format</Label>
@@ -364,14 +351,21 @@ export function VoiceRecorder() {
                 )}
               </Button>
             </div>
+            {saved && <p role="status" data-testid="save-status" className="text-xs text-muted-foreground">{saved.local ? 'Saved on this device.' : 'Not saved (browser storage unavailable).'} {saved.cloud ? 'Also saved to your account.' : saved.cloudReason}</p>}
 
-            {processing && (
-              <div className="space-y-2">
-                <Progress value={progress} />
-                <p className="text-sm text-center text-muted-foreground">
-                  {progress < 100 ? 'Enhancing audio...' : 'Done!'}
-                </p>
-              </div>
+            <ElapsedStatus active={processing} label="Enhancing audio…" />
+            {enhanceError && <p role="alert" data-testid="voice-error" className="text-sm text-red-600 text-center">{enhanceError}</p>}
+
+            {recordedBlob && (
+              <AudioTrimmer
+                blob={recordedBlob}
+                onTrim={(trimmed) => {
+                  if (audioUrl) URL.revokeObjectURL(audioUrl);
+                  audioRef.current = null;
+                  setRecordedBlob(trimmed);
+                  setAudioUrl(URL.createObjectURL(trimmed));
+                }}
+              />
             )}
           </div>
         )}

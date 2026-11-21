@@ -84,7 +84,7 @@ const tools = [
   },
   {
     title: 'Case Studies',
-    description: 'Real-world brand transformation stories',
+    description: 'Case studies the operator has published (none yet unless listed)',
     icon: Users,
     href: '/case-studies',
     color: 'violet'
@@ -193,18 +193,17 @@ export default function FeaturesPage() {
           transition={{ duration: 0.6, delay: 0.9 }}
           className="mt-24 text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-12"
         >
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Brand?</h2>
+          <h2 className="text-3xl font-bold mb-4">Try it on your own brand</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Start your journey with AI Brand Creator today
+            Add your OpenAI key, then run your first analysis. There is no trial or subscription.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-              Start Free Trial
-            </Button>
-            <Button size="lg" variant="outline">
-              Schedule Demo
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/brand-strategy">
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">Analyze my brand</Button>
+            </Link>
+            <Link href="/pricing">
+              <Button size="lg" variant="outline">How billing works<ArrowRight className="ml-2 h-4 w-4" /></Button>
+            </Link>
           </div>
         </motion.div>
       </div>

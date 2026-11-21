@@ -1,0 +1,2 @@
+// expect: numeric-data-array,hardcoded-metric
+export const stats = [{ label: 'Users', n: 12400 }];

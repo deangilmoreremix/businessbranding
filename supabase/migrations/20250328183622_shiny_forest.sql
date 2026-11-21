@@ -45,10 +45,13 @@ CREATE TABLE IF NOT EXISTS case_studies (
 ALTER TABLE case_studies ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
+DROP POLICY IF EXISTS "Allow public read access to published case studies" ON case_studies;
 CREATE POLICY "Allow public read access to published case studies"
   ON case_studies
   FOR SELECT
   USING (published = true);
+
+DROP POLICY IF EXISTS "Allow full access to case studies" ON case_studies;
 
 CREATE POLICY "Allow full access to case studies"
   ON case_studies
@@ -57,6 +60,7 @@ CREATE POLICY "Allow full access to case studies"
   WITH CHECK (true);
 
 -- Create updated_at trigger
+DROP TRIGGER IF EXISTS update_case_studies_updated_at ON case_studies;
 CREATE TRIGGER update_case_studies_updated_at
   BEFORE UPDATE ON case_studies
   FOR EACH ROW

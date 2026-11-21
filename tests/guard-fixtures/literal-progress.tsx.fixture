@@ -1,0 +1,2 @@
+// expect: literal-progress
+export const X = () => <Progress value={75} />;

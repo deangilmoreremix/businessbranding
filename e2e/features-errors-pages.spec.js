@@ -1,0 +1,155 @@
+// Error states in the real UI (401, 412, 402 quota, 424 model unavailable, 429, 403 CSRF) + every page route + settings tabs + API smoke. Fresh mocks.
+const { launch, signUpAndAddKey, base, ok, section, warm, results, PW, out, SB } = require('./lib');
+
+const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strategy', '/case-studies', '/contact', '/cookies', '/dashboard', '/dashboard/brand-analysis', '/dashboard/planning', '/dashboard/visual-identity', '/dashboard/voice-content', '/docs', '/docs/ai-features', '/docs/best-practices', '/docs/components/brand-analysis', '/docs/components/brand-pillar-breakdown', '/docs/components/business-analyzer', '/docs/components/competitive-analysis', '/docs/components/content-dashboard', '/docs/components/implementation-plan', '/docs/components/visual-identity', '/docs/components/voice-interface', '/docs/integration-guide', '/docs/voice-features', '/features', '/integrations', '/login', '/pricing', '/privacy', '/reset-password', '/settings', '/sign-up', '/terms', '/visual-identity', '/voice-content', '/workflows'];
+
+(async () => {
+  await warm(['/sign-up', '/settings', '/dashboard/brand-analysis']);
+  const { browser, ctx, page, errors } = await launch();
+
+  // ---- signed out
+  await section('signed-out', async () => {
+    await page.goto(base + '/dashboard/brand-analysis', { waitUntil: 'networkidle', timeout: 120000 });
+    await page.fill('input[aria-label="Business description or website"]', 'Acme');
+    await page.click('button:has-text("Analyze")');
+    await page.waitForSelector('[data-testid=openai-key-notice]', { timeout: 30000 });
+    ok('401: signed-out AI use shows the sign-in notice (not a crash)', /Sign in/.test(await page.innerText('[data-testid=openai-key-notice]')));
+    ok('401: signed out shows an error state (kind auth) with a Sign in link and NO scores', (await page.locator('[data-testid=error-state][data-error-kind=auth]').count()) === 1 && (await page.locator('[data-testid=pillar-breakdown]').count()) === 0);
+    const r = await ctx.request.post(base + '/api/ai/task', { data: { task: 'brand_content', input: 'x' } });
+    ok('401: API without a session -> 401 AUTH_REQUIRED json', r.status() === 401 && (await r.json()).code === 'AUTH_REQUIRED');
+  });
+
+  // ---- no key (412)
+  await section('no-key', async () => {
+    const email = await signUpAndAddKey(page, 'nokey', null);
+    await page.goto(base + '/dashboard/brand-analysis', { waitUntil: 'networkidle', timeout: 120000 });
+    await page.fill('input[aria-label="Business description or website"]', 'Acme');
+    await page.click('button:has-text("Analyze")');
+    await page.waitForSelector('[data-testid=openai-key-notice]', { timeout: 30000 });
+    const txt = await page.innerText('[data-testid=openai-key-notice]');
+    ok('412: the analysis page shows the KEY error state (kind key) with Open Settings and no results', (await page.locator('[data-testid=error-state][data-error-kind=key]').count()) === 1 && (await page.locator('[data-testid=pillar-breakdown]').count()) === 0);
+    ok('412: signed in without a key -> "Add your OpenAI key" notice linking to Settings', /Add your OpenAI key/.test(txt) && !!(await page.$('[data-testid=openai-key-notice] a[href="/settings#ai"]')));
+    const r = await page.evaluate(async () => { const x = await fetch('/api/voice/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'hi' }) }); return { s: x.status, j: await x.json() }; });
+    ok('412: voice route returns OPENAI_KEY_REQUIRED json', r.s === 412 && r.j.code === 'OPENAI_KEY_REQUIRED');
+  });
+
+  // ---- CSRF: a cookie-authenticated cross-site POST is refused (APIRequestContext shares the cookie jar)
+  await section('csrf', async () => {
+    const bad = await ctx.request.post(base + '/api/ai/task', { headers: { 'Sec-Fetch-Site': 'cross-site', Origin: 'https://evil.example' }, data: { task: 'brand_content', input: 'x' } });
+    ok('403: cookie session + cross-site POST -> CSRF_BLOCKED', bad.status() === 403 && (await bad.json()).code === 'CSRF_BLOCKED', `status ${bad.status()}`);
+    const good = await ctx.request.post(base + '/api/ai/task', { headers: { 'Sec-Fetch-Site': 'same-origin' }, data: { task: 'brand_content', input: 'x' } });
+    ok('403: same-origin POST with the same cookie is not blocked', good.status() !== 403 && good.status() !== 401, `status ${good.status()}`);
+  });
+
+  // ---- quota (402), model unavailable (424), rate limit (429) with special mock keys
+  const useKey = async (key) => {
+    await page.goto(base + '/settings#ai', { waitUntil: 'networkidle' });
+    await page.fill('#openai-key', key);
+    await page.click('button:has-text("Validate & save")');
+    // wait for THIS key to be the saved one (the previous key's masked value is still on screen right after the click)
+    await page.waitForFunction((last4) => (document.querySelector('[data-testid=key-masked]')?.textContent || '').includes(last4), key.slice(-4), { timeout: 20000 });
+  };
+  await section('quota', async () => {
+    await useKey('sk-quota-0123456789abcdefgh');
+    const r = await page.evaluate(async () => { const x = await fetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: 'x' }) }); return { s: x.status, j: await x.json() }; });
+    ok('402: out-of-credit OpenAI account -> friendly OPENAI_QUOTA_EXCEEDED', r.s === 402 && r.j.code === 'OPENAI_QUOTA_EXCEEDED' && !/sk-/.test(JSON.stringify(r.j)), JSON.stringify(r.j).slice(0, 120));
+    await page.goto(base + '/dashboard/voice-content', { waitUntil: 'networkidle' });
+  });
+  await section('model-unavailable', async () => {
+    await useKey('sk-limited-0123456789abcdefgh');
+    const r = await page.evaluate(async () => { const x = await fetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: 'x' }) }); return { s: x.status, j: await x.json() }; });
+    ok('424: key without access to the model -> OPENAI_MODEL_UNAVAILABLE naming the model + Settings', r.s === 424 && r.j.code === 'OPENAI_MODEL_UNAVAILABLE' && /gpt-/.test(r.j.error), JSON.stringify(r.j).slice(0, 160));
+    // per-user model override fixes it
+    await page.goto(base + '/settings#ai', { waitUntil: 'networkidle' });
+    await page.fill('#model-text', 'gpt-4.1');
+    await page.getByRole('button', { name: /Save models/i }).click().catch(() => {});
+    await page.waitForTimeout(800);
+    const r2 = await page.evaluate(async () => { const x = await fetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: 'x' }) }); return x.status; });
+    ok('model override: per-user model setting makes the request succeed', r2 === 200, `status ${r2}`);
+  });
+  await section('invalid-key', async () => {
+    await page.goto(base + '/settings#ai', { waitUntil: 'networkidle' });
+    await page.fill('#openai-key', 'sk-bad-0123456789abcdefghij');
+    await page.click('button:has-text("Validate & save")');
+    await page.waitForSelector('[data-testid=key-message][role=alert]');
+    ok('401: invalid key is rejected on save with a clear message', /rejected|revoked|invalid/i.test(await page.innerText('[data-testid=key-message]')));
+    await useKey('sk-forbidden-0123456789abcdef').catch(() => {});
+  });
+  await section('rate-limit', async () => {
+    // a brand-new user so earlier sections cannot have consumed this bucket; the settings-write bucket allows 10 per minute.
+    // Invalid keys are rejected locally with 400 (no OpenAI call), so the only thing that changes is the limiter.
+    await signUpAndAddKey(page, 'ratelimit', null);
+    const codes = await page.evaluate(async () => {
+      const out = [];
+      for (let i = 0; i < 25 && !out.includes(429); i++) {
+        const x = await fetch('/api/settings/openai-key', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: 'short' }) });
+        out.push(x.status);
+      }
+      return out;
+    });
+    const first429 = codes.indexOf(429);
+    ok('429: per-user rate limit trips at the configured limit (Supabase-backed), earlier calls are plain 400s', first429 === 10 && codes.slice(0, 10).every((c) => c === 400), codes.join(','));
+  });
+
+  // ---- every page route renders (HTTP 200, a heading or main content, no uncaught error)
+  await section('pages', async () => {
+    await signUpAndAddKey(page, 'pages');
+    for (const p of PAGES) {
+      const res = await page.goto(base + p, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch((e) => ({ status: () => 0, err: e }));
+      await page.waitForTimeout(700);
+      const heading = await page.locator('h1, h2, h3, main').count();
+      const before = errors.length;
+      ok(`page ${p}: loads (200) and renders content`, res && res.status && res.status() === 200 && heading > 0, `status ${res && res.status && res.status()}`);
+    }
+  });
+
+  // ---- contact form
+  await section('contact', async () => {
+    await page.goto(base + '/contact', { waitUntil: 'networkidle' });
+    await page.click('button[type=submit]');
+    ok('contact: empty form shows validation errors', (await page.locator('form [role=alert]').count()) === 3);
+    await page.fill('#c-name', 'Ann'); await page.fill('#c-email', 'ann@example.test'); await page.fill('#c-message', 'Hello, I would like to know more.');
+    await page.click('button[type=submit]');
+    await page.waitForSelector('[data-testid=contact-done]');
+    ok('contact: valid form is stored server-side (contact_submissions) and confirmed', /saved/.test(await page.innerText('[data-testid=contact-done]')));
+    const stored = await (await fetch(SB + '/__state')).json();
+    ok('contact: the row is in contact_submissions with a hashed client, not a raw address', stored.contact_submissions.length === 1 && stored.contact_submissions[0].email === 'ann@example.test' && /^[0-9a-f]{64}$/.test(stored.contact_submissions[0].client_hash));
+  });
+
+  // ---- the landing page loads no third-party animation files and logs no console errors
+  await section('landing', async () => {
+    const external = [];
+    const consoleErrors = [];
+    const onReq = (r) => { const u = new URL(r.url()); if (!['127.0.0.1', 'localhost'].includes(u.hostname)) external.push(u.hostname); };
+    const onMsg = (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 140)); };
+    page.on('request', onReq); page.on('console', onMsg);
+    await page.goto(base + '/', { waitUntil: 'networkidle', timeout: 120000 });
+    await page.mouse.wheel(0, 6000);
+    await page.waitForTimeout(2500);
+    page.off('request', onReq); page.off('console', onMsg);
+    ok('landing page: no requests to lottiefiles (or any third-party animation host)', !external.some((h) => /lottie/i.test(h)), [...new Set(external)].join(','));
+    ok('landing page: no console errors while scrolling through the animated sections', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+  });
+
+  // ---- settings tabs
+  await section('settings', async () => {
+    await page.goto(base + '/settings', { waitUntil: 'networkidle' });
+    for (const t of ['Profile', 'Notifications', 'Security', 'OpenAI', 'Billing']) {
+      await page.getByRole('tab', { name: new RegExp(t, 'i') }).click();
+      await page.waitForTimeout(250);
+    }
+    ok('settings: every tab opens', true);
+  });
+
+  // ---- API smoke
+  await section('api', async () => {
+    const hdr = {};
+    for (const p of ['/api/models', '/api/case-studies']) { const r = await ctx.request.get(base + p); ok(`api ${p}: answers 200 json`, r.status() === 200, `status ${r.status()}`); }
+  });
+
+  ok('errors/pages: no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await browser.close();
+  const failed = results.filter((r) => !r.ok).length;
+  console.log(failed ? `\n${failed} FAILED` : '\nAll error-state and page checks passed');
+  process.exit(failed ? 1 : 0);
+})();

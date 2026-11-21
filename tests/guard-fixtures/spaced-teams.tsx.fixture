@@ -1,0 +1,2 @@
+// expect: bare-big-number
+export const X = () => <p>12 000 teams</p>;

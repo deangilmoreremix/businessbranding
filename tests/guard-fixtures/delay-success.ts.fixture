@@ -1,0 +1,5 @@
+// expect: artificial-delay,fake-async-success
+export async function save() {
+  await new Promise(r => setTimeout(r, 1500));
+  return { success: true };
+}

@@ -1,63 +1,50 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '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';
+import { edgeHandler } from "../_shared/edge.ts";
+import { createResponse, generateImage, isConfigured, NotConfiguredError } from "../_shared/openai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, apikey"
 };
 
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+
+// General-purpose endpoint.
+// POST { prompt, type?: 'text' | 'image', effort?, size?, quality? }
+//   text  -> { text, citations }   Responses API (gpt-6.2-sol by default)
+//   image -> { images }            Images API (gpt-image-2.6-sunburst by default), data URLs
+Deno.serve(edgeHandler(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { prompt, model = 'gpt-4' } = await req.json();
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    if (!isConfigured()) {
+      return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
     }
 
-    const data = await response.json();
+    const { prompt, type = 'text', effort, size, quality } = await req.json();
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      return json({ error: 'prompt is required' }, 400);
+    }
 
-    return new Response(
-      JSON.stringify(data),
-      {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    if (type === 'image') {
+      const images = await generateImage({ prompt, size, quality });
+      return json({ images: images.map((i) => i.dataUrl) });
+    }
+
+    const result = await createResponse({
+      input: prompt,
+      effort: ['low', 'medium', 'high', 'xhigh'].includes(effort) ? effort : 'low',
+      feature: 'openai-function'
+    });
+    return json({ text: result.text, citations: result.citations });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }),
-      { 
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    if (error instanceof NotConfiguredError) return json({ error: 'Add your OpenAI key in Settings to use this.', code: 'OPENAI_KEY_REQUIRED' }, 412);
+    return json({ error: error instanceof Error ? error.message : 'Unknown error occurred' }, 500);
   }
-});
+}, { bucket: 'openai' }));

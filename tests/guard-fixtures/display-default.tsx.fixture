@@ -1,0 +1,2 @@
+// expect: display-default
+export const X = ({ v }: any) => <p>{v.score ?? 75}</p>;

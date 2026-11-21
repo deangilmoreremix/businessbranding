@@ -1,0 +1,2 @@
+// expect: stat-literal,testimonial-attribution
+{"stats":[{"label":"Satisfaction","text":"98% of users love it"}],"quote":{"by":"Maria Lopez, CMO"}}

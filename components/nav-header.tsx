@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/components/auth/auth-provider';
 import {
   Brain,
   LayoutDashboard,
@@ -80,6 +81,7 @@ const resources = [
 ];
 
 export function NavHeader() {
+  const { user, signOut } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -106,7 +108,7 @@ export function NavHeader() {
 
   const handleStartAnalysis = () => {
     if (mounted) {
-      router.push('/brand-strategy');
+      router.push(user ? '/dashboard' : '/brand-strategy');
       setMobileMenuOpen(false);
     }
   };
@@ -122,7 +124,7 @@ export function NavHeader() {
   }
 
   return (
-    <motion.div 
+    <motion.div data-testid="site-nav" 
       className={`sticky top-0 z-40 w-full backdrop-blur-lg border-b transition-all duration-300 ${
         scrolled 
           ? 'bg-background/80 border-accent/20 shadow-md' 
@@ -165,7 +167,7 @@ export function NavHeader() {
             <span className="gradient-text font-bold hidden sm:block">AI Brand Creator</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-1">
@@ -242,15 +244,19 @@ export function NavHeader() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2">
-            <Link href="/dashboard">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
+          <div className="hidden lg:flex items-center gap-2">
+            {user ? (
+              <Button variant="ghost" onClick={() => { signOut().then(() => router.push('/')).catch(() => {}); }}>Sign Out</Button>
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+            )}
             <Button 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90"
               onClick={handleStartAnalysis}
             >
-              Start Free Brand Analysis
+              {user ? 'Open dashboard' : 'Get started'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -258,7 +264,7 @@ export function NavHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? (
@@ -273,7 +279,7 @@ export function NavHeader() {
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <motion.div 
-          className="md:hidden backdrop-blur-lg bg-background/80 border-b border-accent/10"
+          className="lg:hidden backdrop-blur-lg bg-background/80 border-b border-accent/10"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
@@ -346,16 +352,22 @@ export function NavHeader() {
             </div>
 
             <div className="mt-6 px-3 space-y-3">
-              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full">
-                  Sign In
+              {user ? (
+                <Button variant="outline" className="w-full" onClick={() => { setMobileMenuOpen(false); signOut().then(() => router.push('/')).catch(() => {}); }}>
+                  Sign Out
                 </Button>
-              </Link>
+              ) : (
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
               <Button 
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
                 onClick={handleStartAnalysis}
               >
-                Start Free Brand Analysis
+                {user ? 'Open dashboard' : 'Get started'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

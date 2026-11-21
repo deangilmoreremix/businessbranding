@@ -32,37 +32,37 @@ import ParticleBackground from '@/components/particle-background';
 const services = [
   {
     title: 'Client Brand Analysis',
-    description: 'Deliver comprehensive brand audits in minutes',
+    description: 'Run a structured brand analysis on a client brief',
     icon: BrainCircuit,
     features: [
-      '20-point brand health analysis',
-      'Competitive market positioning',
-      'Growth opportunity identification',
-      'Actionable recommendations'
+      '20-pillar brand analysis',
+      'Competitor and market overview',
+      'Recommendations to review',
+      'PDF, Excel and Word report export'
     ],
     color: 'blue'
   },
   {
     title: 'Visual Identity Service',
-    description: 'Offer professional brand design services',
+    description: 'Create and edit brand imagery',
     icon: Wand2,
     features: [
-      'AI-powered logo generation',
-      'Brand asset creation',
-      'Style guide development',
-      'Visual consistency tools'
+      'Image generation with your OpenAI key',
+      'In-browser image editor',
+      'Asset library saved on your device',
+      'Variations of an uploaded image'
     ],
     color: 'purple'
   },
   {
     title: 'Voice & Content Service',
-    description: 'Provide complete content solutions',
+    description: 'Draft voice content',
     icon: MessageSquare,
     features: [
-      'Brand voice development',
-      'Content strategy creation',
-      'Voice content generation',
-      'Message optimization'
+      'Text-to-speech voice content',
+      'Podcast and audiobook drafts',
+      'Transcription of recordings',
+      'Email draft workflows'
     ],
     color: 'indigo'
   }
@@ -70,42 +70,42 @@ const services = [
 
 const agencyBenefits = [
   {
-    title: 'Increased Revenue',
-    description: 'Add a new high-margin service offering',
-    icon: DollarSign,
-    time: '10x faster delivery'
-  },
-  {
-    title: 'Scalable Process',
-    description: 'Handle more clients with AI automation',
-    icon: Settings,
-    time: '5x client capacity'
-  },
-  {
-    title: 'Client Success',
-    description: 'Deliver measurable brand improvements',
+    title: 'Strategy drafts',
+    description: 'Run the 20-pillar brand analysis on a client brief and start from a structured draft',
     icon: Target,
-    time: '98% satisfaction'
+    time: 'Drafts, not final strategy'
+  },
+  {
+    title: 'Assets and voice',
+    description: 'Create images, voice content and email drafts with the same tools',
+    icon: Settings,
+    time: 'Review before sending to clients'
+  },
+  {
+    title: 'Your own key',
+    description: 'Usage is billed by OpenAI to the key you add; there are no seats or plans here',
+    icon: DollarSign,
+    time: 'No subscription'
   }
 ];
 
 const results = [
   {
-    title: 'Service Delivery Time',
-    value: '90%',
-    description: 'Reduction in project timeline',
+    title: 'Analysis',
+    value: '20 pillars',
+    description: 'Each analysis scores the same 20 brand pillars',
     icon: Clock
   },
   {
-    title: 'Client Portfolio',
-    value: '3x',
-    description: 'Growth in client capacity',
+    title: 'Reports',
+    value: 'PDF, Excel, Word',
+    description: 'Export an analysis with the sections you choose',
     icon: Briefcase
   },
   {
-    title: 'Revenue Growth',
-    value: '185%',
-    description: 'Average agency growth',
+    title: 'Saved on your device',
+    value: 'Local',
+    description: 'Saved analyses and assets stay in your browser storage',
     icon: TrendingUp
   }
 ];
@@ -126,10 +126,10 @@ export default function AgencyPage() {
             >
               <Badge className="mb-4">FOR AGENCIES & CONSULTANTS</Badge>
               <h1 className="text-6xl font-bold tracking-tighter gradient-text mb-6">
-                Transform Your Agency with AI-Powered Branding Services
+                AI Branding Tools for Agencies and Consultants
               </h1>
               <p className="text-xl text-blue-200/80 max-w-2xl mx-auto leading-relaxed">
-                Offer professional brand transformation services to your clients using our AI platform. Deliver exceptional results in a fraction of the time.
+                Use the analysis, image and voice tools on client briefs. Everything runs on your own OpenAI key and the output is a draft for you to review.
               </p>
             </motion.div>
 
@@ -148,9 +148,6 @@ export default function AgencyPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline">
-                Partner Program
-              </Button>
             </motion.div>
 
             <motion.div
@@ -187,7 +184,7 @@ export default function AgencyPage() {
               Expand Your Service Portfolio
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Add powerful AI-driven branding services to your agency's offerings
+              Add powerful AI-driven branding services to your agency&apos;s offerings
             </p>
           </div>
 
@@ -229,10 +226,10 @@ export default function AgencyPage() {
           <div className="text-center mb-16">
             <Badge className="mb-4">AGENCY SUCCESS</Badge>
             <h2 className="text-4xl font-bold gradient-text mb-4">
-              Partner Success Stories
+              What agencies use it for
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              See how agencies are transforming their business with our platform
+              Three ways the tools help an agency work faster
             </p>
           </div>
 
@@ -269,20 +266,20 @@ export default function AgencyPage() {
             transition={{ duration: 0.6 }}
             className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-12"
           >
-            <h2 className="text-3xl font-bold mb-4">Ready to Grow Your Agency?</h2>
+            <h2 className="text-3xl font-bold mb-4">Try it on a client brief</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              Join our partner program and start offering AI-powered branding services today
+              Run the analysis on a client brief, or send us a question.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/brand-strategy">
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
-                  Become a Partner
+                  Analyze a client brand
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline">
-                Partner Success Stories
-              </Button>
+              <Link href="/contact">
+                <Button size="lg" variant="outline">Contact us</Button>
+              </Link>
             </div>
           </motion.div>
         </div>

@@ -68,18 +68,6 @@ const components = [
     href: '/docs/components/brand-pillar-breakdown'
   },
   {
-    name: 'Export Dialog',
-    description: 'Export and download functionality',
-    icon: FileText,
-    href: '/docs/components/export-dialog'
-  },
-  {
-    name: 'Feature Discovery',
-    description: 'Interactive feature tour system',
-    icon: Globe,
-    href: '/docs/components/feature-discovery'
-  },
-  {
     name: 'Implementation Plan',
     description: 'Brand implementation planning',
     icon: Settings,
@@ -126,16 +114,10 @@ export default function DocsPage() {
       <div className="mt-12 p-6 bg-accent/5 rounded-lg">
         <h2 className="text-2xl font-bold mb-4">Need Help?</h2>
         <p className="text-muted-foreground mb-6">
-          Can&apos;t find what you&apos;re looking for? Get in touch with our support team.
+          Can&apos;t find what you&apos;re looking for? Send us a message.
         </p>
         <div className="flex gap-4">
-          <Button>
-            Contact Support
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button variant="outline">
-            Join Discord
-          </Button>
+          <Link href="/contact"><Button>Contact us<ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
         </div>
       </div>
     </div>
