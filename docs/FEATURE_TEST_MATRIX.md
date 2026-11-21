@@ -14,7 +14,7 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 
 | Suite | PASS | FAIL |
 |---|---|---|
-| vitest (unit, security, BYOK, auth-coverage over **every `route.*` file in the repo**, SRI, **whole-tree no-fake-data guard + its 41-fixture self-test**, report exports (PDF/XLSX/DOCX parsed back), contact limiter incl. direct-spoof / non-Netlify cases, stats, display, settings, workflow layout) | 290 (1 skipped: live SRI pins, opt-in `SRI_LIVE=1`) | 0 |
+| vitest (unit, security, BYOK, auth-coverage over **every `route.*` file in the repo**, SRI, **whole-tree no-fake-data guard + its 80-fixture self-test**, report exports (PDF/XLSX/DOCX parsed back), contact limiter incl. direct-spoof / non-Netlify cases, stats, display, settings, workflow layout) | 326 (1 skipped: live SRI pins, opt-in `SRI_LIVE=1`) | 0 |
 | `scripts/verify-ai.sh` -> `verify-ai.mjs` (API request shapes, BYOK, security, contact/newsletter incl. spoofed XFF, rotating X-Real-IP, global hourly cap, blog, case-studies, usage) | 139 | 0 |
 | `scripts/edge-test.mjs` -> `verify-edge.ts` (the 4 remaining Edge Functions, Deno 2.9) | 16 | 0 |
 | `scripts/db-test.sh` (**17 migrations applied twice**, RLS, table/function privileges; Postgres 16) | 148 | 0 |
@@ -31,8 +31,9 @@ Database: `npm run test:db` (real Postgres 16). Edge functions: `npm run test:ed
 | Playwright `features-settings` | 15 | 0 |
 | Playwright `public-pages` (empty states, seeded rows, newsletter, footer, contact, pricing/integrations/analytics, **brand-analysis PDF/XLSX/DOCX downloads are valid files**) | 37 | 0 |
 | Playwright `failures` (**5xx + edge down, signed-in-without-key, on /dashboard/brand-analysis, /brand-strategy, planning and voice: real cause + Retry, no scores/plan/audio, no retry loop**) | 9 | 0 |
+| Playwright `malformed` (**`{}`, `{data:{}}`, `{data:null}`, HTML, truncated JSON on planning, analysis, strategy, workflows, settings, blogs, case studies, analytics, voice: no white screen, "unreadable response" + Try Again, no "undefined"/"NaN"/0%**) | 63 | 0 |
 | Playwright `viewports` (30 routes x 3 widths, signed out and in; hero headline vs subtitle geometry; workflow steps) | 185 | 0 |
-| **Total automated assertions** | **1042** | **0** |
+| **Total automated assertions** | **1141** (e2e run 3 times in full: 512 / 512 / 512, and `features-settings` 10 of 10) | **0** |
 
 NOT TESTABLE: exactly **1** is reported by the specs at run time: *live voice, the WebRTC SDP exchange and microphone audio with the Realtime model*
 (needs a real OpenAI Realtime peer; the ephemeral-secret route is tested). `features-local-ai` prints "see NOT TESTABLE lines" in its footer and only
