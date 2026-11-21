@@ -1,0 +1,3 @@
+// expect: empty-handler
+const noop = () => {};
+export const X = () => <Button onClick={noop}>Go</Button>;

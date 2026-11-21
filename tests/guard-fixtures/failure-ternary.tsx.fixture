@@ -1,0 +1,2 @@
+// expect: failure-substitute
+export const X = ({ error, d }: any) => <p>{error ? 'Strong digital presence 85%' : d}</p>;

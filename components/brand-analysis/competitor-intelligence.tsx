@@ -38,6 +38,7 @@ interface CompetitorIntelligenceProps {
   competitors?: Array<{
     name: string;
     marketShare?: number;
+    marketPosition?: string;
     strengths?: string[];
     weaknesses?: string[];
     digitalPresence?: number;
@@ -490,21 +491,17 @@ export function CompetitorIntelligence({ industry = 'your market', competitors =
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium text-lg">{competitor.name}</h3>
-                            {index < 3 && (
-                              <Badge variant={
-                                index === 0 ? 'default' : 
-                                index === 1 ? 'outline' : 
-                                'secondary'
-                              }>
+                            {competitor.marketPosition && (
+                              <Badge variant="outline">
                                 <Award className="h-3 w-3 mr-1" />
-                                {index === 0 ? 'Leader' : index === 1 ? 'Challenger' : 'Strong Performer'}
+                                {competitor.marketPosition}
                               </Badge>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Briefcase className="h-4 w-4 mr-1" />
-                              Market Share: <span className="font-medium ml-1">{competitor.marketShare}%</span>
+                              Market Share: <span className="font-medium ml-1">{typeof competitor.marketShare === 'number' ? `${competitor.marketShare}%` : 'Not measured'}</span>
                             </span>
                             <span> • </span>
                             <span className="flex items-center">
@@ -515,10 +512,6 @@ export function CompetitorIntelligence({ industry = 'your market', competitors =
                         </div>
                       </div>
                       
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Visit
-                      </Button>
                     </div>
                   </div>
 

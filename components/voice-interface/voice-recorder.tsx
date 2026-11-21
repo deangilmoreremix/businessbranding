@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ElapsedStatus } from '@/components/elapsed-status';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -102,7 +104,7 @@ export function VoiceRecorder() {
 
       if (!response.ok) throw await toApiError(response, 'Enhancement failed');
 
-      const enhancedBlob = await response.blob();
+      const enhancedBlob = await acceptAudio(response);
       setRecordedBlob(enhancedBlob);
       
       // Revoke previous URL to prevent memory leaks
@@ -113,7 +115,7 @@ export function VoiceRecorder() {
       const url = URL.createObjectURL(enhancedBlob);
       setAudioUrl(url);
     } catch (e) {
-      setEnhanceError(e instanceof Error ? `${e.message}. You can try again.` : 'Enhancement failed. You can try again.');
+      setEnhanceError(`${describeError(e).message} You can try again.`);
     } finally {
       setProcessing(false);
     }

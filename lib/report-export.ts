@@ -23,6 +23,11 @@ export interface ReportBlock { kind: 'paragraph' | 'table'; text?: string; heade
 export interface ReportModel { title: string; subtitle: string; sections: { id: string; heading: string; blocks: ReportBlock[] }[] }
 
 const cap = (s: unknown) => (typeof s === 'string' && s ? s[0].toUpperCase() + s.slice(1) : NM);
+/** Text of a value that must be a string/number; anything else is "Not measured" (never the word "undefined"). */
+const txt = (v: unknown): string => (typeof v === 'string' && v.trim() ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : NM);
+const cnt = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? String(v) : NM);
+/** Competitor market share convention (one, everywhere): a PERCENT, 0-100. */
+const share = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v * 10) / 10}%` : NM);
 const list = (xs: unknown): string => (Array.isArray(xs) && xs.length ? xs.join('; ') : NM);
 
 export function buildReportModel(analysis: BrandAnalysis, businessIdea: string, sections: ReportSection[], now = new Date()): ReportModel {
@@ -37,32 +42,32 @@ export function buildReportModel(analysis: BrandAnalysis, businessIdea: string, 
       ['Uniqueness', formatFraction(a.uniquenessScore, 0)],
       ['Growth now', formatFraction(a.growthTrajectory?.current)],
       ['Growth projected', `${formatFraction(a.growthTrajectory?.projected)}${a.growthTrajectory?.timeframe ? ` (${a.growthTrajectory.timeframe})` : ''}`],
-      ['Implementation', a.implementationStatus ? `${a.implementationStatus.completed} done, ${a.implementationStatus.inProgress} in progress, ${a.implementationStatus.planned} planned` : NM]
+      ['Implementation', a.implementationStatus ? `${cnt(a.implementationStatus.completed)} done, ${cnt(a.implementationStatus.inProgress)} in progress, ${cnt(a.implementationStatus.planned)} planned` : NM]
     ] }];
     out.push({ id: 'overview', heading: 'Executive overview', blocks });
   }
   if (want.has('analysis')) {
-    out.push({ id: 'analysis', heading: 'Brand pillars analysis', blocks: [{ kind: 'table', header: ['Pillar', 'Score', 'Priority', 'Trend', 'Insights'], rows: (a.brandFactors ?? []).map((f: any) => [String(f.name), formatFraction(f.score, 0), cap(f.priority), cap(f.trend), list(f.insights)]) }] });
+    out.push({ id: 'analysis', heading: 'Brand pillars analysis', blocks: [{ kind: 'table', header: ['Pillar', 'Score', 'Priority', 'Trend', 'Insights'], rows: (a.brandFactors ?? []).map((f: any) => [txt(f.name), formatFraction(f.score, 0), cap(f.priority), cap(f.trend), list(f.insights)]) }] });
   }
   if (want.has('market')) {
     const m = a.marketAnalysis;
     const blocks: ReportBlock[] = [];
     if (m?.marketDynamics) blocks.push({ kind: 'table', header: ['Dynamic', 'Value'], rows: [['Growth rate', formatFraction(m.marketDynamics.growthRate)], ['Competition', cap(m.marketDynamics.competitionLevel)], ['Entry barriers', cap(m.marketDynamics.entryBarriers)]] });
-    if (m?.customerSegments?.length) blocks.push({ kind: 'table', header: ['Segment', 'Share', 'Growth'], rows: m.customerSegments.map((s: any) => [String(s.segment), formatFraction(s.size, 0), formatFraction(s.growth)]) });
+    if (m?.customerSegments?.length) blocks.push({ kind: 'table', header: ['Segment', 'Share', 'Growth'], rows: m.customerSegments.map((s: any) => [txt(s.segment), formatFraction(s.size, 0), formatFraction(s.growth)]) });
     for (const [title, items, key] of [['Industry trends', m?.industryTrends, 'trend'], ['Opportunities', m?.marketOpportunities, 'opportunity'], ['Growth barriers', m?.growthBarriers, 'barrier']] as const) {
-      if (Array.isArray(items) && items.length) blocks.push({ kind: 'table', header: [title, 'Detail'], rows: items.map((i: any) => [String(i[key]), String(i.description ?? '')]) });
+      if (Array.isArray(items) && items.length) blocks.push({ kind: 'table', header: [title, 'Detail'], rows: items.map((i: any) => [txt(i[key]), txt(i.description)]) });
     }
     if (!blocks.length) blocks.push({ kind: 'paragraph', text: 'No market data was returned for this analysis.' });
     out.push({ id: 'market', heading: 'Market analysis', blocks });
   }
   if (want.has('competitors')) {
-    const rows = (a.competitors ?? []).map((c: any) => [String(c.name), cap(c.marketPosition), list(c.strengths), list(c.weaknesses)]);
+    const rows = (a.competitors ?? []).map((c: any) => [txt(c.name), cap(c.marketPosition), list(c.strengths), list(c.weaknesses)]);
     out.push({ id: 'competitors', heading: 'Competitor intelligence', blocks: rows.length ? [{ kind: 'table', header: ['Competitor', 'Position', 'Strengths', 'Weaknesses'], rows }] : [{ kind: 'paragraph', text: 'No competitors were returned for this analysis.' }] });
   }
   if (want.has('recommendations')) {
-    const rows = (a.recommendations ?? []).map((r: any) => [cap(r.priority), String(r.category ?? ''), String(r.recommendation ?? ''), cap(r.impact), String(r.timeframe ?? '')]);
+    const rows = (a.recommendations ?? []).map((r: any) => [cap(r.priority), txt(r.category), txt(r.recommendation), cap(r.impact), txt(r.timeframe)]);
     const blocks: ReportBlock[] = rows.length ? [{ kind: 'table', header: ['Priority', 'Area', 'Recommendation', 'Impact', 'Timeframe'], rows }] : [{ kind: 'paragraph', text: 'No recommendations were returned for this analysis.' }];
-    if (a.riskFactors?.length) blocks.push({ kind: 'table', header: ['Risk', 'Probability', 'Impact', 'Mitigation'], rows: a.riskFactors.map((r: any) => [String(r.risk), cap(r.probability), cap(r.impact), String(r.mitigation ?? '')]) });
+    if (a.riskFactors?.length) blocks.push({ kind: 'table', header: ['Risk', 'Probability', 'Impact', 'Mitigation'], rows: a.riskFactors.map((r: any) => [txt(r.risk), cap(r.probability), cap(r.impact), txt(r.mitigation)]) });
     out.push({ id: 'recommendations', heading: 'Strategic recommendations', blocks });
   }
   return { title: 'Brand analysis report', subtitle: `${businessIdea ? businessIdea.split('\n')[0].slice(0, 120) + ' · ' : ''}${now.toISOString().slice(0, 10)}`, sections: out };
@@ -102,7 +107,7 @@ export function buildCompetitiveReportModel(analysis: any, sections: string[], n
   const out: ReportModel['sections'] = [];
   if (want.has('position')) out.push({ id: 'position', heading: 'Brand position', blocks: [{ kind: 'table', header: ['Measure', 'Value'], rows: [['Brand health', formatPercent(analysis?.healthScore)], ['Market fit', formatFraction(analysis?.marketFit, 0)], ['Uniqueness', formatFraction(analysis?.uniquenessScore, 0)]] }] });
   if (want.has('competitors')) {
-    const rows = (analysis?.competitors ?? []).map((c: any) => [String(c.name), cap(c.marketPosition), typeof c.marketShare === 'number' ? `${c.marketShare > 1 ? c.marketShare : Math.round(c.marketShare * 100)}%` : NM, list(c.strengths), list(c.weaknesses)]);
+    const rows = (analysis?.competitors ?? []).map((c: any) => [txt(c.name), cap(c.marketPosition), share(c.marketShare), list(c.strengths), list(c.weaknesses)]);
     out.push({ id: 'competitors', heading: 'Competitors', blocks: rows.length ? [{ kind: 'table', header: ['Competitor', 'Position', 'Market share', 'Strengths', 'Weaknesses'], rows }] : [{ kind: 'paragraph', text: 'No competitors were returned for this analysis.' }] });
   }
   return { title: 'Competitive analysis', subtitle: now.toISOString().slice(0, 10), sections: out };
@@ -127,6 +132,8 @@ export async function toPdf(model: ReportModel): Promise<Blob> {
   };
   write(model.title, 20, true);
   write(model.subtitle, 10);
+  // The PDF is plain text lines in the built-in Helvetica font (Latin-1 only): say so instead of printing garbage for other scripts.
+  if (/[^\u0000-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026]/.test(JSON.stringify(model))) write('Note: this PDF uses a Latin-only font, so some characters may not display. Export to Word or Excel for full Unicode text.', 9, true);
   y += 10;
   for (const s of model.sections) {
     y += 8;

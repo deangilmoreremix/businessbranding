@@ -6,7 +6,9 @@ export interface Usage { requests: number; failed: number; inputTokens: number; 
 export async function loadUsage(): Promise<Usage | null> {
   try {
     const res = await authFetch('/api/usage');
-    return res.ok ? ((await res.json()) as Usage) : null;
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body && typeof body.requests === 'number' && body.byFeature && typeof body.byFeature === 'object' ? (body as Usage) : null;
   } catch {
     return null;
   }

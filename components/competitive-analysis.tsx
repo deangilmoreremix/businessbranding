@@ -41,7 +41,7 @@ export function CompetitiveAnalysis({ analysis }: { analysis: Pick<BrandAnalysis
               <span className="text-muted-foreground">{m.name}</span>
               <span className="font-medium" data-testid={m.value === null ? 'metric-unmeasured' : 'metric-value'}>{m.text}</span>
             </div>
-            <Progress value={m.value ?? 0} className="h-1" />
+            <Progress value={m.value === null ? 0 : m.value} className="h-1" />
           </Card>
         ))}
       </div>

@@ -1,4 +1,6 @@
 import { callTask } from './ai';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { readJson, UnreadableResponseError } from '@/lib/client/validate';
 import type {
   AudiobookOptions,
   ContentOptimizationOptions,
@@ -8,7 +10,7 @@ import type {
   Voice,
   VoiceAnalysisResult
 } from '../types/voice';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, ApiError } from '@/lib/client/auth-fetch';
 
 /**
  * Voice features on OpenAI:
@@ -36,7 +38,7 @@ export const VOICES: Voice[] = [
 
 async function readError(res: Response, fallback: string): Promise<Error> {
   const body = await res.json().catch(() => ({}));
-  return new Error(body.error || `${fallback} (${res.status})`);
+  return new ApiError(body.error || `${fallback} (${res.status})`, res.status, body.code);
 }
 
 export async function getAvailableVoices(): Promise<Voice[]> {
@@ -51,7 +53,7 @@ export async function generateVoiceOver(text: string, voiceId: string = DEFAULT_
     body: JSON.stringify({ text, voiceId, instructions })
   });
   if (!res.ok) throw await readError(res, 'Voice generation failed');
-  return res.blob();
+  return acceptAudio(res);
 }
 
 /** Multi-voice podcast: one segment per speaker, joined into a single WAV. */
@@ -62,7 +64,7 @@ export async function createPodcast(title: string, segments: PodcastSegment[]): 
     body: JSON.stringify({ title, segments })
   });
   if (!res.ok) throw await readError(res, 'Podcast generation failed');
-  return res.blob();
+  return acceptAudio(res);
 }
 
 export async function createAudiobook(options: AudiobookOptions): Promise<Blob> {
@@ -72,7 +74,7 @@ export async function createAudiobook(options: AudiobookOptions): Promise<Blob> 
     body: JSON.stringify(options)
   });
   if (!res.ok) throw await readError(res, 'Audiobook generation failed');
-  return res.blob();
+  return acceptAudio(res);
 }
 
 /** Result of narration made from segments, with each clip's duration (for exact captions). */
@@ -93,7 +95,7 @@ export async function createPodcastWithTimings(title: string, segments: PodcastS
     body: JSON.stringify({ title, segments })
   });
   if (!res.ok) throw await readError(res, 'Podcast generation failed');
-  return { blob: await res.blob(), durationsMs: parseDurations(res) };
+  return { blob: await acceptAudio(res), durationsMs: parseDurations(res) };
 }
 
 /** Like createAudiobook but also returns per-chapter durations. */
@@ -104,7 +106,7 @@ export async function createAudiobookWithTimings(options: AudiobookOptions): Pro
     body: JSON.stringify(options)
   });
   if (!res.ok) throw await readError(res, 'Audiobook generation failed');
-  return { blob: await res.blob(), durationsMs: parseDurations(res) };
+  return { blob: await acceptAudio(res), durationsMs: parseDurations(res) };
 }
 
 export async function transcribeAudio(options: TranscriptionOptions): Promise<TranscriptionResult> {
@@ -117,16 +119,20 @@ export async function transcribeAudio(options: TranscriptionOptions): Promise<Tr
 
   const res = await authFetch('/api/voice/transcribe', { method: 'POST', body: form });
   if (!res.ok) throw await readError(res, 'Transcription failed');
-  return res.json();
+  const body = await readJson(res);
+  if (typeof body?.text !== 'string') throw new UnreadableResponseError();
+  return body;
 }
 
 export async function getTranscriptionModels(): Promise<{ model_id: string; name: string; description: string }[]> {
   const res = await fetch('/api/models');
   if (!res.ok) throw new Error(`Failed to fetch models: ${res.status}`);
-  return res.json();
+  const list = await readJson(res);
+  if (!Array.isArray(list)) throw new UnreadableResponseError();
+  return list;
 }
 
 /** Tone, sentiment and audience-fit analysis of a script (Structured Outputs). */
 export async function analyzeVoiceContent(text: string): Promise<VoiceAnalysisResult> {
-  return (await callTask<VoiceAnalysisResult>('voice_analysis', `Analyze this voice script for tone, sentiment, cultural sensitivity, emotional resonance and audience alignment:\n\n${text}`)).data;
+  return (await callTask<VoiceAnalysisResult>('voice_analysis', `Analyze this voice script for tone, sentiment, cultural sensitivity, emotional resonance and audience alignment:\n\n${text}`, { shape: { keys: ['tone', 'sentiment', 'audienceAlignment'] } })).data;
 }

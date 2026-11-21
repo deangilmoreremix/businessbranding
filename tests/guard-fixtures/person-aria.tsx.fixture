@@ -1,0 +1,2 @@
+// expect: person-alt
+export const X = () => <div aria-label="Photo of Priya Natarajan" />;

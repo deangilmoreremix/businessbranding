@@ -1,0 +1,2 @@
+// expect: stars-rating
+export const X = () => <p>⭐ Excellent</p>;

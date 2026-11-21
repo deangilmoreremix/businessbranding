@@ -47,22 +47,12 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <Card className="p-6 border-destructive/50 bg-destructive/10">
+        <Card className="p-6 border-destructive/50 bg-destructive/10" role="alert" data-testid="error-boundary">
           <div className="flex flex-col items-center gap-4 text-center">
-            <AlertTriangle className="h-10 w-10 text-destructive" />
+            <AlertTriangle className="h-10 w-10 text-destructive" aria-hidden />
             <div>
-              <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {this.state.error?.message || 'An unexpected error occurred'}
-              </p>
-              {this.state.errorInfo && (
-                <details className="text-left text-xs text-muted-foreground mb-4 whitespace-pre-wrap">
-                  <summary className="cursor-pointer">Stack trace</summary>
-                  <pre>
-                    {this.state.errorInfo.componentStack}
-                  </pre>
-                </details>
-              )}
+              <h3 className="text-lg font-semibold mb-2">This section could not be displayed</h3>
+              <p className="text-sm text-muted-foreground">The data it received was not in the expected form. Nothing was lost; try again.</p>
             </div>
             <Button onClick={this.handleRetry}>
               <RefreshCw className="mr-2 h-4 w-4" />

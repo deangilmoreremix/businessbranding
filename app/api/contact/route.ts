@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   let body: any;
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid request.', code: 'BAD_REQUEST' }, 400); }
   if (!body || typeof body !== 'object') return json({ error: 'Invalid request.', code: 'BAD_REQUEST' }, 400);
-  if (typeof body.website === 'string' && body.website.trim()) return json({ ok: true }, 200); // honeypot
+  if (typeof body.website === 'string' && body.website.trim()) return json({ ok: true, stored: false }, 200); // honeypot: neutral reply, nothing stored
 
   const form = { name: String(body.name ?? ''), email: String(body.email ?? ''), message: String(body.message ?? '') };
   const errors = validateContact(form);
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if ((await countRecentRows('contact_submissions', new Date(Date.now() - 3600_000).toISOString(), globalHourlyCap('contact'))) >= globalHourlyCap('contact')) return json({ error: 'The contact form is receiving a lot of messages right now. Please try again later.', code: 'BUSY' }, 429);
     await insertContact({ name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), subject, message: form.message.trim(), client_hash: hash });
     const notified = await notifyOwner('contact', { name: form.name.trim().slice(0, 200), email: form.email.trim().slice(0, 320), message: form.message.trim().slice(0, 500) });
-    return json({ ok: true, notified }, 200);
+    return json({ ok: true, stored: true, notified }, 200);
   } catch {
     console.error('contact submission failed');
     return json({ error: 'Your message could not be saved. Please try again later.', code: 'CONTACT_FAILED' }, 502);

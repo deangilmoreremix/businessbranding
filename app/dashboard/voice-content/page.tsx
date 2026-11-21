@@ -38,10 +38,10 @@ export default function VoiceContentPage() {
         </div>
 
         <LibraryStatTiles loading={loading} tiles={[
-          { title: 'Saved audio', value: s?.audio ?? 0, icon: FileAudio, hint: s && s.audio === 0 ? 'Nothing saved yet' : 'On this device' },
-          { title: 'Created today', value: s?.generatedToday ?? 0, icon: Sparkles },
-          { title: 'Total duration', value: formatDuration(s?.audioSeconds ?? 0), icon: Clock },
-          { title: 'Storage used', value: formatBytes(s?.storageBytes ?? 0), icon: HardDrive, hint: 'Browser storage' }
+          { title: 'Saved audio', value: s ? s.audio : '—', icon: FileAudio, hint: s && s.audio === 0 ? 'Nothing saved yet' : 'On this device' },
+          { title: 'Created today', value: s ? s.generatedToday : '—', icon: Sparkles },
+          { title: 'Total duration', value: s ? formatDuration(s.audioSeconds) : '—', icon: Clock },
+          { title: 'Storage used', value: s ? formatBytes(s.storageBytes) : '—', icon: HardDrive, hint: 'Browser storage' }
         ]} />
 
         <Card className="p-6 mb-8" id="voice-studio">

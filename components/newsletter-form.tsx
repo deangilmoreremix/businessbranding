@@ -15,6 +15,7 @@ export function NewsletterForm({ idPrefix = 'nl' }: { idPrefix?: string }) {
   const [state, setState] = useState<'idle' | 'sending' | 'saved'>('idle');
   const [error, setError] = useState('');
   const [already, setAlready] = useState(false);
+  const [neutral, setNeutral] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,7 @@ export function NewsletterForm({ idPrefix = 'nl' }: { idPrefix?: string }) {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Could not save your address.');
       setAlready(!!body.alreadySubscribed);
+      setNeutral(body.stored === false && !body.alreadySubscribed);
       setState('saved');
     } catch (err: any) {
       setError(err.message || 'Could not save your address.');
@@ -35,7 +37,7 @@ export function NewsletterForm({ idPrefix = 'nl' }: { idPrefix?: string }) {
   if (state === 'saved') {
     return (
       <p role="status" data-testid="newsletter-saved" className="flex items-center gap-2 text-sm text-green-600">
-        <Check className="h-4 w-4" aria-hidden />{already ? 'This address is already on the list.' : 'Saved. Nothing is sent automatically yet; we will only email you when we have news.'}
+        <Check className="h-4 w-4" aria-hidden />{neutral ? 'Thanks.' : already ? 'This address is already on the list.' : 'Saved. Nothing is sent automatically yet; we will only email you when we have news.'}
       </p>
     );
   }

@@ -13,7 +13,7 @@ import { levelFor, splitPillars, type PillarLevel as Level } from '@/lib/service
 interface PillarScore {
   name: string;
   /** 0-1 */
-  score: number;
+  score: number | null;
   insights: string[];
 }
 
@@ -52,8 +52,8 @@ export default function BrandPillarBreakdownClient({ pillarScores, onImprovement
           <p className="text-sm text-muted-foreground">Weakest pillars first, so you know where to focus.</p>
         </div>
         <div className="text-right">
-          <p className="text-3xl font-bold">{Math.round(average * 100)}%</p>
-          <p className="text-xs text-muted-foreground">average across {rows.length} pillars</p>
+          <p className="text-3xl font-bold">{average === null ? 'Not measured' : `${Math.round(average * 100)}%`}</p>
+          <p className="text-xs text-muted-foreground">{average === null ? 'no pillar scores were returned' : `average across ${rows.length} pillars`}</p>
         </div>
       </div>
 

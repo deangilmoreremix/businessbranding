@@ -1,4 +1,5 @@
 import { callTask } from './ai';
+import { isObj, UnreadableResponseError } from '@/lib/client/validate';
 import { parseTimelineDays, resolveOverlaps, type CalendarEvent, type Priority } from './calendar-service';
 
 /**
@@ -78,7 +79,10 @@ export async function generateImplementationPlan(req: PlanRequest): Promise<Impl
   const { data } = await callTask<ImplementationPlan>(
     'implementation_plan',
     `Create a detailed implementation plan for this business.\nBusiness: ${req.businessDescription}\nGoals: ${(req.goals ?? []).join('; ') || 'not specified'}\nBudget: ${req.budget || 'not specified'}\nTimeline: ${req.timeline || '12 months'}\nUse the phases short-term, mid-term and long-term, and risk impact values high, medium or low.`
+    ,
+    { shape: { keys: ['overview', 'phases', 'budgetEstimate', 'risks', 'milestones'], arrays: ['phases', 'budgetEstimate', 'risks', 'milestones'] } }
   );
+  if (!isObj(data.overview) || !data.phases.every((p) => isObj(p) && Array.isArray(p.goals) && p.goals.every((g) => isObj(g) && Array.isArray(g.tasks)))) throw new UnreadableResponseError();
   return data;
 }
 

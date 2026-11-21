@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/auth-provider';
 import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { describeError } from '@/lib/client/ai-error';
+import { isObj, readJson, requireShape, UnreadableResponseError } from '@/lib/client/validate';
 import { MIN_PASSWORD_LENGTH, validatePassword } from '@/lib/auth-redirect';
 import { DEFAULT_NOTIFICATIONS, DEFAULT_PROFILE, type Notifications, type Profile } from '@/lib/settings-profile';
 
@@ -21,13 +23,26 @@ function useAccountSettings() {
   const [notifications, setNotifications] = useState<Notifications>(DEFAULT_NOTIFICATIONS);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  // State is seeded ONCE from the server reply; a late reply can never overwrite what the user has already toggled (inputs stay disabled until then).
   useEffect(() => {
+    let alive = true;
+    setLoaded(false);
+    setLoadError('');
     authFetch('/api/settings/profile')
-      .then(async (r) => { if (!r.ok) throw await toApiError(r, 'Could not load your settings'); return r.json(); })
-      .then((d) => { setProfile(d.profile); setNotifications(d.notifications); })
-      .catch((e) => setLoadError(e.message))
-      .finally(() => setLoaded(true));
-  }, []);
+      .then(async (r) => { if (!r.ok) throw await toApiError(r, 'Could not load your settings'); return readJson(r); })
+      .then((d) => {
+        if (!alive) return;
+        const shape = requireShape<{ profile: Profile; notifications: Notifications }>(d, ['profile', 'notifications']);
+        if (!isObj(shape.profile) || !isObj(shape.notifications)) throw new UnreadableResponseError();
+        setProfile({ ...DEFAULT_PROFILE, ...shape.profile });
+        setNotifications({ ...DEFAULT_NOTIFICATIONS, ...shape.notifications });
+        setLoaded(true);
+      })
+      .catch((e) => { if (alive) setLoadError(describeError(e).message); });
+    return () => { alive = false; };
+  }, [attempt]);
+  const retry = () => setAttempt((a) => a + 1);
   const save = async (body: object) => {
     const r = await authFetch('/api/settings/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) {
@@ -36,7 +51,7 @@ function useAccountSettings() {
     }
     return r.json();
   };
-  return { profile, setProfile, notifications, setNotifications, loaded, loadError, save };
+  return { profile, setProfile, notifications, setNotifications, loaded, loadError, save, retry };
 }
 
 const saveIcon = (b: boolean) => (b ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />);
@@ -50,22 +65,22 @@ export function ProfileCard() {
   const set = (k: keyof Profile) => (e: React.ChangeEvent<HTMLInputElement>) => s.setProfile((p) => ({ ...p, [k]: e.target.value }));
   const save = async () => {
     setBusy(true); setMsg(null); setFieldErrors({});
-    try { const d = await s.save({ profile: s.profile }); s.setProfile(d.profile); setMsg({ kind: 'ok', text: 'Profile saved.' }); }
+    try { const d = await s.save({ profile: s.profile }); if (isObj(d?.profile)) s.setProfile({ ...DEFAULT_PROFILE, ...d.profile }); setMsg({ kind: 'ok', text: 'Profile saved.' }); }
     catch (e: any) { setFieldErrors(e.fields ?? {}); setMsg({ kind: 'error', text: e.message }); }
     finally { setBusy(false); }
   };
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
-      {s.loadError && <p role="alert" className="text-sm text-red-500 mb-4" data-testid="settings-load-error">{s.loadError}</p>}
+      {s.loadError && <div role="alert" className="mb-4 flex items-center gap-3 text-sm text-red-500" data-testid="settings-load-error"><span>{s.loadError}</span><Button size="sm" variant="outline" onClick={s.retry}>Try Again</Button></div>}
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label htmlFor="p-first">First name</Label><Input id="p-first" value={s.profile.firstName} onChange={set('firstName')} /></div>
-          <div className="space-y-2"><Label htmlFor="p-last">Last name</Label><Input id="p-last" value={s.profile.lastName} onChange={set('lastName')} /></div>
+          <div className="space-y-2"><Label htmlFor="p-first">First name</Label><Input id="p-first" disabled={!s.loaded} value={s.profile.firstName} onChange={set('firstName')} /></div>
+          <div className="space-y-2"><Label htmlFor="p-last">Last name</Label><Input id="p-last" disabled={!s.loaded} value={s.profile.lastName} onChange={set('lastName')} /></div>
         </div>
         <div className="space-y-2"><Label htmlFor="p-email">Email</Label><Input id="p-email" type="email" value={user?.email ?? ''} readOnly disabled /><p className="text-xs text-muted-foreground">Your sign-in address. Changing it is not supported yet.</p></div>
-        <div className="space-y-2"><Label htmlFor="p-company">Company</Label><Input id="p-company" value={s.profile.company} onChange={set('company')} /></div>
-        <div className="space-y-2"><Label htmlFor="p-website">Website</Label><Input id="p-website" type="url" placeholder="https://example.com" value={s.profile.website} onChange={set('website')} aria-invalid={!!fieldErrors.website} />{fieldErrors.website && <p role="alert" className="text-sm text-red-500">{fieldErrors.website}</p>}</div>
+        <div className="space-y-2"><Label htmlFor="p-company">Company</Label><Input id="p-company" disabled={!s.loaded} value={s.profile.company} onChange={set('company')} /></div>
+        <div className="space-y-2"><Label htmlFor="p-website">Website</Label><Input id="p-website" disabled={!s.loaded} type="url" placeholder="https://example.com" value={s.profile.website} onChange={set('website')} aria-invalid={!!fieldErrors.website} />{fieldErrors.website && <p role="alert" className="text-sm text-red-500">{fieldErrors.website}</p>}</div>
         <Button onClick={save} disabled={busy || !s.loaded}>{saveIcon(busy)}Save changes</Button>
         <Status m={msg} id="profile-status" />
       </div>
@@ -80,7 +95,7 @@ export function NotificationsCard() {
   const toggle = (k: keyof Notifications) => (v: boolean) => s.setNotifications((n) => ({ ...n, [k]: v }));
   const save = async () => {
     setBusy(true); setMsg(null);
-    try { const d = await s.save({ notifications: s.notifications }); s.setNotifications(d.notifications); setMsg({ kind: 'ok', text: 'Notification preferences saved.' }); }
+    try { const d = await s.save({ notifications: s.notifications }); if (isObj(d?.notifications)) s.setNotifications({ ...DEFAULT_NOTIFICATIONS, ...d.notifications }); setMsg({ kind: 'ok', text: 'Notification preferences saved.' }); }
     catch (e: any) { setMsg({ kind: 'error', text: e.message }); }
     finally { setBusy(false); }
   };
@@ -92,7 +107,7 @@ export function NotificationsCard() {
         {([['productUpdates', 'Product updates', 'News about features and improvements'], ['brandAlerts', 'Brand alerts', 'Changes to your brand analyses'], ['securityAlerts', 'Security alerts', 'Sign-in and account activity'], ['marketing', 'Marketing e-mails', 'Offers and tips']] as const).map(([k, title, desc]) => (
           <div key={k} className="flex items-center justify-between">
             <div><Label htmlFor={`n-${k}`}>{title}</Label><p className="text-sm text-muted-foreground">{desc}</p></div>
-            <Switch id={`n-${k}`} checked={s.notifications[k]} onCheckedChange={toggle(k)} />
+            <Switch id={`n-${k}`} checked={s.notifications[k]} disabled={!s.loaded} onCheckedChange={toggle(k)} />
           </div>
         ))}
         <Button onClick={save} disabled={busy || !s.loaded}>{saveIcon(busy)}Save preferences</Button>

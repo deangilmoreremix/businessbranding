@@ -10,7 +10,11 @@ import { FolderOpen, Loader2, Play, Plus, Save, Trash2 } from 'lucide-react';
 import { STEP_LABELS, STEP_W, freePosition, separateOverlaps, defaultWorkflow, executionOrder, parseWorkflow, serializeWorkflow, upstreamText, validateWorkflow, type StepKind, type Workflow } from '@/lib/local/workflow';
 import { openFile, saveFile } from '@/lib/local/fs-access';
 import { useLocalDraft } from '@/lib/local/use-draft';
-import { authFetch } from '@/lib/client/auth-fetch';
+import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { callTask } from '@/lib/services/ai';
+import { describeError } from '@/lib/client/ai-error';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { readJson, UnreadableResponseError } from '@/lib/client/validate';
 
 type StepData = { kind: StepKind; values: Record<string, string> };
 type StepNode = Node<StepData, 'step'>;
@@ -106,23 +110,24 @@ export default function WorkflowBuilder() {
             outputs[id] = node.data.text ?? '';
             res[id] = { text: outputs[id] };
           } else if (node.kind === 'copy') {
-            const r = await authFetch('/api/ai/task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'brand_content', input: `${node.data.instruction ?? ''}\n\nBrief:\n${input}` }) });
-            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `AI request failed (${r.status})`);
-            const { data } = await r.json();
+            const { data } = await callTask<{ title: string; content: string }>('brand_content', `${node.data.instruction ?? ''}\n\nBrief:\n${input}`, { shape: { keys: ['title', 'content'] } });
+            if (typeof data.title !== 'string' || typeof data.content !== 'string') throw new UnreadableResponseError();
             outputs[id] = `${data.title}\n\n${data.content}`;
             res[id] = { text: outputs[id] };
           } else if (node.kind === 'email') {
             const [headline, ...rest] = input.split('\n\n');
             const r = await authFetch('/api/email/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...node.data, headline, body: rest.join('\n\n') }) });
-            if (!r.ok) throw new Error('Email rendering failed');
-            res[id] = { html: (await r.json()).html };
+            if (!r.ok) throw await toApiError(r, 'Email rendering failed');
+            const rendered = await readJson(r);
+            if (typeof rendered?.html !== 'string') throw new UnreadableResponseError();
+            res[id] = { html: rendered.html };
           } else if (node.kind === 'voice') {
             const r = await authFetch('/api/voice/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: input, voiceId: node.data.voiceId }) });
-            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Voice generation failed (${r.status})`);
-            res[id] = { audioUrl: URL.createObjectURL(await r.blob()) };
+            if (!r.ok) throw await toApiError(r, 'Voice generation failed');
+            res[id] = { audioUrl: URL.createObjectURL(await acceptAudio(r)) };
           }
         } catch (e: any) {
-          res[id] = { error: e.message };
+          res[id] = { error: describeError(e).message };
           setResults({ ...res });
           break; // stop at the first failing step
         }
@@ -188,7 +193,7 @@ export default function WorkflowBuilder() {
             return (
               <div key={n.id} className="rounded border p-3 space-y-2">
                 <p className="text-sm font-medium">{STEP_LABELS[n.data.kind]}</p>
-                {r.error && <p className="text-sm text-red-500">{r.error}</p>}
+                {r.error && <p className="text-sm text-red-500" role="alert" data-testid="workflow-error">{r.error} <button type="button" className="underline" onClick={run}>Try Again</button></p>}
                 {r.text && <p className="text-sm whitespace-pre-wrap">{r.text}</p>}
                 {r.audioUrl && <audio controls src={r.audioUrl} className="w-full" />}
                 {r.html && <iframe title="Email preview" sandbox="" srcDoc={r.html} className="w-full h-96 rounded border bg-white" />}

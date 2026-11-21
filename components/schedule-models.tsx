@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ElapsedStatus } from '@/components/elapsed-status';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +59,7 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
       setSchedule(generatedSchedule);
       onScheduleChange?.(generatedSchedule);
     } catch (e) {
-      setError(e instanceof Error ? `Could not generate the schedule: ${e.message}. You can try again.` : 'Could not generate the schedule. You can try again.');
+      setError(`Could not generate the schedule. ${describeError(e).message} You can try again.`);
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
       setSchedule(optimizedSchedule);
       onScheduleChange?.(optimizedSchedule);
     } catch (e) {
-      setError(e instanceof Error ? `Could not optimize the schedule: ${e.message}. You can try again.` : 'Could not optimize the schedule. You can try again.');
+      setError(`Could not optimize the schedule. ${describeError(e).message} You can try again.`);
     } finally {
       setOptimizing(false);
     }
@@ -143,7 +144,7 @@ export function ScheduleModels({ onScheduleChange }: ScheduleModelsProps = {}) {
                   value={options.teamSize}
                   onChange={(e) => setOptions(prev => ({
                     ...prev,
-                    teamSize: parseInt(e.target.value) || 1
+                    teamSize: Number.isFinite(parseInt(e.target.value)) && parseInt(e.target.value) > 0 ? parseInt(e.target.value) : 1
                   }))}
                 />
               </div>

@@ -14,6 +14,8 @@ import { Mic, Upload, FileAudio, Loader2, Check } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { captionsFromText } from '@/lib/local/captions';
 import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { readJson, UnreadableResponseError } from '@/lib/client/validate';
+import { describeError } from '@/lib/client/ai-error';
 
 const AudioTrimmer = dynamic(() => import('@/components/local/audio-trimmer'), { ssr: false, loading: () => null });
 const CaptionPlayer = dynamic(() => import('@/components/local/caption-player'), { ssr: false, loading: () => null });
@@ -79,10 +81,11 @@ export function VoiceTranscription() {
 
       if (!response.ok) throw await toApiError(response, 'Transcription failed');
 
-      const data = await response.json();
+      const data = await readJson(response);
+      if (typeof data?.text !== 'string') throw new UnreadableResponseError();
       setResult(data.text);
     } catch (error) {
-      setError(error instanceof Error ? `${error.message}. You can try again.` : 'Transcription failed. You can try again.');
+      setError(`${describeError(error).message} You can try again.`);
     } finally {
       setTranscribing(false);
     }

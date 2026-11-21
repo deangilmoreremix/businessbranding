@@ -28,6 +28,7 @@ const { launch, signUpAndAddKey, base, SB, ok, section, warm, results, PW } = re
 
   await section('notifications', async () => {
     await page.getByRole('tab', { name: /Notifications/ }).click();
+    await page.waitForFunction(() => { const el = document.querySelector('#n-marketing'); return el && !el.hasAttribute('disabled'); }, null, { timeout: 30000 }); // toggles are disabled until the profile has loaded
     await page.locator('#n-marketing').click();
     await page.locator('#n-productUpdates').click();
     await page.click('button:has-text("Save preferences")');

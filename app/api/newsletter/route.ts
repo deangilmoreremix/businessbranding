@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (raw.length > 2000) return json({ error: 'Request too large.', code: 'TOO_LARGE' }, 413);
   let body: any;
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid request.', code: 'BAD_REQUEST' }, 400); }
-  if (typeof body?.website === 'string' && body.website.trim()) return json({ ok: true }, 200); // honeypot
+  if (typeof body?.website === 'string' && body.website.trim()) return json({ ok: true, stored: false }, 200); // honeypot: neutral reply, nothing stored
   const email = typeof body?.email === 'string' ? body.email.trim().slice(0, 320) : '';
   if (!EMAIL.test(email)) return json({ error: 'Enter a valid email address.', code: 'VALIDATION' }, 400);
   try {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if ((await countRecentRows('newsletter_subscriptions', new Date(Date.now() - 3600_000).toISOString(), globalHourlyCap('newsletter'))) >= globalHourlyCap('newsletter')) return json({ error: 'Sign-ups are very busy right now. Please try again later.', code: 'BUSY' }, 429);
     const added = await insertNewsletter({ email, client_hash: hash });
     if (added) await notifyOwner('newsletter', { email });
-    return json({ ok: true, alreadySubscribed: !added }, 200);
+    return json({ ok: true, stored: added, alreadySubscribed: !added }, 200);
   } catch {
     console.error('newsletter sign-up failed');
     return json({ error: 'Your address could not be saved. Please try again later.', code: 'NEWSLETTER_FAILED' }, 502);

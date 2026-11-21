@@ -1,6 +1,7 @@
 
 import { callTask } from './ai';
 import { authFetch } from '@/lib/client/auth-fetch';
+import { readJson, requireShape } from '@/lib/client/validate';
 
 import { toPercent } from '@/lib/format';
 
@@ -24,7 +25,7 @@ export interface BrandAnalysis {
   // Brand Pillars (20-point analysis)
   brandFactors: Array<{
     name: string;
-    score: number;
+    score: number | null;
     insights: string[];
     priority: 'high' | 'medium' | 'low';
     trend: 'improving' | 'declining' | 'stable';
@@ -187,7 +188,7 @@ export class BrandAnalyzer {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = requireShape(await readJson(response), ['brandFactors'], ['brandFactors']);
         console.log("Enhanced brand analysis completed successfully");
         return normalizeAnalysis(this.validateAndCleanAnalysis(data));
       }
@@ -199,7 +200,7 @@ export class BrandAnalyzer {
 
     try {
       // Structured Outputs (strict schema) guarantees the shape; no JSON repair or regex parsing needed.
-      const { data } = await callTask<BrandAnalysis>('brand_analysis', this.getAnalysisPrompt(businessIdea));
+      const { data } = await callTask<BrandAnalysis>('brand_analysis', this.getAnalysisPrompt(businessIdea), { shape: { keys: ['brandFactors'], arrays: ['brandFactors'] } });
       return normalizeAnalysis(this.validateAndCleanAnalysis(data));
     } catch (error) {
       console.error('Brand analysis failed:', error);
@@ -256,7 +257,8 @@ const num = (v: unknown): number | undefined => (typeof v === 'number' && Number
 /** Signed fraction (growth can be negative): |v| <= 1 is already a fraction, larger values are percentages (clamped to +-1000%). */
 const signedFraction = (v: unknown): number | null => { const n = num(v); if (n === undefined) return null; const f = Math.abs(n) <= 1 ? n : n / 100; return Math.max(-10, Math.min(10, f)); };
 const nullableFraction = (v: unknown): number | null => { const p = toPercent(v); return p === null ? null : p / 100; };
-const fraction = (v: unknown): number => { const p = toPercent(v); return p === null ? 0 : p / 100; };
+/** Fraction in [0, 1], or null when the value is missing/unparseable: NEVER 0 (a missing score must show "Not measured", not 0%). */
+const fraction = nullableFraction;
 
 /**
  * Make an analysis safe to render whatever scale or shape the model returned: scores are 0-100 (health, progress) or 0-1 (fit,
@@ -274,8 +276,8 @@ export function normalizeAnalysis<T extends Partial<BrandAnalysis>>(a: T): T {
   out.monitoringStatus = a.monitoringStatus === 'active' || a.monitoringStatus === 'paused' ? a.monitoringStatus : undefined;
   if (a.implementationStatus) {
     const st: any = a.implementationStatus;
-    const whole = (v: unknown) => Math.max(0, Math.round(num(v) ?? 0));
-    out.implementationStatus = { ...st, completed: whole(st.completed), inProgress: whole(st.inProgress), planned: whole(st.planned), total: whole(st.total), progressPercentage: Math.round(toPercent(st.progressPercentage) ?? 0) };
+    const whole = (v: unknown) => { const n = num(v); return n === undefined ? null : Math.max(0, Math.round(n)); };
+    out.implementationStatus = { ...st, completed: whole(st.completed), inProgress: whole(st.inProgress), planned: whole(st.planned), total: whole(st.total), progressPercentage: (() => { const p = toPercent(st.progressPercentage); return p === null ? null : Math.round(p); })() };
   }
   // The brand-analysis UI shows every rate/score below as a FRACTION (0.5 -> "50%"). Normalise them all here, once, so the UI never
   // has to guess the scale (it used to multiply a value that had already been converted to a percentage: "5000.0%").

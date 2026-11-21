@@ -7,7 +7,9 @@ export const globalHourlyCap = (kind: 'contact' | 'newsletter'): number => Numbe
 /** Salted hash of the client identity (the raw address is never stored). */
 export async function clientHash(request: Request): Promise<string> {
   const id = clientAddress(request.headers, { TRUST_PROXY_HEADERS: process.env.TRUST_PROXY_HEADERS, NETLIFY: process.env.NETLIFY });
-  const salt = process.env.KEY_ENCRYPTION_SECRET || 'public-forms';
+  const salt = process.env.KEY_ENCRYPTION_SECRET;
+  // No built-in fallback salt: a guessable salt would make the stored client hashes reversible for known addresses.
+  if (!salt) throw new Error('KEY_ENCRYPTION_SECRET is not set; the public forms refuse to store anything without a private salt.');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}|${id}`));
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }

@@ -1,0 +1,2 @@
+// expect: inert-button
+export const X = () => <TabsContent value="a"><Button size="sm">Create Dashboard</Button></TabsContent>;

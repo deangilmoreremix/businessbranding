@@ -1,0 +1,2 @@
+// expect: company-array
+export const trustedBy = [{ name: 'Acme' }, { name: 'Globex' }, { name: 'Initech' }];

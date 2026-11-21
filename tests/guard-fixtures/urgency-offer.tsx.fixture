@@ -1,0 +1,2 @@
+// expect: urgency-badge
+export const X = () => <p>Offer ends in 2 hours</p>;

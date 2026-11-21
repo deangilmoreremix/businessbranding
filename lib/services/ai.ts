@@ -1,5 +1,9 @@
 import type { TaskName } from '@/lib/ai-tasks';
 import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { isObj, readJson, requireShape } from '@/lib/client/validate';
+
+/** Required top-level keys (and which must be arrays) of a task's `data`; a reply that lacks them is "unreadable", never rendered. */
+export interface DataShape { keys: string[]; arrays?: string[] }
 
 /**
  * AI features (Responses API + Structured Outputs), usable from server and client code.
@@ -16,7 +20,7 @@ export interface AITaskResult<T> {
 }
 
 /** Run a named AI task and return schema-validated data. */
-export async function callTask<T = any>(task: TaskName, input: string, opts: { imageUrls?: string[] } = {}): Promise<AITaskResult<T>> {
+export async function callTask<T = any>(task: TaskName, input: string, opts: { imageUrls?: string[]; shape?: DataShape } = {}): Promise<AITaskResult<T>> {
   if (typeof window === 'undefined') {
     const { runTask } = await import('@/lib/ai-tasks');
     return runTask<T>(task, input, opts);
@@ -27,7 +31,10 @@ export async function callTask<T = any>(task: TaskName, input: string, opts: { i
     body: JSON.stringify({ task, input, imageUrls: opts.imageUrls })
   });
   if (!res.ok) throw await toApiError(res, 'AI request failed');
-  return res.json();
+  const body = requireShape<AITaskResult<T>>(await readJson(res), ['data']);
+  if (!isObj(body.data)) requireShape(null, []);
+  if (opts.shape) requireShape(body.data, opts.shape.keys, opts.shape.arrays);
+  return { data: body.data as T, citations: Array.isArray(body.citations) ? body.citations : [] };
 }
 
 const isImageRef = (u: unknown): u is string => typeof u === 'string' && /^(https?:|data:image\/)/.test(u);

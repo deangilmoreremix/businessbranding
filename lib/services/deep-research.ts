@@ -1,3 +1,4 @@
+import { readJson, UnreadableResponseError } from '@/lib/client/validate';
 import { authFetch } from '@/lib/client/auth-fetch';
 /**
  * Deep competitor/market research in OpenAI background mode (high reasoning effort + web search).
@@ -12,7 +13,9 @@ export async function startResearch(kind: ResearchKind, industry: string, brandD
     body: JSON.stringify({ kind, industry, brandDescription })
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to start research');
-  return res.json();
+  const body = await readJson(res);
+  if (typeof body?.id !== 'string') throw new UnreadableResponseError();
+  return body;
 }
 
 export async function pollResearch<T = any>(
@@ -23,9 +26,9 @@ export async function pollResearch<T = any>(
   const deadline = Date.now() + (opts.timeoutMs ?? 10 * 60_000);
   while (Date.now() < deadline) {
     const res = await authFetch(`/api/ai/research?kind=${kind}&id=${encodeURIComponent(id)}`);
-    const body = await res.json();
+    const body = await readJson(res);
     if (!res.ok) throw new Error(body.error || 'Research failed');
-    if (body.status === 'completed') return body;
+    if (body.status === 'completed') { if (!body.data || typeof body.data !== 'object') throw new UnreadableResponseError(); return body; }
     await new Promise((r) => setTimeout(r, opts.intervalMs ?? 3000));
   }
   throw new Error('Research timed out');

@@ -1,0 +1,2 @@
+// expect: urgency-badge
+export const X = () => <span>Updated 5 minutes ago</span>;

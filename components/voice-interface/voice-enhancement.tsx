@@ -20,6 +20,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { authFetch, toApiError } from '@/lib/client/auth-fetch';
+import { readJson } from '@/lib/client/validate';
+import { acceptAudioDataUrl } from '@/lib/client/audio-check';
+import { describeError } from '@/lib/client/ai-error';
 
 interface VoiceEnhancementProps {
   onEnhancementComplete?: (enhancedAudio: Blob) => void;
@@ -56,7 +59,8 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
 
       if (!response.ok) throw await toApiError(response, 'Enhancement failed');
 
-      const { audioUrl } = await response.json();
+      const body = await readJson(response);
+      const audioUrl = await acceptAudioDataUrl(body?.audioUrl);
       setEnhancedAudioUrl(audioUrl);
       
       if (onEnhancementComplete) {
@@ -66,7 +70,7 @@ export function VoiceEnhancement({ onEnhancementComplete }: VoiceEnhancementProp
       }
 
     } catch (e) {
-      setError(e instanceof Error ? `${e.message}. You can try again.` : 'Enhancement failed. You can try again.');
+      setError(`${describeError(e).message} You can try again.`);
     } finally {
       setEnhancing(false);
     }

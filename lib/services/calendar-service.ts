@@ -140,7 +140,7 @@ function shareResource(a: CalendarEvent, b: CalendarEvent): boolean {
 // ---------------------------------------------------------------------------------------------
 // iCalendar (RFC 5545)
 // ---------------------------------------------------------------------------------------------
-const icsEscape = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsEscape = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 
 /** Fold lines longer than 75 octets (continuation lines start with a space). */
 export function foldLine(line: string): string {
@@ -202,31 +202,29 @@ export function downloadICalendar(events: CalendarEvent[], filename = 'implement
 }
 
 // ---------------------------------------------------------------------------------------------
-// AI-backed generation with local fallback
+// AI-backed generation (no fallback: failures are thrown)
 // ---------------------------------------------------------------------------------------------
 export async function generateSmartSchedule(options: SmartScheduleOptions): Promise<CalendarEvent[]> {
-  {
-    const today = new Date().toISOString().slice(0, 10);
-    const { data } = await callTask<{ events: RawScheduleEvent[] }>(
-      'smart_schedule',
-      `Create an implementation schedule starting ${today} (UTC) over ${options.timeline}.\nBusiness goals: ${options.businessGoals.join('; ')}\nTeam size: ${options.teamSize}\nWorking hours: ${(options.preferences?.workingHours ?? ['09:00', '17:00']).join(' to ')} (${options.preferences?.timezone ?? 'UTC'})\nDo not schedule on: ${(options.preferences?.excludedDays ?? []).join(', ') || 'no excluded days'}\nUse ISO 8601 UTC timestamps. Priorities are high, medium or low.`
-    );
-    const events = normalizeSchedule(data.events, options);
-    if (!events.length) throw new Error('The AI returned no schedule events. Try again.');
-    return resolveOverlaps(events, options.preferences?.excludedDays);
-  }
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await callTask<{ events: RawScheduleEvent[] }>(
+    'smart_schedule',
+    `Create an implementation schedule starting ${today} (UTC) over ${options.timeline}.\nBusiness goals: ${options.businessGoals.join('; ')}\nTeam size: ${options.teamSize}\nWorking hours: ${(options.preferences?.workingHours ?? ['09:00', '17:00']).join(' to ')} (${options.preferences?.timezone ?? 'UTC'})\nDo not schedule on: ${(options.preferences?.excludedDays ?? []).join(', ') || 'no excluded days'}\nUse ISO 8601 UTC timestamps. Priorities are high, medium or low.`,
+    { shape: { keys: ['events'], arrays: ['events'] } }
+  );
+  const events = normalizeSchedule(data.events, options);
+  if (!events.length) throw new Error('The AI returned no schedule events. Try again.');
+  return resolveOverlaps(events, options.preferences?.excludedDays);
 }
 
 export async function optimizeSchedule(events: CalendarEvent[], excludedDays: string[] = []): Promise<CalendarEvent[]> {
   if (!events.length) return [];
-  {
-    const payload = events.map((e) => ({ id: e.id, title: e.title, description: e.description, start: new Date(e.start).toISOString(), end: new Date(e.end).toISOString(), priority: e.priority, category: e.category, metadata: { resources: e.metadata?.resources ?? [], objectives: e.metadata?.objectives ?? [] } }));
-    const { data } = await callTask<{ events: RawScheduleEvent[] }>(
-      'schedule_optimization',
-      `Optimize this schedule: resolve conflicts, balance workload, put high-priority work first and keep dependencies in order. Keep every event (same ids) and only change times.\n${JSON.stringify(payload)}`
-    );
-    const optimized = normalizeSchedule(data.events, { preferences: { excludedDays } });
-    if (!optimized.length) throw new Error('The AI returned no schedule events. Try again.');
-    return resolveOverlaps(optimized, excludedDays);
-  }
+  const payload = events.map((e) => ({ id: e.id, title: e.title, description: e.description, start: new Date(e.start).toISOString(), end: new Date(e.end).toISOString(), priority: e.priority, category: e.category, metadata: { resources: e.metadata?.resources ?? [], objectives: e.metadata?.objectives ?? [] } }));
+  const { data } = await callTask<{ events: RawScheduleEvent[] }>(
+    'schedule_optimization',
+    `Optimize this schedule: resolve conflicts, balance workload, put high-priority work first and keep dependencies in order. Keep every event (same ids) and only change times.\n${JSON.stringify(payload)}`,
+    { shape: { keys: ['events'], arrays: ['events'] } }
+  );
+  const optimized = normalizeSchedule(data.events, { preferences: { excludedDays } });
+  if (!optimized.length) throw new Error('The AI returned no schedule events. Try again.');
+  return resolveOverlaps(optimized, excludedDays);
 }

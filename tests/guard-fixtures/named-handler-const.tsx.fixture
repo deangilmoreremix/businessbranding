@@ -1,0 +1,3 @@
+// expect: fake-success-handler
+const save = () => { setSaved(true); toast('Saved'); };
+export const X = () => <Button onClick={save}>Save</Button>;

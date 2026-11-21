@@ -25,6 +25,11 @@ export function formatDate(value: unknown, placeholder = '—'): string {
 }
 
 /** A FRACTION shown as a percentage: 0.5 -> "50.0%". Non-numbers give the placeholder. (Inputs are normalised to fractions upstream.) */
+/** Progress-bar value (0-100) from a fraction; an empty bar when missing. Always pair it with a "Not measured" label. */
+export function barValue(v: unknown, scale = 100): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(100, Math.max(0, v * scale)) : 0;
+}
+
 export function formatFraction(value: unknown, digits = 1, placeholder = '—'): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(digits)}%` : placeholder;
 }

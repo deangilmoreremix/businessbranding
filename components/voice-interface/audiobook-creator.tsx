@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ElapsedStatus } from '@/components/elapsed-status';
+import { acceptAudio } from '@/lib/client/audio-check';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { AudioVisualizer } from './audio-visualizer';
@@ -90,15 +92,15 @@ export function AudiobookCreator() {
       });
 
       if (!response.ok) throw await toApiError(response, 'Audiobook generation failed');
+      const blob = await acceptAudio(response);
 
       const durations = (response.headers.get('X-Segment-Durations') || '').split(',').filter(Boolean).map(Number);
       // Narration reads each chapter title before its text; mirror that in the captions
       setCaptionSource(chapters.map((c, i) => ({ text: `${c.title ? `${c.title}. ` : ''}${c.text}`, durationMs: durations[i] ?? 0 })));
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
     } catch (e) {
-      setError(e instanceof Error ? `${e.message}. You can try again.` : 'Audiobook generation failed. You can try again.');
+      setError(`${describeError(e).message} You can try again.`);
     } finally {
       setGenerating(false);
     }

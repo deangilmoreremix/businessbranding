@@ -182,26 +182,7 @@ async function scrapeWebsiteRaw(url: string) {
     }
   } catch (error) {
     console.error('Error scraping website:', error);
-    // Return empty data structure on error
-    return {
-      url,
-      title: '',
-      description: '',
-      socialLinks: {
-        facebook: '',
-        twitter: '',
-        instagram: '',
-        linkedin: ''
-      },
-      images: {
-        logos: [],
-        banners: [],
-        products: [],
-        team: [],
-        all: []
-      },
-      meta: {}
-    };
+    throw error; // callers show the failure; no empty "result" is invented
   }
 }
 

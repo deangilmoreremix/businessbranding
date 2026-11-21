@@ -1,0 +1,2 @@
+// expect: catch-default-return
+export async function load() { try { return await get(); } catch (e) { return []; } }

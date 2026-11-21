@@ -63,7 +63,7 @@ describe('iCalendar export', () => {
     expect(ics).toContain('PRIORITY:1');
   });
   it('escapes special characters', () => {
-    expect(ics).toContain('SUMMARY:Plan\; review\\, now');
+    expect(ics).toContain('SUMMARY:Plan\\; review\\, now');
     expect(ics).toContain('Line one\\nLine two');
   });
   it('folds long lines at 75 octets', () => {
@@ -99,5 +99,14 @@ describe('implementation plan helpers', () => {
     expect(events.some((e) => e.title.startsWith('Milestone:'))).toBe(true);
     expect(events.every((e) => ![0, 6].includes(e.start.getUTCDay()))).toBe(true);
     for (let i = 1; i < events.length; i++) expect(events[i].start.getTime()).toBeGreaterThanOrEqual(events[i - 1].start.getTime());
+  });
+});
+
+describe('iCalendar escaping', () => {
+  it('escapes semicolons, commas, backslashes and newlines in text values (RFC 5545)', () => {
+    const ics = toICalendar([{ id: 'e1', title: 'A; B, C', description: 'x;y\\z\nnext', start: new Date('2026-01-05T09:00:00Z'), end: new Date('2026-01-05T10:00:00Z'), priority: 'high', category: 'c', metadata: { resources: [], objectives: [] } } as any]);
+    expect(ics).toContain('SUMMARY:A\\; B\\, C');
+    expect(ics).toContain('x\\;y\\\\z\\nnext');
+    expect(ics).not.toMatch(/SUMMARY:[^\r\n]*[^\\];/);
   });
 });

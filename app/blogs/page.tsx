@@ -19,9 +19,14 @@ export default function BlogsPage() {
 
   useEffect(() => {
     fetch('/api/blog')
-      .then((r) => r.json())
-      .then((d) => { setPosts(d.posts ?? []); if (d.error) setError(d.error); })
-      .catch(() => { setPosts([]); setError('Could not load articles right now.'); });
+      .then(async (r) => (await r.json().catch(() => null)))
+      .then((d) => {
+        const list = Array.isArray(d?.posts) ? d.posts.filter((p: any) => p && typeof p.slug === 'string' && typeof p.title === 'string') : null;
+        if (!list) throw new Error('unreadable');
+        setPosts(list.map((p: any) => ({ ...p, excerpt: typeof p.excerpt === 'string' ? p.excerpt : '' })));
+        if (d.error) setError(String(d.error));
+      })
+      .catch(() => { setPosts([]); setError('The articles could not be loaded (unreadable response). Reload to try again.'); });
   }, []);
 
   const shown = (posts ?? []).filter((p) => `${p.title} ${p.excerpt}`.toLowerCase().includes(term.toLowerCase()));

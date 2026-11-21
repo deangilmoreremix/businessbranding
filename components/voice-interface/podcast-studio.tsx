@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ElapsedStatus } from '@/components/elapsed-status';
+import { describeError } from '@/lib/client/ai-error';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { 
@@ -132,7 +133,7 @@ export function PodcastStudio() {
       }));
 
     } catch (e) {
-      setError(e instanceof Error ? `Podcast generation failed: ${e.message}. You can try again.` : 'Podcast generation failed. You can try again.');
+      setError(`${describeError(e).message} You can try again.`);
     } finally {
       setGenerating(false);
     }

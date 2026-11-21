@@ -1,0 +1,2 @@
+// expect: timer-only-handler
+export const X = () => <Button onClick={() => { setLoading(true); setTimeout(() => { setLoading(false); setResult({ score: 91 }); }, 1500); }}>Run</Button>;

@@ -15,7 +15,7 @@ export default function BlogPostPage() {
   useEffect(() => {
     fetch(`/api/blog/${encodeURIComponent(slug)}`)
       .then(async (r) => { if (!r.ok) throw new Error('missing'); return r.json(); })
-      .then((d) => { setPost(d.post); setState('ready'); })
+      .then((d) => { if (!d?.post || typeof d.post.title !== 'string' || typeof d.post.content !== 'string') throw new Error('unreadable'); setPost(d.post); setState('ready'); })
       .catch(() => setState('missing'));
   }, [slug]);
 

@@ -1,0 +1,2 @@
+// expect: numeric-data-array
+export const tiles = [{ title: 'Customers', n: 12400 }, { title: 'Reach', count: 5200 }];

@@ -1,0 +1,3 @@
+// expect: fake-success-handler
+function done() { toast.success('Exported!'); }
+export const X = () => <Button onClick={done}>Export</Button>;

@@ -1,0 +1,2 @@
+// expect: urgency-badge
+export const X = () => <span>Live: 120 users active</span>;

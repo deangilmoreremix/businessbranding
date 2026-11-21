@@ -71,10 +71,10 @@ export default function VisualIdentityPage() {
         </div>
 
         <LibraryStatTiles loading={loading} tiles={[
-          { title: 'Total assets', value: s?.total ?? 0, icon: ImageIcon, hint: s && s.total === 0 ? 'Nothing saved yet' : 'On this device' },
-          { title: 'Created today', value: s?.generatedToday ?? 0, icon: Sparkles },
-          { title: 'Storage used', value: formatBytes(s?.storageBytes ?? 0), icon: Download, hint: 'Browser storage' },
-          { title: 'Saved analyses', value: s?.analyses ?? 0, icon: CheckCircle }
+          { title: 'Total assets', value: s ? s.total : '—', icon: ImageIcon, hint: s && s.total === 0 ? 'Nothing saved yet' : 'On this device' },
+          { title: 'Created today', value: s ? s.generatedToday : '—', icon: Sparkles },
+          { title: 'Storage used', value: s ? formatBytes(s.storageBytes) : '—', icon: Download, hint: 'Browser storage' },
+          { title: 'Saved analyses', value: s ? s.analyses : '—', icon: CheckCircle }
         ]} />
 
         <Card className="p-6 mb-8" id="asset-studio">

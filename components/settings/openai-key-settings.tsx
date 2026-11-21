@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, KeyRound, Loader2, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { describeError } from '@/lib/client/ai-error';
+import { readJson, requireShape } from '@/lib/client/validate';
 import { authFetch, toApiError } from '@/lib/client/auth-fetch';
 
 interface KeyStatus { configured: boolean; last4: string | null; updatedAt: string | null }
@@ -40,15 +42,15 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
   const load = useCallback(async () => {
     try {
       const [k, m] = await Promise.all([authFetch('/api/settings/openai-key'), authFetch('/api/settings/models')]);
-      if (k.ok) setStatus(await k.json());
+      if (k.ok) setStatus(requireShape<KeyStatus>(await readJson(k), ['configured']));
       else setMessage({ kind: 'error', text: (await toApiError(k, 'Could not load key status')).message });
       if (m.ok) {
-        const data: ModelSettings = await m.json();
+        const data = requireShape<ModelSettings>(await readJson(m), ['defaults', 'overrides']);
         setModels(data);
         setDraftModels(data.overrides);
       }
-    } catch {
-      setMessage({ kind: 'error', text: 'Could not load your settings.' });
+    } catch (e) {
+      setMessage({ kind: 'error', text: describeError(e).message });
     }
   }, []);
 
@@ -61,12 +63,12 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
     try {
       const res = await authFetch('/api/settings/openai-key', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: input }) });
       if (!res.ok) throw await toApiError(res, 'Could not save the key');
-      const data = await res.json();
+      const data = requireShape<KeyStatus & { warning?: string }>(await readJson(res), ['configured']);
       setStatus(data);
       setAccess(null);
       setMessage({ kind: 'ok', text: data.warning === 'KEY_RESTRICTED' ? 'Key saved. OpenAI would not list models for it, so access could not be checked.' : 'Key validated and saved.' });
     } catch (e: any) {
-      setMessage({ kind: 'error', text: e.message });
+      setMessage({ kind: 'error', text: describeError(e).message });
     } finally {
       setInput(''); // never keep the key in the page after the request
       setBusy(null);
@@ -79,11 +81,11 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
     try {
       const res = await authFetch('/api/settings/openai-key', { method: 'POST' });
       if (!res.ok) throw await toApiError(res, 'Test failed');
-      const data = await res.json();
+      const data = requireShape<any>(await readJson(res), ['status']);
       setAccess(data.access);
       setMessage(data.status === 'valid' ? { kind: 'ok', text: 'Your key works.' } : data.status === 'invalid' ? { kind: 'error', text: 'OpenAI no longer accepts this key. Replace it below.' } : { kind: 'error', text: 'OpenAI could not confirm this key right now.' });
     } catch (e: any) {
-      setMessage({ kind: 'error', text: e.message });
+      setMessage({ kind: 'error', text: describeError(e).message });
     } finally {
       setBusy(null);
     }
@@ -96,11 +98,11 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
     try {
       const res = await authFetch('/api/settings/openai-key', { method: 'DELETE' });
       if (!res.ok) throw await toApiError(res, 'Could not remove the key');
-      setStatus(await res.json());
+      setStatus(requireShape<KeyStatus>(await readJson(res), ['configured']));
       setAccess(null);
       setMessage({ kind: 'ok', text: 'Key removed.' });
     } catch (e: any) {
-      setMessage({ kind: 'error', text: e.message });
+      setMessage({ kind: 'error', text: describeError(e).message });
     } finally {
       setBusy(null);
     }
@@ -114,12 +116,12 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
       for (const slot of Object.keys(SLOT_LABELS)) body[slot] = (draftModels[slot] ?? '').trim();
       const res = await authFetch('/api/settings/models', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw await toApiError(res, 'Could not save models');
-      const data: ModelSettings = await res.json();
+      const data = requireShape<ModelSettings>(await readJson(res), ['defaults', 'overrides']);
       setModels(data);
       setDraftModels(data.overrides);
       setMessage({ kind: 'ok', text: 'Model settings saved.' });
     } catch (e: any) {
-      setMessage({ kind: 'error', text: e.message });
+      setMessage({ kind: 'error', text: describeError(e).message });
     } finally {
       setSavingModels(false);
     }
@@ -162,7 +164,7 @@ export function OpenAIKeySettings({ onStatus }: { onStatus?: (configured: boolea
           </div>
         )}
 
-        {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm ${message.kind === 'error' ? 'text-red-500' : 'text-green-600'}`} data-testid="key-message">{message.text}</p>}
+        {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm ${message.kind === 'error' ? 'text-red-500' : 'text-green-600'}`} data-testid="key-message">{message.text}{message.kind === 'error' && !status && <> <button type="button" className="underline" onClick={() => { setMessage(null); load(); }}>Try Again</button></>}</p>}
 
         {access && (
           <ul className="text-sm space-y-1" data-testid="model-access">

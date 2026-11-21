@@ -53,8 +53,9 @@ export function useVoiceInput(onText: (text: string) => void) {
             form.append('file', new Blob(chunks.current, { type: rec.mimeType || 'audio/webm' }), 'voice.webm');
             const res = await authFetch('/api/voice/transcribe', { method: 'POST', body: form });
             if (!res.ok) throw new Error(String(res.status));
-            const { text } = await res.json();
-            if (text) onText(text.trim());
+            const body = await res.json();
+            if (typeof body?.text !== 'string') throw new Error('unreadable');
+            if (body.text) onText(body.text.trim());
           } catch {
             setError('Transcription is unavailable right now; tap the mic again to use your browser\'s speech recognition.');
             setEngine('browser'); // next press uses the fallback

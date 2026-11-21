@@ -55,10 +55,10 @@ export default function DashboardPage() {
         </div>
 
         <LibraryStatTiles loading={loading} tiles={[
-          { title: 'Saved audio', value: stats?.audio ?? 0, icon: FileAudio, hint: stats && stats.audio === 0 ? 'Nothing saved yet' : 'On this device' },
-          { title: 'Saved images', value: stats?.images ?? 0, icon: ImageIcon },
+          { title: 'Saved audio', value: stats ? stats.audio : '—', icon: FileAudio, hint: stats && stats.audio === 0 ? 'Nothing saved yet' : 'On this device' },
+          { title: 'Saved images', value: stats ? stats.images : '—', icon: ImageIcon },
           { title: 'Latest brand health', value: health === null ? '—' : `${Math.round(health)}%`, icon: Brain, hint: latest ? `From ${latest.businessName || 'your last analysis'}` : 'Run an analysis to see it' },
-          { title: 'Storage used', value: formatBytes(stats?.storageBytes ?? 0), icon: HardDrive, hint: 'Browser storage' }
+          { title: 'Storage used', value: stats ? formatBytes(stats.storageBytes) : '—', icon: HardDrive, hint: 'Browser storage' }
         ]} />
 
         <Card className="p-6" data-testid="saved-analyses">

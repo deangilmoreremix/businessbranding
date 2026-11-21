@@ -34,12 +34,15 @@ export async function saveGeneratedAudio(input: { title: string; type: 'podcast'
 
 /** Duration of a PCM WAV blob in seconds (0 when it is not a WAV). */
 export async function wavDurationSeconds(blob: Blob): Promise<number> {
+  let seconds = 0; // an unreadable blob has an unknown length, counted as 0 s in the totals (never an estimate)
   try {
     const head = new DataView(await blob.slice(0, 44).arrayBuffer());
-    if (head.byteLength < 44 || head.getUint32(0, false) !== 0x52494646) return 0; // RIFF
-    const byteRate = head.getUint32(28, true);
-    return byteRate > 0 ? Math.max(0, (blob.size - 44) / byteRate) : 0;
+    if (head.byteLength >= 44 && head.getUint32(0, false) === 0x52494646) { // RIFF
+      const byteRate = head.getUint32(28, true);
+      if (byteRate > 0) seconds = Math.max(0, (blob.size - 44) / byteRate);
+    }
   } catch {
-    return 0;
+    /* leave 0 */
   }
+  return seconds;
 }

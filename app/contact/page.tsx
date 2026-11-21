@@ -14,6 +14,7 @@ export default function ContactPage() {
   const [errors, setErrors] = useState<ContactErrors>({});
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [serverError, setServerError] = useState('');
+  const [neutral, setNeutral] = useState(false);
 
   const set = (k: keyof ContactForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -27,6 +28,8 @@ export default function ContactPage() {
     try {
       const res = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Your message could not be sent.');
+      const reply = await res.json().catch(() => ({}));
+      setNeutral(reply.stored === false);
       setState('sent');
     } catch (err: any) {
       setServerError(err.message || 'Your message could not be sent.');
@@ -45,7 +48,7 @@ export default function ContactPage() {
           {state === 'sent' ? (
             <div role="status" data-testid="contact-done" className="flex items-start gap-3">
               <Mail className="h-6 w-6 text-green-500 mt-0.5" aria-hidden />
-              <p className="text-sm text-muted-foreground">Your message was saved. It is not emailed automatically, so a reply is not guaranteed and may take time.</p>
+              <p className="text-sm text-muted-foreground">{neutral ? 'Thanks.' : 'Your message was saved. It is not emailed automatically, so a reply is not guaranteed and may take time.'}</p>
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4" noValidate>

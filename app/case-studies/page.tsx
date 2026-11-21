@@ -16,7 +16,7 @@ export default function CaseStudiesPage() {
   useEffect(() => {
     fetch('/api/case-studies')
       .then(async (r) => { if (!r.ok) throw new Error('failed'); return r.json(); })
-      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .then((d) => { if (!Array.isArray(d)) throw new Error('unreadable'); setItems(d.filter((c) => c && typeof c.id === 'string' && typeof c.title === 'string')); })
       .catch(() => { setItems([]); setError('Could not load case studies right now.'); });
   }, []);
 
