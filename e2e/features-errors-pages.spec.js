@@ -46,7 +46,8 @@ const PAGES = ['/', '/about', '/agency', '/analytics', '/blogs', '/brand-strateg
     await page.goto(base + '/settings#ai', { waitUntil: 'networkidle' });
     await page.fill('#openai-key', key);
     await page.click('button:has-text("Validate & save")');
-    await page.waitForSelector('[data-testid=key-masked]', { timeout: 20000 });
+    // wait for THIS key to be the saved one (the previous key's masked value is still on screen right after the click)
+    await page.waitForFunction((last4) => (document.querySelector('[data-testid=key-masked]')?.textContent || '').includes(last4), key.slice(-4), { timeout: 20000 });
   };
   await section('quota', async () => {
     await useKey('sk-quota-0123456789abcdefgh');
