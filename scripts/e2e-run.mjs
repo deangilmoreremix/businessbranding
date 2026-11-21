@@ -3,7 +3,7 @@
  * Runs Playwright specs against a PRODUCTION build with fresh mock servers for each spec.
  *   npm run e2e:build            (once: bakes NEXT_PUBLIC_SUPABASE_URL=<mock> into the client bundle)
  *   npm run e2e                  (all specs)  |  npm run e2e:auth     (one spec)
- * Ports are configurable: E2E_PORT (app, 5240), E2E_SUPABASE_PORT (5998), E2E_OPENAI_PORT (5999); E2E_OUT = download/screenshot folder.
+ * Ports: the app and mock OpenAI use free ports found at start (override with E2E_PORT / E2E_OPENAI_PORT); the mock Supabase port is baked into the build (E2E_SUPABASE_PORT, default 5998); E2E_OUT = download/screenshot folder.
  * Needs the Chromium browsers installed for the pinned Playwright (npx playwright install chromium).
  */
 import { spawn } from 'node:child_process';
@@ -13,9 +13,15 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const APP = Number(process.env.E2E_PORT || 5240);
+import net from 'node:net';
+/** A free TCP port (asks the OS), so parallel runs do not collide. */
+const freePort = () => new Promise((resolve, reject) => { const s = net.createServer(); s.once('error', reject); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); }); });
+const isFree = (port) => new Promise((resolve) => { const s = net.createServer(); s.once('error', () => resolve(false)); s.listen(port, '127.0.0.1', () => s.close(() => resolve(true))); });
+// The mock Supabase port is baked into the client bundle by `npm run e2e:build`, so it stays fixed (E2E_SUPABASE_PORT, default 5998) and a busy port is reported clearly.
 const SB = Number(process.env.E2E_SUPABASE_PORT || 5998);
-const OAI = Number(process.env.E2E_OPENAI_PORT || 5999);
+if (!(await isFree(SB))) { console.error(`Port ${SB} (mock Supabase) is in use. Stop the other run, or rebuild with E2E_SUPABASE_PORT=<free port> npm run e2e:build and run with the same variable.`); process.exit(3); }
+const APP = Number(process.env.E2E_PORT || await freePort());
+const OAI = Number(process.env.E2E_OPENAI_PORT || await freePort());
 const specs = process.argv.slice(2);
 // unique per run: never a shared, predictable /tmp name
 const OUT = process.env.E2E_OUT || mkdtempSync(join(tmpdir(), 'businessbranding-e2e-'));

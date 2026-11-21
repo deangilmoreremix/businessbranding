@@ -53,6 +53,7 @@ describe('pillar levels', () => {
     expect(r.sorted.map((p) => p.name)).toEqual(['A', 'B']);
     expect(r.missing).toEqual(['C']);
     expect(r.average).toBeCloseTo(0.6);
-    expect(splitPillars([], ['A']).average).toBe(0);
+    expect(splitPillars([], ['A']).average).toBeNull(); // no data is not 0%
+    expect(splitPillars([{ name: 'A', score: null }], ['A']).missing).toEqual(['A']);
   });
 });

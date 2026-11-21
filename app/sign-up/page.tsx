@@ -37,7 +37,6 @@ function SignUpForm() {
       } else {
         // signed in immediately: a brand-new account has no key yet -> the "Add your OpenAI key" step
         router.replace(postLoginDestination(false, next));
-        router.refresh();
       }
     } catch (err) {
       setError(friendlyAuthError(err));

@@ -36,7 +36,7 @@ describe('normalizeAnalysis handles odd model output', () => {
     expect(n.healthScore).toBe(50);
     expect(n.marketFit).toBeCloseTo(0.78);
     expect(n.uniquenessScore).toBeCloseTo(0.62);
-    expect(n.implementationStatus).toMatchObject({ completed: 3, inProgress: 1, planned: 0, total: 0, progressPercentage: 50 });
+    expect(n.implementationStatus).toMatchObject({ completed: 3, inProgress: 1, planned: 0, total: null, progressPercentage: 50 });
     expect(n.growthTrajectory).toMatchObject({ current: 0.4, projected: 0.55 });
   });
   it('drops an invalid timestamp and a bogus "error" monitoring status', () => {

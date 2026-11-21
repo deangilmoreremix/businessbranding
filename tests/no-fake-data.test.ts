@@ -31,7 +31,8 @@ const ALLOW: Record<string, Record<string, string>> = {
 const globToRe = (g: string) => new RegExp('^' + g.replace(/[.+^$()|\\]/g, '\\$&').replace(/\{([^}]+)\}/g, (_, a) => '(' + a.split(',').join('|') + ')').replace(/\*\*/g, '§§').replace(/\*/g, '[^/]*').replace(/§§/g, '.*') + '$');
 const allowed = (file: string, rule: string) => Object.entries(ALLOW).some(([g, rules]) => globToRe(g).test(file) && (rules[rule] || rules['*']));
 
-const scanAll = (): Finding[] => FILES.flatMap((f) => (f.endsWith('.json') ? scanJson(f, readFileSync(f, 'utf8')) : scanSource(f, readFileSync(f, 'utf8'), { docs: DOCS(f) }))).filter((x) => !allowed(x.file, x.rule));
+const skipAll = (f: string) => Object.entries(ALLOW).some(([g, rules]) => rules['*'] && globToRe(g).test(f)); // wholly exempt files (vendored/test doubles) are not even parsed
+const scanAll = (): Finding[] => FILES.filter((f) => !skipAll(f)).flatMap((f) => (f.endsWith('.json') ? scanJson(f, readFileSync(f, 'utf8')) : scanSource(f, readFileSync(f, 'utf8'), { docs: DOCS(f) }))).filter((x) => !allowed(x.file, x.rule));
 
 describe('no fabricated data or fake interactivity (whole app)', () => {
   it('scans the whole tree, including supabase/functions and .js/.jsx/.mjs', () => {

@@ -15,7 +15,7 @@ The per-client limit needs a trustworthy client address. The app resolves it lik
 3. otherwise the **rightmost** `X-Forwarded-For` hop (the one your own proxy appended);
 4. otherwise a fingerprint of the request headers.
 
-If the app is exposed directly (no proxy that appends to `X-Forwarded-For`), a client can send a different single `X-Forwarded-For` value per request
+`KEY_ENCRYPTION_SECRET` must be set (it also salts the stored client hashes; without it the forms refuse to store anything). If the app is exposed directly (no proxy that appends to `X-Forwarded-For`), a client can send a different single `X-Forwarded-For` value per request
 and get a fresh per-client bucket each time. Run it behind a proxy/CDN that appends the real peer address, and rely on the global cap as the backstop.
 
 ---

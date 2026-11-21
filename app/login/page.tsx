@@ -42,7 +42,6 @@ function LoginForm() {
       hasKey = false;
     }
     router.replace(postLoginDestination(hasKey, next));
-    router.refresh();
   };
 
   const q = params.get('next') ? `?next=${encodeURIComponent(next)}` : '';

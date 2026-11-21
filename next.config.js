@@ -3,7 +3,6 @@ const withMDX = require('@next/mdx')();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   // next/image is not used and the optimizer is off, so no remote image host is configured.
   images: { unoptimized: true },
   experimental: {
@@ -13,9 +12,9 @@ const nextConfig = {
       'lucide-react',
       'framer-motion'
     ],
-    mdxRs: true,
-    serverComponentsExternalPackages: ['ws']
+    mdxRs: true
   },
+  serverExternalPackages: ['ws'],
   async redirects() {
     return [
       { source: '/docs/gemini-features', destination: '/docs/ai-features', permanent: true },

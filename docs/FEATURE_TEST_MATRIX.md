@@ -251,6 +251,21 @@ never a result. Proven by `e2e/failures.spec.js` (5xx + edge down + no key) and 
   `lodash`/`lodash-es`, `d3-color`, `glob`/`minimatch`/`brace-expansion`/`picomatch`/`cross-spawn`/`yaml`, `postcss-selector-parser`, `moment`: build-time or transitive
   (nivo, tailwind, eslint/mdx toolchains), no untrusted input reaches them at runtime; `@supabase/ssr`/`cookie` (low): upgrading `@supabase/ssr` past 0.1 changes the cookie API and was not attempted. Next 15 was not attempted (React 19 / async request APIs).
 
+## Round 6: malformed replies, honest zeros, guard bypasses
+
+- **Reply validation:** `callTask` parses with `readJson` and requires `{ data: {...} }` plus per-task required keys/arrays; plans, schedules, analyses, voice analysis, deep research, settings (`/api/settings/profile`, key, models), usage, blogs and case studies are validated before use. A bad reply becomes "The service returned an unreadable response. Try again." with Try Again (never "Unexpected token '<'", "Cannot read properties of undefined", "undefined undefined", or a raw "down"). `describeError` no longer reports an empty/`{}` reply as "Connection problem".
+- **No white screens:** every page is wrapped by `PageBoundary` (recoverable "This section could not be displayed" + Try Again), plus `app/error.tsx` and `app/global-error.tsx`. Result components are tolerant (`bestPractices: {}`, `performanceMetrics: {}`, `implementationStatus: {}` render "Not measured"). `e2e/malformed.spec.js` drives `{}`, `{"data":{}}`, `{"data":null}`, HTML and truncated JSON through planning, brand analysis, brand strategy, workflows, settings, blogs, case studies, analytics and the voice studios.
+- **No invented zeros:** `fraction()`/`whole()`/`progressPercentage` return `null` for missing values (never 0); the pillar breakdown no longer shows "0% average across N pillars"; unmeasured bars show "Not measured"; library tiles show "—" until loaded.
+- **Audio acceptance:** podcast, audiobook, enhancement, recorder and workflow voice accept a reply only if `Content-Type: audio/*` AND the bytes have an audio header (RIFF/WAVE, ID3/MP3, Ogg, FLAC, WebM, MP4); otherwise "unreadable", no player, nothing saved.
+- **Settings race:** toggles and profile inputs are disabled until the profile has loaded and state is seeded once (the late GET can no longer overwrite a click); the spec waits for that.
+- **Dead buttons found by the tightened guard** (the Tab*/Trigger exemption is gone): "Create Dashboard" is now "Suggest KPIs" (real task), the competitor "Visit" button was removed; the index-derived "Leader/Challenger" badges now use the analysis's `marketPosition`; `undefined%` market shares print "Not measured"; model self-assessments are labelled "AI estimate"; dark-mode contrast of the recommendation boxes fixed.
+- **Exports:** one convention for competitor market share (percent); no `undefined` text; the PDF is plain text lines (Helvetica, Latin-1) and says so when other scripts are present.
+- **iCalendar:** `;` is now escaped as `\;` (the previous replacement was a no-op); tested with a semicolon.
+- **Forms:** honeypot returns a neutral "Thanks."; `KEY_ENCRYPTION_SECRET` is required (no fallback salt).
+- **Dependencies:** Next.js 15.5 + React 19.1 (Next vendors its own React; `react`/`react-dom` and `react-konva` 19.0 are pinned to match it; framer-motion 12); `npm audit --omit=dev`: critical 0 (was 1), 15 findings remain (high: build-time/transitive `postcss` in next, `lodash`, `d3-color`, `glob`/`minimatch`/`brace-expansion`/`picomatch`/`cross-spawn`; low: `@supabase/ssr`/`cookie`). Dead `lib/utils/progress-tracker.ts`, duplicate `sleep`, `lib/supabase/server.ts` removed.
+- **Ports:** the e2e runner, `verify-ai.sh` and `edge-test.mjs` pick free ports for the app and mock OpenAI (the mock Supabase port is baked into the client bundle: `E2E_SUPABASE_PORT`, default 5998; a busy port is reported).
+- **Guard:** see `docs/FAKE_DATA_AUDIT.md` (a static guard cannot prove absence; the failure-path e2e and human review are the main defence).
+
 ## Known gaps (stated plainly)
 
 - See the NOT TESTABLE / NOT TESTED table above; nothing there is hidden in the totals.

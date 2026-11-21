@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { 
   Brain, 
   Github, 
@@ -62,7 +62,7 @@ export function Footer() {
     ].filter((l): l is { name: string; href: string; icon: typeof Twitter } => !!l.href)
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -73,7 +73,7 @@ export function Footer() {
     }
   };
 
-  const childVariants = {
+  const childVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { 
       opacity: 1, 

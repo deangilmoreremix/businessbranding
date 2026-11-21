@@ -74,9 +74,24 @@ including in exported reports.
 
 ## Guard (`tests/no-fake-data.test.ts`, rules in `tests/guard/scanner.ts`)
 
-Scans `app/`, `components/`, `lib/`, `supabase/functions/` (`.ts .tsx .js .jsx .mjs .mdx`). Content rules run on JSX text (children re-joined, so `{98}%` and
-numbers split over lines are seen), string and template literals: percentages, prices, `125.8K`, `12 000`/`12000 teams`, `4.9/5 stars`, `3x`, "thousands of", "Over N",
-free-trial/partner claims, unsourced citations, known fake names and ANY `Firstname Lastname, Title` attribution. Structure rules (AST): numeric properties >= 10 in arrays of
-objects (any name outside a layout/config list), empty / toast-only / alert-only / console-only handlers, inert buttons, awaited fixed waits outside polling loops,
-`setInterval` counters, `Math.sin/cos`, literal style/class percentages and `<Progress value={N}>`, `href` of `""`, `#`, `javascript:`, `Math.random`, demo/sample fixtures and flags.
-The allow-list is empty for application code (documentation only skips the numeric rules). `tests/guard-fixtures/*.fixture` are 41 planted fakes/evasions; each must trigger its expected rule.
+**A static guard cannot prove absence of fabricated data.** It catches the patterns that have shipped before and the cheap evasions reviewers have planted; anything
+new, creative or semantic (a plausible-looking invented sentence, a number that arrives from an API field name we do not know) passes it. The main defences are the
+**failure-path e2e specs** (`failures`, `malformed`: no scores, plans or audio appear when a call fails or returns junk) and **human review**. Treat a green guard as a smoke alarm, not a proof.
+
+Scope: `app/ components/ lib/ supabase/functions/ hooks/ emails/ types/ public/ scripts/` plus `middleware.ts`, `mdx-components.tsx`, config files (`.ts .tsx .js .jsx .mjs .mdx .json`).
+`components/ui/**` and `supabase/functions/_shared/schemas.ts` are scanned too (no blanket exclusion).
+
+Content rules (JSX text re-joined so `{98}%` and split lines are seen; string/template literals; JSON string values): percentages, prices, `125.8K`, `12 000`/`12000 teams`,
+`4.9/5`, `★`/`⭐`, `3x`, "ninety-eight percent", "thousands of", "Over N", urgency/live badges ("Only 3 spots left", "Offer ends in", "Online now", "Updated 5 minutes ago",
+"Live: N users active"), lorem ipsum (any case), free-trial/partner claims, unsourced citations, known fake names and ANY `Firstname Lastname, Title`.
+Structure rules (AST): numeric properties >= 10 in arrays of objects, inert buttons (no tab/trigger exemption), empty / toast-only / console-only handlers **including handlers referenced by name**,
+route handlers that answer `{ success: true }` without awaited work, `catch` blocks that return literals/arrays/defaults, `?? 75` / `|| 80` display defaults in JSX, failure ternaries that substitute a digit-bearing literal,
+`alt`/`aria-label` that is a person's name, "trusted by"/partner/client company arrays, `setTimeout` callbacks that set loading=false plus a result, awaited fixed waits (also in loops unless the loop polls),
+`setInterval` counters, `Math.sin/cos`, seeded LCGs, `crypto.getRandomValues`, `Math.random`, `createElement('button')`, `Math.round(0.87 * 100)`, literal style/class percentages and `<Progress value={N}>`, dead hrefs, demo/sample fixtures.
+
+Allow-list (explicit, each entry has a reason the test checks): vendored `public/vendor/**` bundles, mock servers and test tooling under `scripts/`, three random-data uses (record-id suffix, AES-GCM IV, retry jitter),
+one catch that reports a real "unreachable" status, and a documentation exemption from the numeric rules for `app/docs/**` and `.mdx`.
+`tests/guard-fixtures/*.fixture` holds 75+ planted fakes and evasions (the reviewers' snippets included); each must trigger its expected rule.
+
+Other limits stated plainly: the PDF export is plain `a | b | c` text lines in Helvetica (Latin-1; a note is printed when other scripts are present, use Word/Excel for those);
+competitor `marketShare` has one convention everywhere (percent, 0-100).
