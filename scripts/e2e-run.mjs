@@ -48,6 +48,8 @@ for (const spec of specs) {
       env: { ...process.env, OPENAI_BASE_URL: `http://127.0.0.1:${OAI}/v1`, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${SB}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key', SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-key', KEY_ENCRYPTION_SECRET: randomBytes(32).toString('base64') }
     })
   ];
+  const cleanup = () => procs.forEach((p) => { try { p.kill(); } catch {} });
+  process.once('exit', cleanup); process.once('SIGTERM', () => { cleanup(); process.exit(143); }); process.once('SIGINT', () => { cleanup(); process.exit(130); });
   for (let i = 0; i < 60 && !(await up(`http://127.0.0.1:${SB}/__state`) && await up(`http://127.0.0.1:${OAI}/__log`) && await up(`http://127.0.0.1:${APP}/api/models`)); i++) await sleep(1000);
   // warm the server (first requests of a cold production server are slow and made time-sensitive specs flaky)
   for (const route of ['/', '/login', '/sign-up', '/settings', '/dashboard', '/workflows']) await fetch(`http://127.0.0.1:${APP}${route}`).then((r) => r.text()).catch(() => {});
